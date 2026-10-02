@@ -1,0 +1,16 @@
+# Nombres fijos para los puertos de Milo (se instala en el computador de Milo, NO en el contenedor).
+# Ver ./docker/udev/README.md para completar los valores con ./robot.sh puertos
+#
+# Cómo se lee una regla: udev revisa cada dispositivo que se conecta. Si cumple TODAS las
+# condiciones con "==", aplica las acciones:
+#   SUBSYSTEM=="tty"         es un puerto serie
+#   ATTRS{idVendor}          fabricante del chip USB (4 dígitos hex)
+#   ATTRS{idProduct}         modelo del chip USB
+#   ATTRS{serial}            número de serie (distingue dos adaptadores iguales)
+#   SYMLINK+="rplidar"       crea además el nombre /dev/rplidar apuntando a ese puerto
+#   MODE="0666"              cualquier usuario puede leer/escribir el puerto
+#
+# RPLIDAR C1 (adaptador CP2102 de Slamtec)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ATTRS{serial}=="CAMBIAR_SERIAL_LIDAR", SYMLINK+="rplidar", MODE="0666"
+# Adaptador USB-TTL del hoverboard (completar VID/PID/serial con ./robot.sh puertos)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="CAMBIAR_VID", ATTRS{idProduct}=="CAMBIAR_PID", ATTRS{serial}=="CAMBIAR_SERIAL_HOVER", SYMLINK+="hoverboard", MODE="0666"

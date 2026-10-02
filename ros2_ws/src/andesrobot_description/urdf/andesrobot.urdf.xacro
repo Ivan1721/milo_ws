@@ -1,0 +1,731 @@
+<?xml version="1.0" ?>
+<robot name="andesrobot" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+<!-- =============================================================================================
+  MODELO DE MILO (URDF + xacro)
+
+  CÓMO SE LEE UN URDF
+  - <link>  = una pieza rígida del robot (chasis, rueda, eslabón del brazo...). Puede tener:
+      <inertial>  masa, centro de masa (origin) y momentos de inercia (inertia). Lo usa la física
+                  (Gazebo). Los valores vienen exportados del CAD de Fusion.
+      <visual>    cómo se ve: una malla .stl (scale 0.001 porque el CAD está en mm y ROS usa m)
+                  o una forma simple (box, cylinder, sphere).
+      <collision> con qué forma choca. Puede ser distinta del visual (más simple = más estable).
+  - <joint> = la unión entre dos links: padre -> hijo. Tipos que usamos:
+      fixed       pegado, no se mueve (lidar, IMU, columna...)
+      continuous  gira sin límite (ruedas, brazo mientras no se midan sus topes)
+      prismatic   se desliza en línea recta, con límites (lift, dedos)
+    <origin xyz="x y z" rpy="roll pitch yaw"> = dónde queda el hijo respecto al padre
+      (metros y radianes; 3.14159 = 180 grados).
+    <axis> = alrededor de (o a lo largo de) qué eje se mueve.
+  - Todos los links forman un árbol que parte en base_footprint. robot_state_publisher lo
+    convierte en TF (las transformadas entre frames).
+
+  POR QUÉ LOS <visual> TIENEN ORIGIN RAROS (ej. xyz="0.13 0 0.520248")
+  Fusion exporta cada malla en las coordenadas globales del ensamblaje, no centradas en su pieza.
+  El origin del visual/collision corre la malla de vuelta a su lugar dentro del frame del link.
+
+  XACRO (macros sobre URDF; se procesa con el comando "xacro" antes de usarlo)
+  - <xacro:arg name="x" default="..."/>   argumento que se pasa desde afuera:  xacro archivo x:=valor
+  - $(arg x)                              el valor de ese argumento
+  - <xacro:property name="p" value="..."/>  una variable;  ${p} = su valor; ${...} también
+                                          evalúa expresiones de Python (ej. ${a * 2}, ${pi/2})
+  - <xacro:if value="..."> / <xacro:unless value="...">  incluir el contenido solo si es
+                                          verdadero / falso
+  - <xacro:include filename="..."/>       pegar aquí otro archivo .xacro
+  - $(find paquete)                       ruta a la carpeta instalada de ese paquete
+============================================================================================= -->
+
+<!-- Colores (materials) y propiedades físicas para Gazebo (fricción de ruedas). -->
+<xacro:include filename="$(find andesrobot_description)/urdf/andesrobot.materials.xacro" />
+<xacro:include filename="$(find andesrobot_description)/urdf/andesrobot.gazebo.xacro" />
+
+<!-- lock_arm:=true -> brazo, lift y dedos quedan FIXED (simular/mapear sin que el brazo se desplome).
+     Para RViz con sliders: lock_arm:=false (default). -->
+<xacro:arg name="lock_arm" default="false"/>
+<!-- Convertir el texto "true"/"false" del argumento en un verdadero/falso de Python. -->
+<xacro:property name="lock_arm" value="${'$(arg lock_arm)' == 'true'}"/>
+<!-- Tipo de articulación del brazo: fixed si lock_arm, si no continuous (gira) / prismatic (desliza). -->
+<xacro:property name="arm_joint_type" value="${'fixed' if lock_arm else 'continuous'}"/>
+<xacro:property name="prismatic_joint_type" value="${'fixed' if lock_arm else 'prismatic'}"/>
+
+<!-- simple_collision:=true -> la física usa cajas/cilindros en vez de las mallas CAD (estable y rápido en Gazebo).
+     Pensado junto con lock_arm:=true (las colisiones del brazo van como una caja fija en base_link). -->
+<xacro:arg name="simple_collision" default="false"/>
+<xacro:property name="simple_collision" value="${'$(arg simple_collision)' == 'true'}"/>
+<!-- Interruptores de sensores simulados (para depurar). Los usa andesrobot.sim.xacro. -->
+<xacro:arg name="sim_lidar" default="true"/>
+<xacro:arg name="sim_imu" default="true"/>
+<!--
+  Convención REP-103 / REP-105 (estándar de ROS):
+  +X = adelante, +Y = izquierda, +Z = arriba.
+  En Fusion el robot se modeló mirando al revés (girado 180° en Z). Por eso varias piezas
+  llevan rpy="0 0 3.14159" (giro de 180°) en sus joints/visuales: para dejar todo mirando a +X.
+-->
+<!-- base_footprint: punto en el suelo, justo bajo el centro del eje de las ruedas motrices.
+     Es la raíz del árbol y el frame que usan la odometría, el SLAM y el filtro de seguridad.
+     No tiene forma ni masa: es solo un sistema de coordenadas. -->
+<link name="base_footprint"/>
+
+<joint name="base_footprint_joint" type="fixed">
+  <!-- base_link = centro del eje de las ruedas motrices (centro de rotación del diff drive), a la altura del radio de rueda -->
+  <origin xyz="0 0 0.08255" rpy="0 0 0"/>
+  <parent link="base_footprint"/>
+  <child link="base_link"/>
+</joint>
+
+<!-- base_link: el CHASIS (bastidor de aluminio). Su origen está en el centro del eje de ruedas.
+     Explico cada parte una vez aquí; los demás links tienen la misma estructura. -->
+<link name="base_link">
+  <!-- Física: centro de masa (origin), masa en kg e inercia (resistencia a girar) en kg·m². -->
+  <inertial>
+    <origin xyz="0.12174 0 0.110956" rpy="0 0 0"/>
+    <mass value="5.535097434861394"/>
+    <inertia ixx="0.228215" iyy="0.237521" izz="0.368547" ixy="-0.0" iyz="1e-06" ixz="-0.00405"/>
+  </inertial>
+  <!-- Cómo se ve: la malla del CAD, corrida a su lugar (origin) y escalada de mm a m. -->
+  <visual>
+    <origin xyz="0.13 0 0.520248" rpy="0 0 3.141592653589793"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <!-- Color definido en andesrobot.materials.xacro. -->
+    <material name="silver"/>
+  </visual>
+  <!-- Colisión con la malla CAD completa: solo si simple_collision es falso. -->
+  <xacro:unless value="${simple_collision}">
+  <collision>
+    <origin xyz="0.13 0 0.520248" rpy="0 0 3.141592653589793"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+  </xacro:unless>
+  <!-- Colisiones simplificadas (medidas de las mallas, en frame base_link) -->
+  <!-- En simulación (simple_collision:=true) todo el robot choca como estas 5 formas simples,
+       pegadas al chasis (el brazo va fijo). Es mucho más estable para Gazebo que las mallas. -->
+  <xacro:if value="${simple_collision}">
+    <collision name="chasis">
+      <origin xyz="0.13 0 0.115" rpy="0 0 0"/>
+      <geometry><box size="0.50 0.50 0.27"/></geometry>
+    </collision>
+    <collision name="columna">
+      <origin xyz="0 0 0.77" rpy="0 0 0"/>
+      <geometry><box size="0.06 0.06 1.50"/></geometry>
+    </collision>
+    <collision name="rplidar_c1">
+      <origin xyz="0.408 0 0.271" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.028" length="0.042"/></geometry>
+    </collision>
+    <collision name="carro_lift">
+      <origin xyz="0.1225 0 0.789" rpy="0 0 0"/>
+      <geometry><box size="0.185 0.26 0.172"/></geometry>
+    </collision>
+    <collision name="brazo">
+      <origin xyz="0.221 0 1.3045" rpy="0 0 0"/>
+      <geometry><box size="0.308 0.11 0.859"/></geometry>
+    </collision>
+  </xacro:if>
+</link>
+
+<!-- Brazo, eslabón 1: base giratoria del brazo (gira en Z sobre arm_base_link_1). -->
+<link name="link_1_1">
+  <inertial>
+    <origin xyz="-0.01769557352244753 -9.412818198760994e-06 0.06365159642189822" rpy="0 0 0"/>
+    <mass value="0.4335455797309874"/>
+    <inertia ixx="0.00108" iyy="0.001163" izz="0.00117" ixy="-0.0" iyz="0.0" ixz="-6e-05"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.0075 -0.0 -0.3545" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/link_1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <xacro:unless value="${simple_collision}">
+  <collision>
+    <origin xyz="-0.0075 -0.0 -0.3545" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/link_1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+  </xacro:unless>
+</link>
+
+<!-- Brazo, eslabón 2: hombro. -->
+<link name="link_2_1">
+  <inertial>
+    <origin xyz="-0.06117091356976916 3.782915765605535e-05 0.1745118338257844" rpy="0 0 0"/>
+    <mass value="1.337954288424347"/>
+    <inertia ixx="0.026593" iyy="0.026587" izz="0.003039" ixy="-1e-06" iyz="9e-06" ixz="4e-05"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.0575 -0.0 -0.4105" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/link_2_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <xacro:unless value="${simple_collision}">
+  <collision>
+    <origin xyz="0.0575 -0.0 -0.4105" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/link_2_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+  </xacro:unless>
+</link>
+
+<!-- Brazo, eslabón 3: codo. -->
+<link name="link_3_1">
+  <inertial>
+    <origin xyz="0.060349833319215604 -7.17139814212156e-06 0.14917664928098273" rpy="0 0 0"/>
+    <mass value="0.7555537404726129"/>
+    <inertia ixx="0.014049" iyy="0.014249" izz="0.001262" ixy="0.0" iyz="1e-06" ixz="-0.00134"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.058577 -0.0 -0.760577" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/link_3_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <xacro:unless value="${simple_collision}">
+  <collision>
+    <origin xyz="0.058577 -0.0 -0.760577" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/link_3_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+  </xacro:unless>
+</link>
+
+<!-- Brazo, eslabón 4: muñeca (inclinación). -->
+<link name="link_4_1">
+  <inertial>
+    <origin xyz="-0.03758399899740222 -2.5185582457390994e-05 -0.009574293539618806" rpy="0 0 0"/>
+    <mass value="0.22273736647673667"/>
+    <inertia ixx="0.000311" iyy="0.000343" izz="0.000316" ixy="-0.0" iyz="-0.0" ixz="-2.6e-05"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.032577 -0.0 -1.084077" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/link_4_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <xacro:unless value="${simple_collision}">
+  <collision>
+    <origin xyz="0.032577 -0.0 -1.084077" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/link_4_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+  </xacro:unless>
+</link>
+
+<!-- Brazo, eslabón 5: muñeca (giro). -->
+<link name="link_5_1">
+  <inertial>
+    <origin xyz="0.009039834811220046 -2.5441028107860334e-05 0.03771079682664524" rpy="0 0 0"/>
+    <mass value="0.22513890610008"/>
+    <inertia ixx="0.000319" iyy="0.000351" izz="0.000319" ixy="0.0" iyz="0.0" ixz="-2.4e-05"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.082077 -0.0 -1.124077" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/link_5_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <xacro:unless value="${simple_collision}">
+  <collision>
+    <origin xyz="0.082077 -0.0 -1.124077" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/link_5_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+  </xacro:unless>
+</link>
+
+<!-- Brazo, eslabón 6: muñeca final, donde va la pinza. -->
+<link name="link_6_1">
+  <inertial>
+    <origin xyz="-0.04672721914174861 0.0010341455962512703 -4.467579352440687e-05" rpy="0 0 0"/>
+    <mass value="0.7388320393848112"/>
+    <inertia ixx="0.000723" iyy="0.000493" izz="0.000757" ixy="5e-06" iyz="-1e-06" ixz="-1e-06"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.123077 -0.0 -1.173577" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/link_6_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <xacro:unless value="${simple_collision}">
+  <collision>
+    <origin xyz="0.123077 -0.0 -1.173577" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/link_6_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+  </xacro:unless>
+</link>
+
+<!-- Pinza: dedo derecho. -->
+<link name="right_finger_link_1">
+  <inertial>
+    <origin xyz="-0.0246083952902236 0.013356716518430598 -0.007375101628988023" rpy="0 0 0"/>
+    <mass value="0.16542337365750662"/>
+    <inertia ixx="4.2e-05" iyy="6.6e-05" izz="8.3e-05" ixy="1.6e-05" iyz="9e-06" ixz="-1.6e-05"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.180677 0.0038 -1.187077" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/right_finger_link_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <xacro:unless value="${simple_collision}">
+  <collision>
+    <origin xyz="0.180677 0.0038 -1.187077" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/right_finger_link_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+  </xacro:unless>
+</link>
+
+<!-- Pinza: dedo izquierdo. -->
+<link name="left_finger_link_1">
+  <inertial>
+    <origin xyz="-0.024608395290223434 -0.013356716294173003 0.007375804549700549" rpy="0 0 0"/>
+    <mass value="0.16542337365750778"/>
+    <inertia ixx="4.2e-05" iyy="6.6e-05" izz="8.3e-05" ixy="-1.6e-05" iyz="9e-06" ixz="1.6e-05"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.180677 -0.0038 -1.160077" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/left_finger_link_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <xacro:unless value="${simple_collision}">
+  <collision>
+    <origin xyz="0.180677 -0.0038 -1.160077" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/left_finger_link_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+  </xacro:unless>
+</link>
+
+<!-- Carro del elevador: sube y baja por la columna llevando el brazo. -->
+<link name="lift_carriage_link_1">
+  <inertial>
+    <origin xyz="-0.055357142857138136 -1.5546917979023206e-16 0.03714285714285398" rpy="0 0 0"/>
+    <mass value="0.4340700000000337"/>
+    <inertia ixx="0.003177" iyy="0.002312" izz="0.004025" ixy="-0.0" iyz="-0.0" ixz="0.000639"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.1 -0.0 -0.25" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/lift_carriage_link_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <xacro:unless value="${simple_collision}">
+  <collision>
+    <origin xyz="-0.1 -0.0 -0.25" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/lift_carriage_link_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+  </xacro:unless>
+</link>
+
+<!-- Rueda motriz izquierda (rueda de hoverboard 6.5", radio 0.08255 m). -->
+<link name="left_wheel_link_1">
+  <inertial>
+    <origin xyz="-2.7755575615628914e-17 -0.02249983226177152 8.78772389301119e-08" rpy="0 0 0"/>
+    <mass value="1.0211802503121636"/>
+    <inertia ixx="0.001912" iyy="0.003479" izz="0.001912" ixy="-0.0" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.13 0.15775 0.520496" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/left_wheel_link_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <!-- cilindro ideal: r=0.08255, ancho 0.045 (medido de la malla) -->
+    <!-- rpy 1.5708 (90°) en x acuesta el cilindro para que su eje quede a lo ancho, como una rueda. -->
+    <origin xyz="0 -0.0225 0" rpy="1.5707963267948966 0 0"/>
+    <geometry>
+      <cylinder radius="0.08255" length="0.045"/>
+    </geometry>
+  </collision>
+</link>
+
+<!-- Rueda motriz derecha. -->
+<link name="right_wheel_link_1">
+  <inertial>
+    <origin xyz="-2.7755575615628914e-17 0.02249983226177152 0.0" rpy="0 0 0"/>
+    <mass value="1.0211802503121652"/>
+    <inertia ixx="0.001912" iyy="0.003479" izz="0.001912" ixy="0.0" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.13 -0.15775 0.52" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/right_wheel_link_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <!-- cilindro ideal: r=0.08255, ancho 0.045 (medido de la malla) -->
+    <origin xyz="0 0.0225 0" rpy="1.5707963267948966 0 0"/>
+    <geometry>
+      <cylinder radius="0.08255" length="0.045"/>
+    </geometry>
+  </collision>
+</link>
+
+<!-- IMU (acelerómetro + giroscopio). -->
+<link name="imu_link_1">
+  <inertial>
+    <origin xyz="0.0 0.0 -0.007499999999999951" rpy="0 0 0"/>
+    <mass value="0.0183804"/>
+    <inertia ixx="2e-06" iyy="2e-06" izz="4e-06" ixy="0.0" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.0 -0.0 0.5" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/imu_link_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <xacro:unless value="${simple_collision}">
+  <collision>
+    <origin xyz="-0.0 -0.0 0.5" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/imu_link_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+  </xacro:unless>
+</link>
+
+<!-- Rueda loca delantera. En el CAD venía como un "palo"; se modela como caster giratorio.
+     caster_height = montaje -> suelo (del CAD). caster_wheel_radius: MEDIR la rueda real y ajustar. -->
+<xacro:property name="caster_height" value="0.103"/>
+<xacro:property name="caster_wheel_radius" value="0.025"/>
+<xacro:property name="caster_wheel_width" value="0.020"/>
+<link name="front_caster_link_1">
+  <inertial>
+    <origin xyz="0.0 0.0 -0.0515" rpy="0 0 0"/>
+    <mass value="0.07717479433176005"/>
+    <inertia ixx="7.3e-05" iyy="7.3e-05" izz="9e-06" ixy="0.0" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <!-- placa de montaje -->
+  <visual>
+    <origin xyz="0 0 -0.0025" rpy="0 0 0"/>
+    <geometry><box size="0.05 0.05 0.005"/></geometry>
+    <material name="caster_black"/>
+  </visual>
+  <!-- cuerpo / horquilla -->
+  <visual>
+    <origin xyz="0 0 ${-(caster_height - 2*caster_wheel_radius)/2 - 0.0025}" rpy="0 0 0"/>
+    <geometry><cylinder radius="0.012" length="${caster_height - 2*caster_wheel_radius - 0.005}"/></geometry>
+    <material name="caster_black"/>
+  </visual>
+  <!-- rueda -->
+  <visual>
+    <origin xyz="0 0 ${-(caster_height - caster_wheel_radius)}" rpy="${pi/2} 0 0"/>
+    <geometry><cylinder radius="${caster_wheel_radius}" length="${caster_wheel_width}"/></geometry>
+    <material name="caster_black"/>
+  </visual>
+  <!-- colisión: esfera sin fricción (aprox. estándar de rueda loca en Gazebo) -->
+  <collision>
+    <origin xyz="0 0 ${-(caster_height - caster_wheel_radius)}" rpy="0 0 0"/>
+    <geometry><sphere radius="${caster_wheel_radius}"/></geometry>
+  </collision>
+</link>
+
+<!-- Carcasa del RPLIDAR C1. El frame exacto de medición es "laser" (más abajo). -->
+<link name="lidar_link_1">
+  <inertial>
+    <origin xyz="-0.058000000000000024 -1.9721522630525296e-33 0.02065000000000003" rpy="0 0 0"/>
+    <mass value="0.13533355807999994"/>
+    <inertia ixx="5.4e-05" iyy="5.4e-05" izz="7e-05" ixy="0.0" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.22 -0.0 0.27" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/lidar_link_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <xacro:unless value="${simple_collision}">
+  <collision>
+    <origin xyz="0.22 -0.0 0.27" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/lidar_link_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+  </xacro:unless>
+</link>
+
+<!-- Columna vertical (perfil de 1.5 m) por donde sube el carro del elevador. -->
+<link name="vertical_column_link_1">
+  <inertial>
+    <origin xyz="-0.03 0.0 0.75" rpy="0 0 0"/>
+    <mass value="5.724"/>
+    <inertia ixx="1.074967" iyy="1.074967" izz="0.003434" ixy="0.0" iyz="0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.16 -0.0 0.5" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/vertical_column_link_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <xacro:unless value="${simple_collision}">
+  <collision>
+    <origin xyz="-0.16 -0.0 0.5" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/vertical_column_link_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+  </xacro:unless>
+</link>
+
+<!-- Base del brazo, atornillada al carro del elevador. -->
+<link name="arm_base_link_1">
+  <inertial>
+    <origin xyz="4.338687172847182e-05 -0.00010909262325140833 0.017247921655867693" rpy="0 0 0"/>
+    <mass value="0.37739906837185044"/>
+    <inertia ixx="0.000595" iyy="0.000597" izz="0.001109" ixy="-1e-06" iyz="1e-06" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.0075 -0.0 -0.3175" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/arm_base_link_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <xacro:unless value="${simple_collision}">
+  <collision>
+    <origin xyz="-0.0075 -0.0 -0.3175" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/arm_base_link_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+  </xacro:unless>
+</link>
+
+<!-- ================================== ARTICULACIONES (joints) ==================================
+     Las articulaciones del brazo quedan "continuous" (sin topes) SOLO hasta medir los topes físicos.
+     Antes de mover el brazo real (o usar MoveIt), cambiar a "revolute" con límites medidos
+     (lower/upper en rad, velocity, effort). Con lock_arm:=true son "fixed". -->
+<!-- Brazo 1: gira la base del brazo alrededor de Z (vertical). -->
+<joint name="joint_1" type="${arm_joint_type}">
+  <!-- Dónde queda el hijo respecto al padre (aquí 3.7 cm más arriba). -->
+  <origin xyz="0.0 0.0 0.037" rpy="0 0 0"/>
+  <parent link="arm_base_link_1"/>
+  <child link="link_1_1"/>
+  <!-- Eje de giro (0 0 1 = Z). -->
+  <axis xyz="0.0 0.0 1.0"/>
+  <!-- Amortiguación y roce de la articulación (solo para la simulación). -->
+  <dynamics damping="0.08" friction="0.02"/>
+</joint>
+
+<!-- Brazo 2 (hombro): gira alrededor de X. -->
+<joint name="joint_2" type="${arm_joint_type}">
+  <origin xyz="-0.065 0.0 0.056" rpy="0 0 0"/>
+  <parent link="link_1_1"/>
+  <child link="link_2_1"/>
+  <axis xyz="-1.0 0.0 0.0"/>
+  <dynamics damping="0.12" friction="0.03"/>
+</joint>
+
+<!-- Brazo 3 (codo): gira alrededor de X. -->
+<joint name="joint_3" type="${arm_joint_type}">
+  <origin xyz="-0.001077 0.0 0.350077" rpy="0 0 0"/>
+  <parent link="link_2_1"/>
+  <child link="link_3_1"/>
+  <axis xyz="1.0 0.0 0.0"/>
+  <dynamics damping="0.12" friction="0.03"/>
+</joint>
+
+<!-- Brazo 4 (muñeca): gira alrededor de X. -->
+<joint name="joint_4" type="${arm_joint_type}">
+  <origin xyz="0.026 0.0 0.3235" rpy="0 0 0"/>
+  <parent link="link_3_1"/>
+  <child link="link_4_1"/>
+  <axis xyz="-1.0 0.0 0.0"/>
+  <dynamics damping="0.06" friction="0.02"/>
+</joint>
+
+<!-- Brazo 5 (muñeca): gira alrededor de Z. -->
+<joint name="joint_5" type="${arm_joint_type}">
+  <origin xyz="-0.0495 0.0 0.04" rpy="0 0 0"/>
+  <parent link="link_4_1"/>
+  <child link="link_5_1"/>
+  <axis xyz="0.0 0.0 1.0"/>
+  <dynamics damping="0.05" friction="0.02"/>
+</joint>
+
+<!-- Brazo 6 (muñeca): gira alrededor de X. -->
+<joint name="joint_6" type="${arm_joint_type}">
+  <origin xyz="-0.041 0.0 0.0495" rpy="0 0 0"/>
+  <parent link="link_5_1"/>
+  <child link="link_6_1"/>
+  <axis xyz="-1.0 0.0 0.0"/>
+  <dynamics damping="0.05" friction="0.02"/>
+</joint>
+
+<!-- Dedo derecho: se desliza en Y entre -7 mm y +16 mm. -->
+<joint name="right_finger_joint" type="${prismatic_joint_type}">
+  <origin xyz="-0.0576 -0.0038 0.0135" rpy="0 0 0"/>
+  <parent link="link_6_1"/>
+  <child link="right_finger_link_1"/>
+  <axis xyz="0.0 1.0 0.0"/>
+  <limit upper="0.016" lower="-0.007" effort="30" velocity="0.05"/>
+</joint>
+
+<!-- Dedo izquierdo: se desliza en Y; "mimic" lo hace copiar al derecho con signo opuesto (la pinza cierra simétrica). -->
+<joint name="left_finger_joint" type="${prismatic_joint_type}">
+  <origin xyz="-0.0576 0.0038 -0.0135" rpy="0 0 0"/>
+  <parent link="link_6_1"/>
+  <child link="left_finger_link_1"/>
+  <axis xyz="0.0 1.0 0.0"/>
+  <xacro:unless value="${lock_arm}"><mimic joint="right_finger_joint" multiplier="-1.0" offset="0.0"/></xacro:unless>
+  <limit upper="0.007" lower="-0.016" effort="30" velocity="0.05"/>
+</joint>
+
+<!-- Elevador: el carro sube/baja en Z por la columna, de -0.4 m a +0.6 m. -->
+<joint name="vertical_lift_joint" type="${prismatic_joint_type}">
+  <origin xyz="-0.06 0.0 0.75" rpy="0 0 0"/>
+  <parent link="vertical_column_link_1"/>
+  <child link="lift_carriage_link_1"/>
+  <axis xyz="0.0 0.0 1.0"/>
+  <dynamics damping="5.0" friction="2.0"/>
+  <!-- Límites: recorrido en m (lower/upper), fuerza máx. en N (effort), velocidad máx. en m/s. -->
+  <limit upper="0.6" lower="-0.4" effort="150" velocity="0.20"/>
+</joint>
+
+<!-- Rueda izquierda: gira sin límite. Este nombre lo usan el diff drive simulado y ros2_control. -->
+<joint name="left_wheel_joint" type="continuous">
+  <origin xyz="0 0.15775 0" rpy="0 0 3.141592653589793"/>
+  <parent link="base_link"/>
+  <child link="left_wheel_link_1"/>
+  <axis xyz="0.0 -1.0 0.0"/>
+  <dynamics damping="0.02" friction="0.0"/>
+</joint>
+<!-- Las dos ruedas: joint con rpy yaw 180° y eje -Y. Girado 180°, el eje -Y queda como +Y:
+     velocidad positiva = rueda avanza hacia +X (adelante). -->
+
+<!-- Rueda derecha. -->
+<joint name="right_wheel_joint" type="continuous">
+  <origin xyz="0 -0.15775 0" rpy="0 0 3.141592653589793"/>
+  <parent link="base_link"/>
+  <child link="right_wheel_link_1"/>
+  <axis xyz="0.0 -1.0 0.0"/>
+  <dynamics damping="0.02" friction="0.0"/>
+</joint>
+
+<!-- IMU pegada al chasis. -->
+<joint name="imu_joint" type="fixed">
+  <origin xyz="0.13 0 0.020248" rpy="0 0 3.141592653589793"/>
+  <parent link="base_link"/>
+  <child link="imu_link_1"/>
+</joint>
+
+<!-- Rueda loca pegada al chasis, 0.35 m delante del eje. -->
+<joint name="front_caster_joint" type="fixed">
+  <origin xyz="0.35 0 0.020248" rpy="0 0 3.141592653589793"/>
+  <parent link="base_link"/>
+  <child link="front_caster_link_1"/>
+</joint>
+
+<!-- Carcasa del lidar pegada al chasis, al frente. -->
+<joint name="lidar_joint" type="fixed">
+  <origin xyz="0.35 0 0.250248" rpy="0 0 3.141592653589793"/>
+  <parent link="base_link"/>
+  <child link="lidar_link_1"/>
+</joint>
+
+<!-- Columna pegada al chasis, sobre el eje de las ruedas. -->
+<joint name="base_to_vertical_column_joint" type="fixed">
+  <origin xyz="-0.03 0 0.020248" rpy="0 0 3.141592653589793"/>
+  <parent link="base_link"/>
+  <child link="vertical_column_link_1"/>
+</joint>
+
+<!-- Base del brazo pegada al carro del elevador. -->
+<joint name="carriage_to_arm_joint" type="fixed">
+  <origin xyz="-0.0925 0.0 0.0675" rpy="0 0 0"/>
+  <parent link="lift_carriage_link_1"/>
+  <child link="arm_base_link_1"/>
+</joint>
+
+<!-- RPLIDAR C1: plano de escaneo ~30 mm sobre la base del sensor, centro del sensor a x=-0.058 en lidar_link_1.
+     lidar_link_1 está girado 180° (CAD al revés), por eso yaw=pi aquí: el frame "laser" queda mirando +X del robot.
+     Nombre "laser" = frame_id por defecto del driver rplidar_ros, así sirve igual en el robot real
+     (en el real ajusta el yaw según cómo quede montado el conector del C1). -->
+<link name="laser">
+  <!-- masa mínima para que Gazebo Classic no descarte el link -->
+  <inertial>
+    <mass value="0.001"/>
+    <inertia ixx="1e-6" iyy="1e-6" izz="1e-6" ixy="0" ixz="0" iyz="0"/>
+  </inertial>
+</link>
+<joint name="laser_joint" type="fixed">
+  <origin xyz="-0.058 0.0 0.030" rpy="0 0 3.141592653589793"/>
+  <parent link="lidar_link_1"/>
+  <child link="laser"/>
+</joint>
+
+
+<!-- Lastre / baterías en el piso del chasis. Baja el centro de masa (sin esto el robot se vuelca:
+     COM a 0.69 m). Con 12 kg: COM a 0.45 m, aguanta ~2.3 m/s² lateral y ~2.7 m/s² al frenar.
+     Ajustar ballast_mass al peso REAL de baterías + electrónica cuando se conozca. -->
+<xacro:property name="ballast_mass" value="12.0"/>
+<xacro:property name="ballast_size_x" value="0.25"/>
+<xacro:property name="ballast_size_y" value="0.30"/>
+<xacro:property name="ballast_size_z" value="0.04"/>
+<link name="ballast_link">
+  <inertial>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <mass value="${ballast_mass}"/>
+    <inertia ixx="${ballast_mass/12*(ballast_size_y**2 + ballast_size_z**2)}" ixy="0" ixz="0"
+             iyy="${ballast_mass/12*(ballast_size_x**2 + ballast_size_z**2)}" iyz="0"
+             izz="${ballast_mass/12*(ballast_size_x**2 + ballast_size_y**2)}"/>
+  </inertial>
+  <visual>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry><box size="${ballast_size_x} ${ballast_size_y} ${ballast_size_z}"/></geometry>
+    <material name="caster_black"/>
+  </visual>
+</link>
+<joint name="ballast_joint" type="fixed">
+  <!-- x=0.17 adelante del eje, apoyado a 0.065 m del suelo (dentro del chasis) -->
+  <origin xyz="0.17 0 ${0.085 - 0.08255}" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="ballast_link"/>
+</joint>
+
+<!-- Simulación (Gazebo): lidar, diff drive, IMU, joint states. Va al final porque usa lock_arm. -->
+<!-- (Las etiquetas <gazebo> solo las lee Gazebo; en el robot real se ignoran.) -->
+<xacro:include filename="$(find andesrobot_description)/urdf/andesrobot.sim.xacro" />
+
+<!-- Milo físico: ros2_control con el hoverboard -->
+<!-- Solo con use_hardware:=true (robot.launch.py). Agrega el bloque <ros2_control> que le dice al
+     controller_manager qué driver cargar y qué ruedas maneja. hoverboard_port = puerto serie. -->
+<xacro:arg name="use_hardware" default="false"/>
+<xacro:arg name="hoverboard_port" default="/dev/hoverboard"/>
+<xacro:if value="$(arg use_hardware)">
+  <xacro:include filename="$(find andesrobot_description)/urdf/andesrobot.ros2_control.xacro" />
+</xacro:if>
+
+</robot>

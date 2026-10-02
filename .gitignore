@@ -1,0 +1,9 @@
+# Archivos que git NO debe guardar: se generan al compilar (colcon build) y se pueden rehacer.
+# build/    archivos intermedios de compilación
+# install/  lo compilado y listo para usar (lo que carga "source install/setup.bash")
+# log/      registros de cada compilación
+# __pycache__/  caché de Python (.pyc)
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+__pycache__/

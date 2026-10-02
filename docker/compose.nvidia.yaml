@@ -1,0 +1,20 @@
+# GPU NVIDIA (requiere nvidia-container-toolkit en el host)
+# Se suma encima de compose.yaml solo si lib.sh detecta NVIDIA (nvidia-smi + runtime en Docker).
+services:
+  ros:
+    environment:
+      # Qué GPUs ve el contenedor (todas).
+      - NVIDIA_VISIBLE_DEVICES=all
+      # Qué capacidades: cómputo, video y gráficos (OpenGL). "all" = todas.
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      # En laptops con 2 GPUs (Intel + NVIDIA): pedir que OpenGL dibuje con la NVIDIA.
+      - __NV_PRIME_RENDER_OFFLOAD=1
+      - __GLX_VENDOR_LIBRARY_NAME=nvidia
+    # Reservar las GPUs NVIDIA para este contenedor (sintaxis de compose para GPUs).
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

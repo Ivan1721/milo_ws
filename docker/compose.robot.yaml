@@ -1,0 +1,11 @@
+# Milo físico: acceso a los puertos USB (hoverboard y RPLIDAR C1)
+#   ./robot.sh
+# Se suma encima de compose.yaml cuando corres ./robot.sh.
+services:
+  ros:
+    # Modo privilegiado: el contenedor puede usar cualquier dispositivo del computador.
+    # Necesario porque los USB se pueden desconectar/reconectar y cambiar de nombre.
+    privileged: true
+    volumes:
+      # Todos los dispositivos (/dev/ttyUSB0, /dev/rplidar, /dev/hoverboard...) visibles adentro.
+      - /dev:/dev

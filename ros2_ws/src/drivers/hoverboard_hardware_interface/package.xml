@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+
+<?xml-model
+  href="http://download.ros.org/schema/package_format3.xsd"
+  schematypens="http://www.w3.org/2001/XMLSchema"?>
+
+<package format="3">
+
+  <!-- package.xml: ficha del paquete (nombre, versión, quién lo mantiene, dependencias). -->
+  <name>hoverboard_hardware_interface</name>
+
+  <version>0.1.0</version>
+
+  <description>
+    ros2_control hardware interface de las ruedas de Milo (hoverboard, firmware hack-FOC por USART).
+    Basado en DataBot-Labs/hoverboard_ros2_control (Robert Gruberski), con la calibración de Milo.
+  </description>
+
+  <maintainer email="m.pinzonfarfan@uandresbello.edu">Aleja</maintainer>
+
+  <license>Apache-2.0</license>
+
+  <!-- Herramientas para compilar: ament_cmake (paquete C++ de ROS 2). -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_auto</buildtool_depend>
+
+  <!-- Dependencias para compilar y ejecutar: ros2_control, pluginlib, ROS 2 en C++, Boost. -->
+  <depend>hardware_interface</depend>
+  <depend>pluginlib</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_lifecycle</depend>
+
+  <depend>libboost-system-dev</depend>
+
+  <!-- Solo para tests de estilo. -->
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <!-- build_type ament_cmake = se compila con CMakeLists.txt. -->
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+
+</package>

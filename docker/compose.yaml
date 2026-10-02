@@ -1,0 +1,52 @@
+# docker compose: describe CÓMO correr el contenedor (la imagen la describe el Dockerfile).
+# Este es el archivo base; compose.nvidia.yaml y compose.robot.yaml se le suman encima
+# (lib.sh decide cuáles según el PC y el modo).
+# ${VAR:-valor} = usa la variable de tu terminal (las exporta lib.sh) o "valor" si no existe.
+
+# Nombre del proyecto (se usa para nombrar redes/volúmenes).
+name: milo
+services:
+  # Un solo servicio llamado "ros": es el que usan los scripts con "docker compose exec ros ...".
+  ros:
+    build:
+      # Construir con el Dockerfile de esta misma carpeta (docker/).
+      context: .
+      args:
+        # Tu UID/GID para crear el usuario "ros" igual a ti dentro del contenedor.
+        USER_UID: ${UID:-1000}
+        USER_GID: ${GID:-1000}
+    # Nombre de la imagen construida y del contenedor.
+    image: milo:humble
+    container_name: milo
+    # Red del host: el contenedor usa la red del PC tal cual. ROS 2 (DDS) descubre otros nodos
+    # por la red, así RViz en tu PC puede ver los topics de Milo físico.
+    network_mode: host
+    # Memoria compartida del host (ROS 2 la usa para mensajes grandes entre procesos).
+    ipc: host
+    # Variables de entorno dentro del contenedor:
+    environment:
+      # Pantalla donde se dibujan las ventanas (la de tu PC).
+      - DISPLAY=${DISPLAY}
+      # Evita un error de Qt con memoria compartida de X11 en contenedores.
+      - QT_X11_NO_MITSHM=1
+      - QT_QPA_PLATFORM=xcb          # Qt por X11 (XWayland en Ubuntu 26.04)
+      - LIBGL_ALWAYS_SOFTWARE=${MILO_SOFTWARE_GL:-0}   # 1 = render por CPU (./sim.sh software)
+      # "Canal" de ROS 2: solo se ven los nodos con el mismo número (útil si hay varios robots en la red).
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+    # Carpetas compartidas  PC:contenedor
+    volumes:
+      # Socket de X11: por aquí el contenedor dibuja ventanas en tu pantalla.
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ../ros2_ws:/ros2_ws:rw       # tu workspace, editable desde el host
+      # Caché de modelos de Gazebo, guardada en un volumen de Docker para no descargarla cada vez.
+      - gazebo_cache:/home/ros/.gazebo
+    # Dispositivos: /dev/dri = la GPU (Intel/AMD) para OpenGL acelerado.
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:                       # acceso a la GPU (/dev/dri es de los grupos video y render del host)
+      - "${MILO_VIDEO_GID:-44}"
+      - "${MILO_RENDER_GID:-20}"
+
+# Volumen con nombre (vive en Docker, sobrevive a "./sim.sh stop").
+volumes:
+  gazebo_cache:

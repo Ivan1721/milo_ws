@@ -1,0 +1,19 @@
+# Filtro de seguridad de Milo (sim y robot real)
+# Los lee safety_filter.py al arrancar (declare_parameter / get_parameter).
+# Para cambiarlos: editar aquí, "cb" dentro del contenedor y volver a lanzar.
+safety_filter:
+  ros__parameters:
+    stop_distance: 0.30       # [m] no se acerca más que esto (desde el borde del robot)
+    slow_distance: 0.70       # [m] desde aquí empieza a frenar
+    side_margin: 0.10         # [m] holgura a cada lado del corredor
+    rotation_clearance: 0.15  # [m] holgura para girar en el lugar
+    max_linear: 0.4           # [m/s]
+    max_angular: 1.0          # [rad/s]
+    # Caja del robot en base_footprint (medida de las mallas)
+    # x: desde 12 cm detrás del eje de ruedas hasta 44 cm delante (punta del lidar).
+    # y: 25 cm a cada lado. Fuera de esta caja empieza "el mundo".
+    footprint_x_min: -0.12
+    footprint_x_max: 0.44
+    footprint_half_width: 0.25
+    scan_timeout: 0.5         # [s] sin lidar -> se detiene
+    cmd_timeout: 0.0          # [s] 0 = mantiene el último comando (teleop teclado)

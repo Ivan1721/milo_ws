@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<!-- package.xml: "ficha" del paquete ROS. colcon lo lee para saber el nombre, quién lo
+     mantiene y de qué otros paquetes depende (y en qué orden compilar). -->
+<package format="3">
+  <!-- Nombre, versión y descripción. -->
+  <name>andesrobot_safety</name>
+  <version>0.1.0</version>
+  <description>Filtro de seguridad de Milo: frena antes de obstáculos usando el lidar (sim y robot real).</description>
+  <!-- Quién lo mantiene. -->
+  <maintainer email="m.pinzonfarfan@uandresbello.edu">Aleja</maintainer>
+  <!-- Licencia del código. -->
+  <license>Apache-2.0</license>
+
+  <!-- exec_depend = paquetes que tienen que estar instalados para EJECUTAR este
+       (rosdep los puede instalar; aquí ya vienen en la imagen Docker). -->
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <!-- test_depend = solo para correr los tests. -->
+  <test_depend>python3-pytest</test_depend>
+
+  <!-- build_type: ament_python = paquete Python (se instala con setup.py). -->
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

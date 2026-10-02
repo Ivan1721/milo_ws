@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<!-- package.xml: "ficha" del paquete ROS. colcon lo lee para saber el nombre, quién lo
+     mantiene y de qué otros paquetes depende (y en qué orden compilar). -->
+<package format="3">
+  <!-- Nombre, versión y descripción. -->
+  <name>andesrobot_description</name>
+  <version>0.1.0</version>
+  <description>Modelo URDF/xacro del robot AndesRobot (base diferencial, columna elevadora, brazo 6DOF, RPLIDAR C1, IMU).</description>
+  <!-- Quién lo mantiene. -->
+  <maintainer email="m.pinzonfarfan@uandresbello.edu">Aleja</maintainer>
+  <!-- Licencia del código. -->
+  <license>Apache-2.0</license>
+
+  <!-- exec_depend = paquetes que tienen que estar instalados para EJECUTAR este
+       (rosdep los puede instalar; aquí ya vienen en la imagen Docker). -->
+  <exec_depend>xacro</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>joint_state_publisher</exec_depend>
+  <exec_depend>joint_state_publisher_gui</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>rviz_default_plugins</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
+  <!-- build_type: ament_python = paquete Python (se instala con setup.py). -->
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

@@ -1,0 +1,148 @@
+<?xml version="1.0" ?>
+<!-- Plugins de simulación AndesRobot (Gazebo Classic 11 / ROS 2 Humble). Fuera de Gazebo se ignoran.
+     Topics: /scan (LaserScan), /cmd_vel (Twist, entrada), /odom, /imu, /joint_states. TF: odom -> base_footprint -->
+<robot name="andesrobot" xmlns:xacro="http://www.ros.org/wiki/xacro">
+<!-- Un "plugin" de Gazebo es código que corre dentro de la simulación y conecta Gazebo con ROS:
+     lee sensores simulados y publica topics, o recibe comandos y mueve articulaciones.
+     <gazebo reference="link"> = esto va pegado a ese link. <gazebo> sin reference = todo el robot. -->
+
+<!-- ======================= RPLIDAR C1 =======================
+     Specs (datasheet Slamtec C1): 360°, 5 kHz muestreo, ~10 Hz, resolución 0.72°,
+     rango 0.05–12 m (blanco), precisión ~±30 mm  ->  500 muestras/vuelta @ 10 Hz -->
+<!-- Solo si sim_lidar es true (sim.launch.py lidar:=false lo apaga). -->
+<xacro:if value="$(arg sim_lidar)">
+<!-- El sensor va en el frame "laser" (centro óptico del C1). -->
+<gazebo reference="laser">
+  <!-- type="ray" = lidar que lanza rayos y mide la distancia al primer objeto que tocan. -->
+  <sensor type="ray" name="rplidar_c1">
+    <!-- Sin desplazamiento extra respecto al frame laser. -->
+    <pose>0 0 0 0 0 0</pose>
+    <!-- Siempre encendido; visualize = dibuja los rayos azules en la ventana de Gazebo. -->
+    <always_on>true</always_on>
+    <visualize>true</visualize>
+    <!-- 10 vueltas por segundo (10 Hz), como el C1 real. -->
+    <update_rate>10</update_rate>
+    <ray>
+      <scan>
+        <horizontal>
+          <!-- 500 rayos por vuelta = 360°/500 = 0.72° entre rayos. -->
+          <samples>500</samples>
+          <resolution>1</resolution>
+          <!-- De -180° a +180°: vuelta completa. -->
+          <min_angle>-3.14159265</min_angle>
+          <max_angle>3.14159265</max_angle>
+        </horizontal>
+      </scan>
+      <!-- Distancias: mínima 5 cm, máxima 12 m, redondeadas a 1 cm. -->
+      <range>
+        <min>0.05</min>
+        <max>12.0</max>
+        <resolution>0.01</resolution>
+      </range>
+      <!-- Ruido: a cada medida se le suma un error aleatorio de desviación 1.2 cm
+           (el C1 real tiene ±3 cm), para que la sim no sea irrealmente perfecta. -->
+      <noise>
+        <type>gaussian</type>
+        <mean>0.0</mean>
+        <stddev>0.012</stddev>
+      </noise>
+    </ray>
+    <!-- Plugin que publica las medidas en ROS. Su salida "~/out" se renombra a /scan. -->
+    <plugin name="rplidar_c1_driver" filename="libgazebo_ros_ray_sensor.so">
+      <ros>
+        <remapping>~/out:=scan</remapping>
+      </ros>
+      <!-- Tipo de mensaje (LaserScan, igual que el driver real) y frame. -->
+      <output_type>sensor_msgs/LaserScan</output_type>
+      <frame_name>laser</frame_name>
+    </plugin>
+  </sensor>
+</gazebo>
+</xacro:if>
+
+<!-- ======================= IMU ======================= -->
+<!-- Solo si sim_imu es true. -->
+<xacro:if value="$(arg sim_imu)">
+<gazebo reference="imu_link_1">
+  <sensor name="imu_sensor" type="imu">
+    <always_on>true</always_on>
+    <!-- 100 mediciones por segundo. -->
+    <update_rate>100</update_rate>
+    <visualize>false</visualize>
+    <!-- Ruido gaussiano en la velocidad de giro (rad/s) y en la aceleración (m/s²), por eje. -->
+    <imu>
+      <angular_velocity>
+        <x><noise type="gaussian"><mean>0</mean><stddev>2e-4</stddev></noise></x>
+        <y><noise type="gaussian"><mean>0</mean><stddev>2e-4</stddev></noise></y>
+        <z><noise type="gaussian"><mean>0</mean><stddev>2e-4</stddev></noise></z>
+      </angular_velocity>
+      <linear_acceleration>
+        <x><noise type="gaussian"><mean>0</mean><stddev>1.7e-2</stddev></noise></x>
+        <y><noise type="gaussian"><mean>0</mean><stddev>1.7e-2</stddev></noise></y>
+        <z><noise type="gaussian"><mean>0</mean><stddev>1.7e-2</stddev></noise></z>
+      </linear_acceleration>
+    </imu>
+    <!-- Publica en /imu (sensor_msgs/Imu). -->
+    <plugin name="imu_plugin" filename="libgazebo_ros_imu_sensor.so">
+      <ros>
+        <remapping>~/out:=imu</remapping>
+      </ros>
+      <!-- false = orientación absoluta (no toma la pose inicial como cero). -->
+      <initial_orientation_as_reference>false</initial_orientation_as_reference>
+      <frame_name>imu_link_1</frame_name>
+    </plugin>
+  </sensor>
+</gazebo>
+</xacro:if>
+
+<!-- ======================= Diff drive =======================
+     Ruedas: diámetro 0.1651 m. Separación CENTRO a CENTRO = 0.3604 m
+     (medida en las mallas; 0.3155 es la distancia entre las caras interiores / orígenes de los joints).
+     Este plugin hace en la sim lo mismo que el diff_drive_controller + hoverboard en el robot real:
+     escucha /cmd_vel (velocidad del robot), mueve cada rueda, y publica la odometría. -->
+<gazebo>
+  <plugin name="diff_drive" filename="libgazebo_ros_diff_drive.so">
+    <!-- 50 veces por segundo; nombres de los joints de las ruedas en el URDF. -->
+    <update_rate>50</update_rate>
+    <left_joint>left_wheel_joint</left_joint>
+    <right_joint>right_wheel_joint</right_joint>
+    <wheel_separation>0.3604</wheel_separation>
+    <wheel_diameter>0.1651</wheel_diameter>
+    <!-- Torque por rueda. Con 20 N·m (40 total) superaba el momento del peso sobre el eje
+         (~37 N·m) y el robot hacía "caballito" y se volcaba. 5 N·m sobra para 0.8 m/s² (~1 N·m). -->
+    <max_wheel_torque>5</max_wheel_torque>
+    <!-- límite bajo el umbral de vuelco (~2.3 m/s²) -->
+    <max_wheel_acceleration>0.8</max_wheel_acceleration>
+    <!-- Publicar /odom y la TF odom -> base_footprint (la usa slam_toolbox).
+         No publicar TF de ruedas: eso lo hace robot_state_publisher con /joint_states. -->
+    <publish_odom>true</publish_odom>
+    <publish_odom_tf>true</publish_odom_tf>
+    <publish_wheel_tf>false</publish_wheel_tf>
+    <odometry_frame>odom</odometry_frame>
+    <robot_base_frame>base_footprint</robot_base_frame>
+  </plugin>
+</gazebo>
+
+<!-- ======================= /joint_states desde Gazebo ======================= -->
+<!-- Publica el ángulo de las articulaciones simuladas en /joint_states (30 Hz), para que
+     robot_state_publisher dibuje las ruedas girando. Las del brazo solo si no está bloqueado. -->
+<gazebo>
+  <plugin name="joint_states" filename="libgazebo_ros_joint_state_publisher.so">
+    <update_rate>30</update_rate>
+    <joint_name>left_wheel_joint</joint_name>
+    <joint_name>right_wheel_joint</joint_name>
+    <xacro:unless value="${lock_arm}">
+      <joint_name>joint_1</joint_name>
+      <joint_name>joint_2</joint_name>
+      <joint_name>joint_3</joint_name>
+      <joint_name>joint_4</joint_name>
+      <joint_name>joint_5</joint_name>
+      <joint_name>joint_6</joint_name>
+      <joint_name>right_finger_joint</joint_name>
+      <joint_name>left_finger_joint</joint_name>
+      <joint_name>vertical_lift_joint</joint_name>
+    </xacro:unless>
+  </plugin>
+</gazebo>
+
+</robot>

@@ -1,0 +1,374 @@
+<?xml version="1.0"?>
+<!-- AndesRobot — arena de mapeo v2 (Gazebo Classic 11), 24 x 18 m.
+     Zonas: hall central, oficina, bodega (3 pasillos), zona colapsada (escombros), zona de pilares.
+     Diseño verificado para Milo + filtro de seguridad:
+       - puertas >= 2.2 m, pasos con >= 1.4 m libres (Milo gira en el lugar en todo el recorrido)
+       - todos los obstáculos >= 0.5 m de alto (el RPLIDAR C1 escanea a 0.36 m)
+     Spawn: (0, 0), mirando +X. -->
+<!-- Formato SDF (el de Gazebo para mundos). Mapa de la arena con recorrido sugerido:
+     andesrobot_arena.png en esta misma carpeta. Coordenadas en metros; (0,0) = centro. -->
+<sdf version="1.6">
+  <world name="andesrobot_arena">
+    <!-- Luz y suelo: modelos que trae Gazebo. -->
+    <include><uri>model://sun</uri></include>
+    <include><uri>model://ground_plane</uri></include>
+    <!-- Motor de física ODE: pasos de 1 ms, 1000 pasos por segundo = tiempo real (factor 1). -->
+    <physics type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+    <!-- Sin sombras (más liviano para la GPU). -->
+    <scene><shadows>false</shadows></scene>
+    <!-- Cámara inicial de la ventana de Gazebo: arriba y al sur, mirando la arena entera. -->
+    <gui><camera name="user_camera"><pose>0 -20 22 0 0.85 1.5708</pose></camera></gui>
+    <!-- CÓMO ESTÁ HECHO CADA OBJETO (todos siguen este patrón):
+         <model name="...">          un objeto
+           <static>true</static>     no se mueve ni cae (no lo empuja la física)
+           <pose>x y z r p yaw</pose> posición del centro (z = mitad de la altura, así toca el suelo)
+                                     y giro yaw en radianes
+           <collision>               forma con la que choca (y la que ve el lidar)
+           <visual>                  forma que se ve (la misma), con su color (ambient/diffuse RGBA)
+         Formas: <box><size>largo ancho alto</size>  o  <cylinder> radio + alto (length). -->
+    <!-- MUROS (1.5 m de alto, 15 cm de grosor). 00-03 = perímetro de 24 x 18 m; el resto divide las zonas
+         dejando puertas de 2.2 m. -->
+    <model name="muro_00">
+      <static>true</static>
+      <pose>0.000 -9.000 0.750 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>24.150 0.15 1.5</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>24.150 0.15 1.5</size></box></geometry>
+          <material><ambient>0.78 0.76 0.72 1</ambient><diffuse>0.78 0.76 0.72 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="muro_01">
+      <static>true</static>
+      <pose>0.000 9.000 0.750 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>24.150 0.15 1.5</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>24.150 0.15 1.5</size></box></geometry>
+          <material><ambient>0.78 0.76 0.72 1</ambient><diffuse>0.78 0.76 0.72 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="muro_02">
+      <static>true</static>
+      <pose>-12.000 0.000 0.750 0 0 1.5708</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>18.150 0.15 1.5</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>18.150 0.15 1.5</size></box></geometry>
+          <material><ambient>0.78 0.76 0.72 1</ambient><diffuse>0.78 0.76 0.72 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="muro_03">
+      <static>true</static>
+      <pose>12.000 0.000 0.750 0 0 1.5708</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>18.150 0.15 1.5</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>18.150 0.15 1.5</size></box></geometry>
+          <material><ambient>0.78 0.76 0.72 1</ambient><diffuse>0.78 0.76 0.72 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="muro_04">
+      <static>true</static>
+      <pose>-4.000 -5.050 0.750 0 0 1.5708</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>8.050 0.15 1.5</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>8.050 0.15 1.5</size></box></geometry>
+          <material><ambient>0.78 0.76 0.72 1</ambient><diffuse>0.78 0.76 0.72 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="muro_05">
+      <static>true</static>
+      <pose>-4.000 5.050 0.750 0 0 1.5708</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>8.050 0.15 1.5</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>8.050 0.15 1.5</size></box></geometry>
+          <material><ambient>0.78 0.76 0.72 1</ambient><diffuse>0.78 0.76 0.72 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="muro_06">
+      <static>true</static>
+      <pose>-10.550 2.000 0.750 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>3.050 0.15 1.5</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>3.050 0.15 1.5</size></box></geometry>
+          <material><ambient>0.78 0.76 0.72 1</ambient><diffuse>0.78 0.76 0.72 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="muro_07">
+      <static>true</static>
+      <pose>-5.450 2.000 0.750 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>3.050 0.15 1.5</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>3.050 0.15 1.5</size></box></geometry>
+          <material><ambient>0.78 0.76 0.72 1</ambient><diffuse>0.78 0.76 0.72 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="muro_08">
+      <static>true</static>
+      <pose>4.000 6.100 0.750 0 0 -1.5708</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>5.950 0.15 1.5</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>5.950 0.15 1.5</size></box></geometry>
+          <material><ambient>0.78 0.76 0.72 1</ambient><diffuse>0.78 0.76 0.72 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="muro_09">
+      <static>true</static>
+      <pose>4.000 -4.000 0.750 0 0 -1.5708</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>10.150 0.15 1.5</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>10.150 0.15 1.5</size></box></geometry>
+          <material><ambient>0.78 0.76 0.72 1</ambient><diffuse>0.78 0.76 0.72 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="muro_10">
+      <static>true</static>
+      <pose>5.500 -2.000 0.750 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>3.150 0.15 1.5</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>3.150 0.15 1.5</size></box></geometry>
+          <material><ambient>0.78 0.76 0.72 1</ambient><diffuse>0.78 0.76 0.72 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="muro_11">
+      <static>true</static>
+      <pose>10.600 -2.000 0.750 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>2.950 0.15 1.5</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>2.950 0.15 1.5</size></box></geometry>
+          <material><ambient>0.78 0.76 0.72 1</ambient><diffuse>0.78 0.76 0.72 1</diffuse></material></visual>
+      </link>
+    </model>
+    <!-- HALL CENTRAL (x de -4 a 4): 2 pilares, una barrera en L y un auto volcado. -->
+    <model name="pilar_hall_1">
+      <static>true</static>
+      <pose>-1.800 4.600 0.750 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><cylinder><radius>0.35</radius><length>1.5</length></cylinder></geometry></collision>
+        <visual name="visual"><geometry><cylinder><radius>0.35</radius><length>1.5</length></cylinder></geometry>
+          <material><ambient>0.35 0.38 0.45 1</ambient><diffuse>0.35 0.38 0.45 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="pilar_hall_2">
+      <static>true</static>
+      <pose>1.800 -4.600 0.750 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><cylinder><radius>0.35</radius><length>1.5</length></cylinder></geometry></collision>
+        <visual name="visual"><geometry><cylinder><radius>0.35</radius><length>1.5</length></cylinder></geometry>
+          <material><ambient>0.35 0.38 0.45 1</ambient><diffuse>0.35 0.38 0.45 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="barrera_L_a">
+      <static>true</static>
+      <pose>1.600 3.600 0.500 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>2.0 0.3 1.0</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>2.0 0.3 1.0</size></box></geometry>
+          <material><ambient>0.55 0.42 0.30 1</ambient><diffuse>0.55 0.42 0.30 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="barrera_L_b">
+      <static>true</static>
+      <pose>2.450 4.800 0.500 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>0.3 2.1 1.0</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>0.3 2.1 1.0</size></box></geometry>
+          <material><ambient>0.55 0.42 0.30 1</ambient><diffuse>0.55 0.42 0.30 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="auto_volcado">
+      <static>true</static>
+      <pose>-1.600 -4.400 0.450 0 0 0.3500</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>2.2 1.2 0.9</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>2.2 1.2 0.9</size></box></geometry>
+          <material><ambient>0.55 0.42 0.30 1</ambient><diffuse>0.55 0.42 0.30 1</diffuse></material></visual>
+      </link>
+    </model>
+    <!-- OFICINA (arriba a la izquierda): 4 escritorios y un estante contra el muro. -->
+    <model name="escritorio_1">
+      <static>true</static>
+      <pose>-10.200 6.800 0.375 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>1.6 0.8 0.75</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>1.6 0.8 0.75</size></box></geometry>
+          <material><ambient>0.55 0.42 0.30 1</ambient><diffuse>0.55 0.42 0.30 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="escritorio_2">
+      <static>true</static>
+      <pose>-6.400 6.800 0.375 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>1.6 0.8 0.75</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>1.6 0.8 0.75</size></box></geometry>
+          <material><ambient>0.55 0.42 0.30 1</ambient><diffuse>0.55 0.42 0.30 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="escritorio_3">
+      <static>true</static>
+      <pose>-10.200 4.000 0.375 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>1.6 0.8 0.75</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>1.6 0.8 0.75</size></box></geometry>
+          <material><ambient>0.55 0.42 0.30 1</ambient><diffuse>0.55 0.42 0.30 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="escritorio_4">
+      <static>true</static>
+      <pose>-6.400 4.000 0.375 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>1.6 0.8 0.75</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>1.6 0.8 0.75</size></box></geometry>
+          <material><ambient>0.55 0.42 0.30 1</ambient><diffuse>0.55 0.42 0.30 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="estante_oficina">
+      <static>true</static>
+      <pose>-8.300 8.550 0.900 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>2.4 0.4 1.8</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>2.4 0.4 1.8</size></box></geometry>
+          <material><ambient>0.45 0.34 0.24 1</ambient><diffuse>0.45 0.34 0.24 1</diffuse></material></visual>
+      </link>
+    </model>
+    <!-- BODEGA (abajo a la izquierda): 3 filas de estantes de 1.8 m con pasillos de 2.3 m. -->
+    <model name="estante_bodega_1">
+      <static>true</static>
+      <pose>-7.600 -0.600 0.900 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>4.6 0.45 1.8</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>4.6 0.45 1.8</size></box></geometry>
+          <material><ambient>0.45 0.34 0.24 1</ambient><diffuse>0.45 0.34 0.24 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="estante_bodega_2">
+      <static>true</static>
+      <pose>-7.600 -3.300 0.900 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>4.6 0.45 1.8</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>4.6 0.45 1.8</size></box></geometry>
+          <material><ambient>0.45 0.34 0.24 1</ambient><diffuse>0.45 0.34 0.24 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="estante_bodega_3">
+      <static>true</static>
+      <pose>-7.600 -6.000 0.900 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>4.6 0.45 1.8</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>4.6 0.45 1.8</size></box></geometry>
+          <material><ambient>0.45 0.34 0.24 1</ambient><diffuse>0.45 0.34 0.24 1</diffuse></material></visual>
+      </link>
+    </model>
+    <!-- ZONA COLAPSADA (arriba a la derecha): losas, viga y bloques tirados en ángulo + un tambor. -->
+    <model name="escombro_losa_1">
+      <static>true</static>
+      <pose>6.000 7.200 0.350 0 0 0.5000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>1.8 0.6 0.7</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>1.8 0.6 0.7</size></box></geometry>
+          <material><ambient>0.55 0.42 0.30 1</ambient><diffuse>0.55 0.42 0.30 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="escombro_losa_2">
+      <static>true</static>
+      <pose>10.000 6.800 0.300 0 0 -0.4000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>2.0 0.7 0.6</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>2.0 0.7 0.6</size></box></geometry>
+          <material><ambient>0.55 0.42 0.30 1</ambient><diffuse>0.55 0.42 0.30 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="escombro_viga_1">
+      <static>true</static>
+      <pose>8.000 4.400 0.300 0 0 1.2000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>2.4 0.35 0.6</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>2.4 0.35 0.6</size></box></geometry>
+          <material><ambient>0.55 0.42 0.30 1</ambient><diffuse>0.55 0.42 0.30 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="escombro_bloque_1">
+      <static>true</static>
+      <pose>5.600 4.200 0.400 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>0.9 0.9 0.8</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>0.9 0.9 0.8</size></box></geometry>
+          <material><ambient>0.55 0.42 0.30 1</ambient><diffuse>0.55 0.42 0.30 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="escombro_bloque_2">
+      <static>true</static>
+      <pose>10.600 2.600 0.500 0 0 0.3000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>1.0 1.0 1.0</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>1.0 1.0 1.0</size></box></geometry>
+          <material><ambient>0.55 0.42 0.30 1</ambient><diffuse>0.55 0.42 0.30 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="escombro_losa_3">
+      <static>true</static>
+      <pose>7.600 0.400 0.300 0 0 -0.2000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>1.6 0.6 0.6</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>1.6 0.6 0.6</size></box></geometry>
+          <material><ambient>0.55 0.42 0.30 1</ambient><diffuse>0.55 0.42 0.30 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="tambor_1">
+      <static>true</static>
+      <pose>10.600 0.000 0.450 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><cylinder><radius>0.3</radius><length>0.9</length></cylinder></geometry></collision>
+        <visual name="visual"><geometry><cylinder><radius>0.3</radius><length>0.9</length></cylinder></geometry>
+          <material><ambient>0.35 0.38 0.45 1</ambient><diffuse>0.35 0.38 0.45 1</diffuse></material></visual>
+      </link>
+    </model>
+    <!-- ZONA DE PILARES (abajo a la derecha): grilla de 4 columnas cada 3 m + un contenedor. -->
+    <model name="pilar_00">
+      <static>true</static>
+      <pose>6.000 -4.400 0.750 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><cylinder><radius>0.3</radius><length>1.5</length></cylinder></geometry></collision>
+        <visual name="visual"><geometry><cylinder><radius>0.3</radius><length>1.5</length></cylinder></geometry>
+          <material><ambient>0.35 0.38 0.45 1</ambient><diffuse>0.35 0.38 0.45 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="pilar_01">
+      <static>true</static>
+      <pose>6.000 -7.000 0.750 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><cylinder><radius>0.3</radius><length>1.5</length></cylinder></geometry></collision>
+        <visual name="visual"><geometry><cylinder><radius>0.3</radius><length>1.5</length></cylinder></geometry>
+          <material><ambient>0.35 0.38 0.45 1</ambient><diffuse>0.35 0.38 0.45 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="pilar_10">
+      <static>true</static>
+      <pose>9.000 -4.400 0.750 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><cylinder><radius>0.3</radius><length>1.5</length></cylinder></geometry></collision>
+        <visual name="visual"><geometry><cylinder><radius>0.3</radius><length>1.5</length></cylinder></geometry>
+          <material><ambient>0.35 0.38 0.45 1</ambient><diffuse>0.35 0.38 0.45 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="pilar_11">
+      <static>true</static>
+      <pose>9.000 -7.000 0.750 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><cylinder><radius>0.3</radius><length>1.5</length></cylinder></geometry></collision>
+        <visual name="visual"><geometry><cylinder><radius>0.3</radius><length>1.5</length></cylinder></geometry>
+          <material><ambient>0.35 0.38 0.45 1</ambient><diffuse>0.35 0.38 0.45 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="contenedor">
+      <static>true</static>
+      <pose>11.000 -7.600 0.700 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>1.2 1.8 1.4</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>1.2 1.8 1.4</size></box></geometry>
+          <material><ambient>0.45 0.34 0.24 1</ambient><diffuse>0.45 0.34 0.24 1</diffuse></material></visual>
+      </link>
+    </model>
+  </world>
+</sdf>

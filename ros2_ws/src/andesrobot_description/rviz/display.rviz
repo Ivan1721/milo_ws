@@ -1,0 +1,84 @@
+# Configuración guardada de RViz (qué paneles y qué displays mostrar, y dónde está la cámara).
+# Se carga con "rviz2 -d este_archivo". Ojo: si en RViz haces File > Save, RViz reescribe este
+# archivo y BORRA estos comentarios (el contenido sigue funcionando igual).
+#
+# Cada display lee un topic de ROS y lo dibuja:
+#   RobotModel  /robot_description  el modelo 3D de Milo
+#   TF          (apagado)           ejes de cada pieza
+# Paneles laterales: solo la lista de displays.
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+    Help Height: 0
+    Tree Height: 300
+# Contenido de la vista 3D.
+Visualization Manager:
+  Class: ""
+  Displays:
+    # Grilla del suelo, celdas de 0.5 m.
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+      Cell Size: 0.5
+      Plane Cell Count: 10
+      Color: 160; 160; 164
+      Alpha: 0.4
+      Reference Frame: <Fixed Frame>
+      Value: true
+    # Modelo de Milo leído del topic /robot_description.
+    - Class: rviz_default_plugins/RobotModel
+      Name: RobotModel
+      Enabled: true
+      Description Source: Topic
+      Description Topic:
+        Value: /robot_description
+        Depth: 5
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+      Visual Enabled: true
+      Collision Enabled: false
+      Alpha: 1
+      Value: true
+    # Ejes de cada pieza (apagado; activarlo para ver los frames).
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Enabled: false
+      Show Names: true
+      Marker Scale: 0.3
+      Value: false
+  Enabled: true
+  # Fixed Frame = base_footprint: el robot queda quieto en el centro.
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: base_footprint
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/Interact
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/Measure
+  Value: true
+  # Cámara Orbit mirando a Milo de frente/costado.
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Name: Current View
+      Distance: 3.2
+      Focal Point:
+        X: 0.15
+        Y: 0
+        Z: 0.7
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05
+      Near Clip Distance: 0.01
+      Pitch: 0.35
+      Yaw: 0.8
+      Target Frame: <Fixed Frame>
+      Value: Orbit (rviz_default_plugins)
+    Saved: ~
+# Tamaño de la ventana.
+Window Geometry:
+  Width: 1400
+  Height: 900

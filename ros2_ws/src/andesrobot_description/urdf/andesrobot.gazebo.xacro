@@ -1,0 +1,28 @@
+<?xml version="1.0" ?>
+<!-- Propiedades físicas para Gazebo Classic -->
+<robot name="andesrobot" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+<!-- mu1 / mu2 = coeficientes de fricción (en la dirección de avance y la lateral).
+     kp / kd = rigidez y amortiguación del contacto con el suelo (qué tan "duro" es el suelo para
+     la rueda): valores altos = la rueda no se hunde ni rebota. -->
+<!-- Ruedas motrices: alta fricción -->
+<gazebo reference="left_wheel_link_1">
+  <mu1>1.2</mu1>
+  <mu2>1.2</mu2>
+  <kp>1e6</kp>
+  <kd>100</kd>
+</gazebo>
+<gazebo reference="right_wheel_link_1">
+  <mu1>1.2</mu1>
+  <mu2>1.2</mu2>
+  <kp>1e6</kp>
+  <kd>100</kd>
+</gazebo>
+
+<!-- Rueda loca: sin fricción (gira libre) -->
+<gazebo reference="front_caster_link_1">
+  <mu1>0.0</mu1>
+  <mu2>0.0</mu2>
+</gazebo>
+
+</robot>

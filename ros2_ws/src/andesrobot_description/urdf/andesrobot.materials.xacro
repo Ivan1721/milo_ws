@@ -1,0 +1,13 @@
+<?xml version="1.0" ?>
+<robot name="andesrobot" xmlns:xacro="http://www.ros.org/wiki/xacro" >
+
+<!-- Colores para RViz: rgba = rojo, verde, azul, transparencia (0 a 1). -->
+<material name="silver">
+  <color rgba="0.700 0.700 0.700 1.000"/>
+</material>
+
+<material name="caster_black">
+  <color rgba="0.100 0.100 0.100 1.000"/>
+</material>
+
+</robot>

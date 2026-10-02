@@ -1,0 +1,118 @@
+# slam_toolbox (online async) para AndesRobot + RPLIDAR C1 (12 m, 0.72°, 10 Hz)
+#
+# Formato de parámetros de ROS 2:
+#   nombre_del_nodo:          <- tiene que coincidir con name= del Node en mapping.launch.py
+#     ros__parameters:        <- palabra fija de ROS 2
+#       parametro: valor
+#
+# Idea de slam_toolbox: cada vez que el robot se mueve un poco, guarda el scan del lidar como un
+# "nodo" de un grafo, con la pose donde se tomó. Alinea cada scan nuevo con los anteriores
+# (scan matching) para corregir la odometría, y cuando reconoce un lugar donde ya estuvo
+# (loop closure) ajusta todo el grafo para que el mapa cierre bien.
+slam_toolbox:
+  ros__parameters:
+    # Solver
+    # Optimizador que acomoda el grafo de poses (librería Ceres de Google). Las 5 líneas
+    # ceres_* son opciones matemáticas internas del optimizador; se dejan en los valores
+    # recomendados por slam_toolbox.
+    solver_plugin: solver_plugins::CeresSolver
+    ceres_linear_solver: SPARSE_NORMAL_CHOLESKY
+    ceres_preconditioner: SCHUR_JACOBI
+    ceres_trust_strategy: LEVENBERG_MARQUARDT
+    ceres_dogleg_type: TRADITIONAL_DOGLEG
+    ceres_loss_function: None
+
+    # ROS
+    # Nombres de los frames (sistemas de coordenadas):
+    #   map  -> fijo en el mundo (lo crea slam_toolbox)
+    #   odom -> donde la odometría cree que está el robot (deriva con el tiempo)
+    #   base_footprint -> el robot, en el suelo bajo el eje de las ruedas
+    # slam_toolbox publica la TF map->odom, que corrige la deriva de la odometría.
+    odom_frame: odom
+    map_frame: map
+    base_frame: base_footprint
+    # De dónde leer el lidar: el scan ya filtrado (sin la columna de Milo).
+    scan_topic: /scan_filtered
+    # Habilita el servicio para guardar el mapa desde slam_toolbox.
+    use_map_saver: true
+    # mapping = armar un mapa nuevo (la otra opción, localization, usa uno ya hecho).
+    mode: mapping
+
+    # Mensajes de depuración en la terminal (apagados).
+    debug_logging: false
+    # Procesar 1 de cada N scans (1 = todos).
+    throttle_scans: 1
+    # Cada cuántos segundos publicar la TF map->odom (0.02 s = 50 veces por segundo).
+    transform_publish_period: 0.02
+    # Cada cuántos segundos se publica el mapa actualizado (/map) para RViz.
+    map_update_interval: 2.0
+    # Tamaño de cada píxel del mapa: 0.05 m = 5 cm.
+    resolution: 0.05
+    # Rango del lidar que se usa para el mapa: lecturas más cerca de 15 cm o más lejos de
+    # 12 m (alcance máximo del C1) se ignoran.
+    min_laser_range: 0.15
+    max_laser_range: 12.0
+    # Tiempo mínimo entre scans procesados (s).
+    minimum_time_interval: 0.3
+    # Cuánto esperar (s) a que llegue una transformada antes de descartar un scan.
+    transform_timeout: 0.2
+    # Cuántos segundos de historial de TF se guardan.
+    tf_buffer_duration: 30.0
+    # Memoria para el hilo que guarda/carga mapas grandes (bytes). Valor recomendado.
+    stack_size_to_use: 40000000
+    # Permite editar el grafo a mano desde el plugin de RViz.
+    enable_interactive_mode: true
+
+    # Scan matching
+    # Corregir la odometría alineando cada scan con los anteriores.
+    use_scan_matching: true
+    # Usar el centro de los puntos del scan para medir distancias entre scans.
+    use_scan_barycenter: true
+    # Agregar un scan nuevo al grafo solo si el robot avanzó 0.25 m o giró 0.25 rad (~14°).
+    minimum_travel_distance: 0.25
+    minimum_travel_heading: 0.25
+    # Cuántos scans recientes se guardan para alinear el siguiente (la "cadena" local).
+    scan_buffer_size: 10
+    # Scans más lejanos que esto (m) salen de esa cadena.
+    scan_buffer_maximum_scan_distance: 10.0
+    # Calidad mínima (0 a 1) para unir dos scans seguidos.
+    link_match_minimum_response_fine: 0.1
+    # Distancia máxima (m) entre dos scans para intentar unirlos.
+    link_scan_maximum_distance: 1.5
+    # Loop closure: buscar lugares ya visitados a menos de 3 m de donde cree que está.
+    loop_search_maximum_distance: 3.0
+    do_loop_closing: true
+    # Cuántos scans seguidos tienen que coincidir para aceptar un cierre de lazo.
+    loop_match_minimum_chain_size: 10
+    # Incertidumbre máxima aceptada en la búsqueda gruesa del cierre de lazo.
+    loop_match_maximum_variance_coarse: 3.0
+    # Calidad mínima del cierre de lazo en la búsqueda gruesa y en la fina.
+    loop_match_minimum_response_coarse: 0.35
+    loop_match_minimum_response_fine: 0.45
+
+    # Correlación
+    # Ventana de búsqueda al alinear un scan: ±0.5 m alrededor de la odometría,
+    # probando cada 1 cm, con un suavizado de 0.1 m.
+    correlation_search_space_dimension: 0.5
+    correlation_search_space_resolution: 0.01
+    correlation_search_space_smear_deviation: 0.1
+
+    # Loop closure
+    # Lo mismo pero para cierres de lazo: ventana más grande (8 m) y más gruesa (5 cm).
+    loop_search_space_dimension: 8.0
+    loop_search_space_resolution: 0.05
+    loop_search_space_smear_deviation: 0.03
+
+    # Scan matcher
+    # Penalizan correcciones muy distintas de lo que dice la odometría (en distancia y ángulo).
+    distance_variance_penalty: 0.5
+    angle_variance_penalty: 1.0
+    # Rango de ángulos a probar: fino ±0.2°, grueso ±20° en pasos de 2°.
+    fine_search_angle_offset: 0.00349
+    coarse_search_angle_offset: 0.349
+    coarse_angle_resolution: 0.0349
+    # Penalización mínima por ángulo y distancia.
+    minimum_angle_penalty: 0.9
+    minimum_distance_penalty: 0.5
+    # Si no encuentra buena coincidencia, ampliar la búsqueda.
+    use_response_expansion: true

@@ -1,0 +1,73 @@
+# Controladores de Milo físico (ros2_control). Mismos valores que el diff drive simulado.
+#
+# Primera parte: el controller_manager (el "jefe" que corre los controladores).
+controller_manager:
+  ros__parameters:
+    # Cuántas veces por segundo lee el hoverboard, corre los controladores y le escribe.
+    update_rate: 50  # Hz
+
+    # Qué controladores existen y de qué tipo son (los arrancan los spawners de robot.launch.py).
+    # joint_state_broadcaster: publica /joint_states con el ángulo de cada rueda.
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    # diff_drive_controller: convierte velocidad del robot -> velocidad de cada rueda,
+    # y encoders de las ruedas -> odometría.
+    diff_drive_controller:
+      type: diff_drive_controller/DiffDriveController
+
+# Segunda parte: parámetros del diff_drive_controller.
+diff_drive_controller:
+  ros__parameters:
+    # Nombres de las articulaciones de las ruedas (tienen que coincidir con el URDF y con el
+    # bloque <ros2_control> de andesrobot.ros2_control.xacro).
+    left_wheel_names: ["left_wheel_joint"]
+    right_wheel_names: ["right_wheel_joint"]
+
+    # Centro a centro de la banda, medido de las mallas. OJO: la config anterior de Milo usaba 0.3155
+    # (distancia entre los orígenes de los joints, que están en la cara interior de cada rueda).
+    # Confirmar con la prueba de girar 360° en el lugar (README).
+    wheel_separation: 0.3604
+    wheel_radius: 0.08255      # rueda de hoverboard 6.5"
+    # Multiplicadores de calibración: si la odometría marca de más o de menos, se ajustan
+    # aquí sin tocar las medidas (ej. 1.02 = 2% más).
+    wheel_separation_multiplier: 1.0
+    left_wheel_radius_multiplier: 1.0
+    right_wheel_radius_multiplier: 1.0
+
+    # Publicar la odometría 50 veces por segundo.
+    publish_rate: 50.0
+    # Frames de la odometría: publica la TF odom -> base_footprint.
+    odom_frame_id: odom
+    base_frame_id: base_footprint   # igual que en simulación
+    # Incertidumbre de la odometría [x, y, z, giro_x, giro_y, giro_z]. Los 1000000 dicen
+    # "no sé nada de z ni de inclinación" (el robot va por el suelo, solo se mueve en x, y, giro z).
+    pose_covariance_diagonal: [0.001, 0.001, 1000000.0, 1000000.0, 1000000.0, 0.03]
+    twist_covariance_diagonal: [0.001, 0.001, 1000000.0, 1000000.0, 1000000.0, 0.03]
+
+    # open_loop=false: la odometría se calcula con los encoders reales de las ruedas
+    # (true la calcularía con lo que se le mandó, sin medir).
+    open_loop: false
+    # Publicar la TF odom -> base_footprint (la necesita slam_toolbox).
+    enable_odom_tf: true
+
+    cmd_vel_timeout: 0.5   # si el filtro de seguridad deja de publicar, Milo se detiene
+    # false = recibe geometry_msgs/Twist normal (sin timestamp) en ~/cmd_vel_unstamped.
+    use_stamped_vel: false
+
+    # Límites de velocidad y aceleración hacia adelante/atrás (linear.x):
+    # máx 0.4 m/s, acelera/frena a lo más 0.8 m/s² (el driver además rampea a 0.5 m/s²).
+    linear.x.has_velocity_limits: true
+    linear.x.has_acceleration_limits: true
+    linear.x.max_velocity: 0.4
+    linear.x.min_velocity: -0.4
+    linear.x.max_acceleration: 0.8
+    linear.x.min_acceleration: -0.8
+
+    # Límites de giro (angular.z): máx 1 rad/s (~57°/s), aceleración 1.5 rad/s².
+    angular.z.has_velocity_limits: true
+    angular.z.has_acceleration_limits: true
+    angular.z.max_velocity: 1.0
+    angular.z.min_velocity: -1.0
+    angular.z.max_acceleration: 1.5
+    angular.z.min_acceleration: -1.5

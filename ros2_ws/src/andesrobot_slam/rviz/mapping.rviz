@@ -1,0 +1,161 @@
+# Configuración guardada de RViz (qué paneles y qué displays mostrar, y dónde está la cámara).
+# Se carga con "rviz2 -d este_archivo". Ojo: si en RViz haces File > Save, RViz reescribe este
+# archivo y BORRA estos comentarios (el contenido sigue funcionando igual).
+#
+# Cada display lee un topic de ROS y lo dibuja:
+#   Map            /map               mapa que arma slam_toolbox (blanco libre, negro ocupado, gris desconocido)
+#   RobotModel     /robot_description el modelo 3D de Milo
+#   LaserScan      /scan_filtered     puntos rojos del lidar (ya sin la columna)
+#   Zona de parada /safety/stop_zone  rectángulo naranjo del filtro de seguridad
+#   TF / Odometry  (apagados)         ejes de cada frame / flechas de odometría
+# Paneles laterales: solo la lista de displays.
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+    Help Height: 0
+    Tree Height: 400
+# Contenido de la vista 3D.
+Visualization Manager:
+  Class: ""
+  Displays:
+    # Grilla del suelo, celdas de 1 m.
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+      Cell Size: 1
+      Plane Cell Count: 20
+      Color: 160; 160; 164
+      Alpha: 0.3
+      Reference Frame: <Fixed Frame>
+      Value: true
+    # Mapa de slam_toolbox. "Transient Local" = recibe el último mapa
+    # aunque RViz se abra después de que se publicó.
+    - Class: rviz_default_plugins/Map
+      Name: Map
+      Enabled: true
+      Alpha: 0.8
+      Color Scheme: map
+      Draw Behind: true
+      Topic:
+        Value: /map
+        Depth: 1
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+      Update Topic:
+        Value: /map_updates
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+      Use Timestamp: false
+      Value: true
+    # Modelo de Milo leído del topic /robot_description.
+    - Class: rviz_default_plugins/RobotModel
+      Name: RobotModel
+      Enabled: true
+      Description Source: Topic
+      Description Topic:
+        Value: /robot_description
+        Depth: 5
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+      Visual Enabled: true
+      Collision Enabled: false
+      Alpha: 1
+      Value: true
+    # Lidar filtrado. "Best Effort" = misma calidad de servicio que usa el lidar.
+    - Class: rviz_default_plugins/LaserScan
+      Name: LaserScan (filtrado)
+      Enabled: true
+      Topic:
+        Value: /scan_filtered
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+      Style: Points
+      Size (Pixels): 3
+      Color Transformer: FlatColor
+      Color: 255; 40; 40
+      Decay Time: 0
+      Value: true
+    # Zona de parada del filtro de seguridad.
+    - Class: rviz_default_plugins/Polygon
+      Name: Zona de parada
+      Enabled: true
+      Color: 255; 170; 0
+      Alpha: 1
+      Topic:
+        Value: /safety/stop_zone
+        Depth: 1
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+      Value: true
+    # Ejes de cada frame (apagado; activarlo para depurar TF).
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Enabled: false
+      Show Names: false
+      Marker Scale: 0.4
+      Value: false
+    # Flechas de la odometría (apagado).
+    - Class: rviz_default_plugins/Odometry
+      Name: Odometry
+      Enabled: false
+      Topic:
+        Value: /odom
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+      Keep: 50
+      Value: false
+  Enabled: true
+  # Fixed Frame = map: todo se dibuja respecto al mapa (el robot se mueve, el mapa no).
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: map
+    Frame Rate: 30
+  Name: root
+  # Herramientas de la barra superior (2D Pose Estimate, 2D Goal Pose, etc.).
+  Tools:
+    - Class: rviz_default_plugins/Interact
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/Measure
+    - Class: rviz_default_plugins/SetInitialPose
+      Topic:
+        Value: /initialpose
+    - Class: rviz_default_plugins/SetGoal
+      Topic:
+        Value: /goal_pose
+    - Class: rviz_default_plugins/PublishPoint
+      Topic:
+        Value: /clicked_point
+  Value: true
+  # Cámara: Orbit 3D detrás de Milo, siguiéndolo (Target Frame = base_footprint).
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Name: Current View
+      Distance: 5.5
+      Focal Point:
+        X: 0.6
+        Y: 0
+        Z: 0.3
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05
+      Invert Z Axis: false
+      Near Clip Distance: 0.01
+      Pitch: 0.55
+      Yaw: 3.4
+      Target Frame: base_footprint
+      Value: Orbit (rviz_default_plugins)
+    Saved: ~
+# Tamaño de la ventana.
+Window Geometry:
+  Width: 1400
+  Height: 900

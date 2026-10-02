@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<!-- package.xml: "ficha" del paquete ROS. colcon lo lee para saber el nombre, quién lo
+     mantiene y de qué otros paquetes depende (y en qué orden compilar). -->
+<package format="3">
+  <!-- Nombre, versión y descripción. -->
+  <name>andesrobot_bringup</name>
+  <version>0.1.0</version>
+  <description>Launch de alto nivel de AndesRobot (simulación + mapeo).</description>
+  <!-- Quién lo mantiene. -->
+  <maintainer email="m.pinzonfarfan@uandresbello.edu">Aleja</maintainer>
+  <!-- Licencia del código. -->
+  <license>Apache-2.0</license>
+
+  <!-- exec_depend = paquetes que tienen que estar instalados para EJECUTAR este
+       (rosdep los puede instalar; aquí ya vienen en la imagen Docker). -->
+  <exec_depend>andesrobot_description</exec_depend>
+  <exec_depend>andesrobot_gazebo</exec_depend>
+  <exec_depend>andesrobot_slam</exec_depend>
+  <exec_depend>andesrobot_safety</exec_depend>
+  <exec_depend>teleop_twist_keyboard</exec_depend>
+  <exec_depend>controller_manager</exec_depend>
+  <exec_depend>diff_drive_controller</exec_depend>
+  <exec_depend>joint_state_broadcaster</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>xacro</exec_depend>
+  <!-- drivers de Milo físico: hoverboard_hardware_interface está en ros2_ws/src/drivers;
+       sllidar_ros2 se compila dentro de la imagen Docker (ver docker/Dockerfile) -->
+  <exec_depend>hoverboard_hardware_interface</exec_depend>
+  <exec_depend>sllidar_ros2</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
+  <!-- build_type: ament_python = paquete Python (se instala con setup.py). -->
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

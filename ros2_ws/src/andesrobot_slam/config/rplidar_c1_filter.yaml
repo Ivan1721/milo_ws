@@ -1,0 +1,38 @@
+# Filtro del RPLIDAR C1 de AndesRobot: /scan -> /scan_filtered
+# La columna vertical queda ~0.4 m detrás del lidar y tapa ±4.5° alrededor de 180°.
+# Se recortan los sectores |ángulo| > 173° (frame "laser": 0° = adelante del robot).
+# Sirve igual para el robot real si el frame "laser" está bien orientado.
+#
+# Los ángulos van en radianes: 180° = 3.1416 rad (pi), 173° = 3.0194 rad.
+# Los filtros se aplican en orden: filter1, filter2, filter3.
+#
+# Nombre del nodo (name= en mapping.launch.py).
+scan_to_scan_filter_chain:
+  ros__parameters:
+    # Filtro 1: borra las lecturas entre +173° y +180° (lado izquierdo de la columna).
+    # "InPlace" = no achica el scan, solo marca esas lecturas como inválidas.
+    filter1:
+      name: columna_izq
+      type: laser_filters/LaserScanAngularBoundsFilterInPlace
+      params:
+        lower_angle: 3.0194   # 173°
+        upper_angle: 3.1416
+    # Filtro 2: lo mismo entre -180° y -173° (lado derecho de la columna).
+    filter2:
+      name: columna_der
+      type: laser_filters/LaserScanAngularBoundsFilterInPlace
+      params:
+        lower_angle: -3.1416
+        upper_angle: -3.0194
+    # Filtro 3: rango válido del C1. Lecturas más cerca de 15 cm (ruido, el propio robot) o más
+    # lejos de 12 m se reemplazan por infinito (.inf = "no hay nada en esa dirección").
+    filter3:
+      name: rango_c1
+      type: laser_filters/LaserScanRangeFilter
+      params:
+        # false = usar los límites de aquí abajo, no los que trae el mensaje del lidar.
+        use_message_range_limits: false
+        lower_threshold: 0.15
+        upper_threshold: 12.0
+        lower_replacement_value: .inf
+        upper_replacement_value: .inf
