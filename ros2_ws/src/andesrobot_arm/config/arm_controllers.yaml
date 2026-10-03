@@ -1,0 +1,45 @@
+# Controladores del brazo de Milo en Gazebo (los carga el plugin gazebo_ros2_control de
+# andesrobot.arm_control.xacro; los arranca el spawner de arm_sim.launch.py).
+controller_manager:
+  ros__parameters:
+    update_rate: 100  # Hz
+
+    # Publica /joint_states del brazo, el lift y la pinza.
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    # Brazo + lift en una sola trayectoria (así la IK de 7 articulaciones los mueve sincronizados).
+    arm_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    # Pinza: solo el dedo derecho (el izquierdo lo copia Gazebo).
+    gripper_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+arm_controller:
+  ros__parameters:
+    joints:
+      - vertical_lift_joint
+      - joint_1
+      - joint_2
+      - joint_3
+      - joint_4
+      - joint_5
+      - joint_6
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+    # Se puede mandar solo una parte de las articulaciones (p. ej. joint_1..6): las demás se quedan quietas.
+    allow_partial_joints_goal: true
+
+gripper_controller:
+  ros__parameters:
+    joints:
+      - right_finger_joint
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity

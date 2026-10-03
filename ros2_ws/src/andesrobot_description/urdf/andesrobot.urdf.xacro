@@ -46,13 +46,19 @@
 <!-- Convertir el texto "true"/"false" del argumento en un verdadero/falso de Python. -->
 <xacro:property name="lock_arm" value="${'$(arg lock_arm)' == 'true'}"/>
 <!-- Tipo de articulación del brazo: fixed si lock_arm, si no continuous (gira) / prismatic (desliza). -->
-<xacro:property name="arm_joint_type" value="${'fixed' if lock_arm else 'continuous'}"/>
+<xacro:property name="arm_joint_type" value="${'fixed' if lock_arm else 'revolute'}"/>
 <xacro:property name="prismatic_joint_type" value="${'fixed' if lock_arm else 'prismatic'}"/>
 
 <!-- simple_collision:=true -> la física usa cajas/cilindros en vez de las mallas CAD (estable y rápido en Gazebo).
      Pensado junto con lock_arm:=true (las colisiones del brazo van como una caja fija en base_link). -->
 <xacro:arg name="simple_collision" default="false"/>
 <xacro:property name="simple_collision" value="${'$(arg simple_collision)' == 'true'}"/>
+<!-- arm_control:=true -> el brazo, el lift y la pinza se mueven con ros2_control dentro de Gazebo
+     (andesrobot.arm_control.xacro). Lo usa andesrobot_arm/arm_sim.launch.py. Requiere lock_arm:=false.
+     arm_controllers_file = YAML de los controladores que carga el plugin gazebo_ros2_control. -->
+<xacro:arg name="arm_control" default="false"/>
+<xacro:property name="arm_control" value="${'$(arg arm_control)' == 'true'}"/>
+<xacro:arg name="arm_controllers_file" default=""/>
 <!-- Interruptores de sensores simulados (para depurar). Los usa andesrobot.sim.xacro. -->
 <xacro:arg name="sim_lidar" default="true"/>
 <xacro:arg name="sim_imu" default="true"/>
@@ -524,9 +530,20 @@
 </link>
 
 <!-- ================================== ARTICULACIONES (joints) ==================================
-     Las articulaciones del brazo quedan "continuous" (sin topes) SOLO hasta medir los topes físicos.
-     Antes de mover el brazo real (o usar MoveIt), cambiar a "revolute" con límites medidos
-     (lower/upper en rad, velocity, effort). Con lock_arm:=true son "fixed". -->
+     Las articulaciones del brazo son "revolute" con límites PROVISORIOS: ±π (una vuelta completa,
+     o sea sin restringir el rango), 20 N·m y 1 rad/s. Sirven para simular y para la cinemática
+     inversa, pero NO son los topes reales: antes de mover el brazo real (o usar MoveIt), medir los
+     topes físicos y los motores y cambiar estas 4 propiedades. Con lock_arm:=true son "fixed". -->
+<xacro:property name="arm_lower" value="${-pi}"/>
+<xacro:property name="arm_upper" value="${pi}"/>
+<xacro:property name="arm_effort" value="20.0"/>
+<xacro:property name="arm_velocity" value="1.0"/>
+<!-- Límite de cada articulación del brazo (las "fixed" no llevan límite). -->
+<xacro:macro name="arm_limit">
+  <xacro:unless value="${lock_arm}">
+    <limit lower="${arm_lower}" upper="${arm_upper}" effort="${arm_effort}" velocity="${arm_velocity}"/>
+  </xacro:unless>
+</xacro:macro>
 <!-- Brazo 1: gira la base del brazo alrededor de Z (vertical). -->
 <joint name="joint_1" type="${arm_joint_type}">
   <!-- Dónde queda el hijo respecto al padre (aquí 3.7 cm más arriba). -->
@@ -537,6 +554,7 @@
   <axis xyz="0.0 0.0 1.0"/>
   <!-- Amortiguación y roce de la articulación (solo para la simulación). -->
   <dynamics damping="0.08" friction="0.02"/>
+  <xacro:arm_limit/>
 </joint>
 
 <!-- Brazo 2 (hombro): gira alrededor de X. -->
@@ -546,6 +564,7 @@
   <child link="link_2_1"/>
   <axis xyz="-1.0 0.0 0.0"/>
   <dynamics damping="0.12" friction="0.03"/>
+  <xacro:arm_limit/>
 </joint>
 
 <!-- Brazo 3 (codo): gira alrededor de X. -->
@@ -555,6 +574,7 @@
   <child link="link_3_1"/>
   <axis xyz="1.0 0.0 0.0"/>
   <dynamics damping="0.12" friction="0.03"/>
+  <xacro:arm_limit/>
 </joint>
 
 <!-- Brazo 4 (muñeca): gira alrededor de X. -->
@@ -564,6 +584,7 @@
   <child link="link_4_1"/>
   <axis xyz="-1.0 0.0 0.0"/>
   <dynamics damping="0.06" friction="0.02"/>
+  <xacro:arm_limit/>
 </joint>
 
 <!-- Brazo 5 (muñeca): gira alrededor de Z. -->
@@ -573,6 +594,7 @@
   <child link="link_5_1"/>
   <axis xyz="0.0 0.0 1.0"/>
   <dynamics damping="0.05" friction="0.02"/>
+  <xacro:arm_limit/>
 </joint>
 
 <!-- Brazo 6 (muñeca): gira alrededor de X. -->
@@ -582,6 +604,7 @@
   <child link="link_6_1"/>
   <axis xyz="-1.0 0.0 0.0"/>
   <dynamics damping="0.05" friction="0.02"/>
+  <xacro:arm_limit/>
 </joint>
 
 <!-- Dedo derecho: se desliza en Y entre -7 mm y +16 mm. -->
@@ -601,6 +624,17 @@
   <axis xyz="0.0 1.0 0.0"/>
   <xacro:unless value="${lock_arm}"><mimic joint="right_finger_joint" multiplier="-1.0" offset="0.0"/></xacro:unless>
   <limit upper="0.007" lower="-0.016" effort="30" velocity="0.05"/>
+</joint>
+
+<!-- Punto de agarre (TCP): centro entre las caras internas de los dedos, medido en sus mallas.
+     La pinza apunta hacia -X de link_6_1. Las caras internas van de x = -0.083 a -0.121 m
+     (la punta de los dedos está en -0.1224) y son simétricas en Y y Z. El TCP queda a la mitad.
+     Es el frame que mueve la cinemática inversa (andesrobot_arm). -->
+<link name="gripper_tcp"/>
+<joint name="gripper_tcp_joint" type="fixed">
+  <origin xyz="-0.102 0.0 0.0" rpy="0 0 0"/>
+  <parent link="link_6_1"/>
+  <child link="gripper_tcp"/>
 </joint>
 
 <!-- Elevador: el carro sube/baja en Z por la columna, de -0.4 m a +0.6 m. -->
@@ -726,6 +760,11 @@
 <xacro:arg name="hoverboard_port" default="/dev/hoverboard"/>
 <xacro:if value="$(arg use_hardware)">
   <xacro:include filename="$(find andesrobot_description)/urdf/andesrobot.ros2_control.xacro" />
+</xacro:if>
+
+<!-- Brazo en simulación: ros2_control con Gazebo (solo con arm_control:=true). -->
+<xacro:if value="${arm_control and not lock_arm}">
+  <xacro:include filename="$(find andesrobot_description)/urdf/andesrobot.arm_control.xacro" />
 </xacro:if>
 
 </robot>

@@ -125,3 +125,26 @@ Milo no se acerca a menos de 30 cm de las cosas (filtro de seguridad).
 Si quieres cambiar esa distancia:
   ros2_ws/src/andesrobot_safety/config/safety.yaml
 
+
+
+--------------------------------------------------------------
+ 6. BRAZO (solo simulacion)
+--------------------------------------------------------------
+
+Terminal 1 - Gazebo + Milo con el brazo + RViz:
+
+cd ~/milo_ws
+./sim.sh brazo
+
+En RViz elige la herramienta "Interact" (tecla i), arrastra la esfera
+naranja que esta en la pinza y suelta: el brazo (y el lift) van ahi.
+Si no se mueve, esa pose no se alcanza: clic derecho en la esfera,
+"Volver a la pinza".
+
+Apagar:   Ctrl+C en la terminal 1 y despues   ./sim.sh stop
+
+Mandar poses a mano, abrir/cerrar la pinza, medidas y ecuaciones:
+  ros2_ws/src/andesrobot_arm/docs/BRAZO.md
+
+OJO: los limites de las articulaciones del brazo son provisorios.
+No usar con el brazo real hasta medirlos.

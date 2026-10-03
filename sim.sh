@@ -11,8 +11,9 @@
 #   ./sim.sh sin-gazebo      sin la ventana de Gazebo (más liviano; RViz igual se abre)
 #   ./sim.sh software        render por CPU (si Gazebo/RViz se ven NEGROS); más lento
 #   ./sim.sh gpu             muestra con qué tarjeta está dibujando el contenedor
+#   ./sim.sh brazo           brazo de Milo: Gazebo + IK + marcador en RViz (ver andesrobot_arm)
 set -e
-# (Las líneas 2-15 de arriba son la ayuda: el "sed -n '2,15p'" de más abajo las imprime
+# (Las líneas 2-16 de arriba son la ayuda: el "sed -n '2,16p'" de más abajo las imprime
 #  cuando escribes una opción que no existe. Por eso los comentarios explicativos van aquí.)
 #
 # Línea 1 "#!/bin/bash": le dice al sistema que este archivo se ejecuta con bash.
@@ -43,10 +44,19 @@ case "$1" in
   stop)   $DC down; exit 0 ;;
   # GPU: diagnóstico de con qué está dibujando OpenGL.
   gpu)    milo_need_running; milo_gpu_info; exit 0 ;;
+  # Brazo: levanta el contenedor y lanza la simulación del brazo (en vez de la de mapeo).
+  brazo)  milo_up
+          # Si el contenedor ya estaba compilado de antes, puede faltar andesrobot_arm: compilar.
+          $DC exec ros bash -ic '[ -d /ros2_ws/install/andesrobot_arm ] || (cd /ros2_ws && colcon build --symlink-install)'
+          echo
+          echo "[milo] Brazo arrancando. En RViz: herramienta Interact (tecla i), arrastra la esfera naranja."
+          echo "[milo] Mandar una pose a mano: ./sim.sh shell  y ver ros2_ws/src/andesrobot_arm/docs/BRAZO.md"
+          echo
+          exec $DC exec ros bash -ic "ros2 launch andesrobot_arm arm_sim.launch.py" ;;
   # Estas opciones no hacen nada aquí: siguen hacia abajo a levantar la simulación.
   ""|cpu|sin-gazebo|software) ;;
-  # Cualquier otra cosa: mostrar la ayuda (líneas 2 a 15 de este archivo) y salir con error.
-  *) sed -n '2,15p' "$0"; exit 1 ;;
+  # Cualquier otra cosa: mostrar la ayuda (líneas 2 a 16 de este archivo) y salir con error.
+  *) sed -n '2,16p' "$0"; exit 1 ;;
 esac
 
 # Por defecto se abre la ventana de Gazebo; con "sin-gazebo" no (ahorra GPU, la física igual corre).

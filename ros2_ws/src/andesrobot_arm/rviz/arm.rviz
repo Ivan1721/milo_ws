@@ -1,0 +1,88 @@
+# RViz para el brazo de Milo (lo abre arm_sim.launch.py). Se carga con "rviz2 -d este_archivo".
+# Ojo: si haces File > Save, RViz reescribe este archivo y BORRA estos comentarios.
+#
+#   RobotModel          /robot_description        el modelo 3D de Milo
+#   TF                  (solo gripper_tcp)         el punto de agarre
+#   Objetivo de la pinza /arm_target_marker        marcador interactivo (herramienta Interact, tecla i)
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+    Help Height: 0
+    Tree Height: 300
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+      Cell Size: 0.5
+      Plane Cell Count: 10
+      Color: 160; 160; 164
+      Alpha: 0.4
+      Reference Frame: <Fixed Frame>
+      Value: true
+    # Transient Local: recibe el modelo aunque RViz se abra después de robot_state_publisher.
+    - Class: rviz_default_plugins/RobotModel
+      Name: RobotModel
+      Enabled: true
+      Description Source: Topic
+      Description Topic:
+        Value: /robot_description
+        Depth: 5
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+      Visual Enabled: true
+      Collision Enabled: false
+      Alpha: 1
+      Value: true
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Enabled: true
+      Show Names: true
+      Show Axes: true
+      Show Arrows: false
+      Marker Scale: 0.3
+      Frames:
+        All Enabled: false
+        gripper_tcp:
+          Value: true
+      Value: true
+    - Class: rviz_default_plugins/InteractiveMarkers
+      Name: Objetivo de la pinza
+      Enabled: true
+      Interactive Markers Namespace: /arm_target_marker
+      Show Axes: false
+      Show Descriptions: true
+      Show Visual Aids: false
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: base_footprint
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/Interact
+      Hide Inactive Objects: true
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/Measure
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Name: Current View
+      Distance: 3.2
+      Focal Point:
+        X: 0.15
+        Y: 0
+        Z: 0.9
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05
+      Near Clip Distance: 0.01
+      Pitch: 0.35
+      Yaw: 0.8
+      Target Frame: <Fixed Frame>
+      Value: Orbit (rviz_default_plugins)
+    Saved: ~

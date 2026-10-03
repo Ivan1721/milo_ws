@@ -29,6 +29,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 #   laser-filters          filtra el scan del C1 (saca la columna del robot)
 #   teleop-twist-keyboard  manejar con el teclado
 #   ros2-control / ros2-controllers  controller_manager + diff_drive_controller (Milo físico)
+#                          y joint_trajectory_controller (brazo en simulación)
+#   gazebo-ros2-control    ros2_control dentro de Gazebo: mueve el brazo simulado (andesrobot_arm)
 #   libboost-system-dev    librería que usa el driver del hoverboard para el puerto serie
 #   git                    para clonar el driver del lidar
 #   colcon                 la herramienta que compila el workspace
@@ -49,6 +51,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       ros-humble-teleop-twist-keyboard \
       ros-humble-ros2-control \
       ros-humble-ros2-controllers \
+      ros-humble-gazebo-ros2-control \
       libboost-system-dev \
       git \
       python3-colcon-common-extensions \

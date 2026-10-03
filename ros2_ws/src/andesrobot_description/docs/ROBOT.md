@@ -36,9 +36,17 @@ El plano de escaneo (+30 mm sobre la base del sensor) es estimado: confirmar con
 | `sim_lidar` / `sim_imu` | true | apagar sensores simulados (depuración) |
 | `use_hardware` | false | true = ros2_control del hoverboard (Milo físico) |
 | `hoverboard_port` | /dev/hoverboard | puerto serie del hoverboard |
+| `arm_control` | false | true = brazo, lift y pinza con ros2_control en Gazebo (`andesrobot.arm_control.xacro`; lo usa `andesrobot_arm`) |
+| `arm_controllers_file` | (vacío) | YAML de controladores para el plugin `gazebo_ros2_control` (con `arm_control`) |
+
+## Brazo
+- 6 articulaciones `revolute` (joint_1..6) + lift prismático (`vertical_lift_joint`, −0.4…0.6 m) + pinza.
+- Límites del brazo **provisorios**: ±π, 20 N·m, 1 rad/s (propiedades `arm_lower`/`arm_upper`/`arm_effort`/`arm_velocity`).
+- `gripper_tcp`: punto de agarre, 0.102 m hacia −X de `link_6_1`, centrado entre los dedos (medido en sus mallas).
+- Cinemática, control en Gazebo y marcador en RViz: paquete `andesrobot_arm` (ver su `docs/BRAZO.md`).
 
 ## Pendiente antes del robot real
-- Las articulaciones del brazo son `continuous` sin límites: reemplazar por `revolute` con límites medidos.
+- Los límites del brazo son provisorios (±π): medir los topes físicos y los motores y cambiar `arm_lower`/`arm_upper`/`arm_effort`/`arm_velocity`.
 - Verificar el yaw de `laser_joint` según cómo quede montado el conector del C1.
 - Calibrar `wheel_radius` y `wheel_separation` en `milo_controllers.yaml` (ver README, "Primera prueba").
 - Ajustar `ballast_mass` al peso real de baterías/electrónica.
