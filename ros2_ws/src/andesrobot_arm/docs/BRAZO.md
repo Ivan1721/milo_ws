@@ -57,6 +57,14 @@ Parámetros de `arm_ik_node`:
 
 ## Geometría (del URDF, marco `base_footprint`)
 
+| | |
+|---|---|
+| ![Vista 3D](figuras/fig_3d.png) | ![Cadena del brazo](figuras/fig_cadena.png) |
+| ![Vista lateral](figuras/fig_lateral.png) | ![Vista frontal](figuras/fig_frontal.png) |
+
+Robot completo (brazo vertical, lift en 0): 0.556 m de largo (x = −0.12 … 0.436), 0.500 m de ancho,
+1.816 m de alto. Base hasta el lidar: 0.374 m. Ruedas: 0.3605 m entre centros.
+
 - Brazo: hombro → codo 0.350 m, codo → muñeca 0.325 m; joint_4 → joint_5 → joint_6: 0.064 + 0.064 m.
 - `gripper_tcp`: 0.102 m hacia −X de `link_6_1`, centro de las caras internas de los dedos
   (x = −0.083 … −0.121, punta en −0.1224). Apertura de la pinza: 0.017 + 2·q (3 … 49 mm).
@@ -74,6 +82,16 @@ Alcance del TCP (muestreo aleatorio de 60 000 configuraciones, sin choques ni l�
 | +0.6 m | 0.78 … 2.44 m | 0.95 m |
 
 Al frente (x máx.): 0.52 m a ras del suelo, 0.77 m a 0.30 m de altura, 0.89 m a 0.75 m, 0.93 m a 1.0 m.
+
+![Alcance del TCP para tres alturas del lift](figuras/fig_alcance.png)
+
+Las figuras y `figuras/medidas.json` salen de `scripts/figuras.py`, que lee el URDF y las mallas:
+si cambia el xacro, regenerarlas (dentro del contenedor, `./sim.sh shell`):
+
+```bash
+source /ros2_ws/install/setup.bash && cd /ros2_ws/src/andesrobot_arm
+python3 scripts/figuras.py docs/figuras
+```
 
 ## Métodos y ecuaciones
 

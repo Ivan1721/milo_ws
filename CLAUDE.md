@@ -1,0 +1,126 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this is
+
+Workspace for **Milo** (`andesrobot`), a mobile manipulator: hoverboard differential base, RPLIDAR C1,
+IMU, a vertical lift on a column, a 6-DOF arm and a two-finger gripper. ROS 2 **Humble**, Gazebo
+**Classic 11**. Everything normally runs inside Docker (`docker/`, image `milo:humble`, container
+`milo`); `ros2_ws/` is bind-mounted into the container as `/ros2_ws`, so code is edited on the host
+and built/run in the container.
+
+The user's own work is **the arm only** (`andesrobot_arm` + the arm parts of `andesrobot_description`).
+Don't add or propose base-navigation features as next steps unless asked.
+
+Repo docs are written in Spanish for students, with very dense explanatory comments (every launch,
+xacro, yaml and script explains each concept). Match that: Spanish comments and log messages, same
+comment density. `README.md` is step-by-step for non-experts; per-package details live in
+`docs/*.md` (`andesrobot_description/docs/ROBOT.md`, `andesrobot_arm/docs/BRAZO.md`).
+
+## Commands
+
+All from `~/milo_ws` on the host:
+
+```bash
+./sim.sh                 # mapping sim: Gazebo + Milo (arm locked) + safety filter + slam_toolbox + RViz
+./sim.sh brazo           # arm sim: Gazebo + Milo with arm/lift/gripper controlled + IK + RViz marker
+./sim.sh teleop          # drive (keyboard -> /cmd_vel_teleop)
+./sim.sh build           # colcon build --symlink-install inside the container
+./sim.sh shell           # bash inside the container (ROS sourced)
+./sim.sh stop            # docker compose down
+./robot.sh ...           # same commands on the real robot's laptop (USB lidar + hoverboard)
+```
+
+`build`, `shell` and `teleop` need the container already up (started by `./sim.sh` or
+`./sim.sh brazo` in another terminal). `--symlink-install`: edits to existing `.py`/`.xacro`/`.yaml`
+take effect on relaunch; new files need `./sim.sh build`. `milo_up` only builds automatically if
+`install/` doesn't exist yet (`./sim.sh brazo` also builds if `andesrobot_arm` isn't installed).
+
+Tests (pytest, no ROS graph needed; run inside the container after a build):
+
+```bash
+./sim.sh shell
+source /ros2_ws/install/setup.bash
+cd /ros2_ws/src/andesrobot_arm && python3 -m pytest -q test                      # all
+cd /ros2_ws/src/andesrobot_arm && python3 -m pytest -q test -k ik_con_lift       # one test
+cd /ros2_ws/src/andesrobot_safety && python3 -m pytest -q test
+```
+
+There are no ament_lint tests; keep Python within 99 columns (flake8) to match the code.
+
+**Never run `colcon build` natively inside `~/milo_ws/ros2_ws`.** The container reuses
+`ros2_ws/install/`, and host-built paths break it. For native (non-Docker) runs, build elsewhere:
+`colcon build --symlink-install --build-base /tmp/milo_build --install-base /tmp/milo_install`
+and `source /tmp/milo_install/setup.bash`. Natively, VS Code terminals auto-activate Anaconda
+(`(base)` prompt) and ROS Python fails with `No module named 'rclpy._rclpy_pybind11'`:
+`conda deactivate` first.
+
+## Architecture
+
+Packages (`ros2_ws/src/`):
+
+| Package | Role |
+|---|---|
+| `andesrobot_description` | URDF/xacro, meshes, `rsp.launch.py`, `display.launch.py`. Single source of truth for geometry. |
+| `andesrobot_gazebo` | `sim.launch.py` (world + rsp + spawn, arm **locked**), `andesrobot_arena.world` |
+| `andesrobot_bringup` | top-level launches: `sim_mapping` (what `./sim.sh` runs), `robot`/`robot_mapping` (real), `rviz_mapping`; `milo_controllers.yaml` (diff drive, real robot) |
+| `andesrobot_safety` | `safety_filter`: `/cmd_vel_teleop` + `/scan` → stops before obstacles → `cmd_vel_out`. Math in `logic.py` (unit-tested), ROS in `safety_filter.py` |
+| `andesrobot_slam` | `laser_filters` (removes the column from the scan) + slam_toolbox online async |
+| `andesrobot_arm` | arm kinematics/IK, `arm_ik_node`, `arm_marker_node`, `arm_controllers.yaml`, `arm_sim.launch.py` |
+| `drivers/hoverboard_hardware_interface` | C++ ros2_control hardware plugin for the real wheels (serial) |
+
+**Sim vs real parity for the base:** same topics in both. Sim uses Gazebo plugins from
+`andesrobot.sim.xacro` (`libgazebo_ros_diff_drive` publishes `/odom` + TF `odom→base_footprint`,
+ray sensor → `/scan`, IMU, `libgazebo_ros_joint_state_publisher`). Real uses ros2_control
+(`andesrobot.ros2_control.xacro`, only with `use_hardware:=true`) + `diff_drive_controller`; the
+safety filter's output is remapped to `/diff_drive_controller/cmd_vel_unstamped` there.
+
+**URDF switches** (`andesrobot.urdf.xacro` args, documented in `docs/ROBOT.md`): `lock_arm` (arm, lift,
+fingers become `fixed`; used by the mapping sim because the unactuated arm would collapse),
+`simple_collision` (primitive boxes on `base_link`, including a fixed "brazo" box; arm links then have
+**no** collision), `sim_lidar`/`sim_imu`, `use_hardware`/`hoverboard_port`, `arm_control` +
+`arm_controllers_file`. Frames: `base_footprint` on the ground under the wheel axle; `base_link` at the
+axle (z = 0.08255); `laser` is the C1 optical frame. The CAD was modeled rotated 180° about Z, fixed
+with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` likely needs the same.
+
+**Arm in simulation** (`./sim.sh brazo` → `andesrobot_arm/launch/arm_sim.launch.py`):
+- Processes the xacro itself with `lock_arm:=false arm_control:=true` instead of using
+  `rsp.launch.py`, because `gazebo_ros2_control` (Humble) re-passes `robot_description` as a CLI
+  `--param` and fails to parse it when the URDF has XML comments (the controller manager never
+  starts). The launch strips comments; keep that if you change how the URDF is produced.
+- `arm_control:=true` includes `andesrobot.arm_control.xacro` (`GazeboSystem`, **position** command
+  interfaces, `left_finger_joint` as `mimic` → appears as `left_finger_joint_mimic`) and removes the
+  arm joints from the Gazebo joint_state plugin so `joint_state_broadcaster` is their only publisher.
+- One `arm_controller` holds `vertical_lift_joint` + `joint_1..6` (so 7-DOF IK solutions move in
+  sync; `allow_partial_joints_goal: true`); `gripper_controller` holds `right_finger_joint`.
+- Controllers are spawned only if `spawn_entity` exits 0.
+- Uses mesh collisions by default (`simple_collision:=false`) because the simple boxes leave the arm
+  without collision.
+- There is no arm driver for the real robot yet: arm control is sim-only.
+
+**Arm kinematics** (`andesrobot_arm/kinematics.py`, pure numpy, details in `docs/BRAZO.md`):
+`ArmKinematics` walks the processed URDF from tip to base, so it always follows the xacro (no DH
+table). Chains: `arm_base_link_1 → gripper_tcp` (6-DOF) or `base_footprint → gripper_tcp` (7-DOF
+with the lift, `base=LIFT_BASE`). `from_xacro()` reads the **installed** `andesrobot_description`
+xacro with `lock_arm:=false` (with the arm locked every arm joint is `fixed`). IK is weighted damped
+least squares with random restarts within URDF limits; `arm_ik_node` gives the lift weight 10 so
+it prefers arm joints. Full-turn revolute ranges (the provisional ±π) wrap instead of clipping.
+The wrist isn't spherical (joint_4 ∥ joint_6), so there's no closed-form IK.
+
+`gripper_tcp` (0.102 m along −X of `link_6_1`, between the finger pads) is the IK tip and the
+marker's frame. `andesrobot_arm/scripts/figuras.py` regenerates `docs/figuras/` (renders, dimension
+drawings, workspace and `medidas.json`) from the URDF + STL meshes; rerun it after geometry changes. Arm limits are **provisional** (`arm_lower/arm_upper/arm_effort/arm_velocity`
+properties: ±π, 20 N·m, 1 rad/s); don't use them for real hardware.
+
+Known sim behaviors: IK has no collision checking, so poses that pass through the chassis/column get
+physically blocked in Gazebo while `arm_controller` still reports success (no goal tolerances).
+A Ctrl+C can leave an orphan `gzserver` holding port 11345 (next launch dies with exit 255):
+`killall gzserver gzclient` or `./sim.sh stop`.
+
+## Conventions worth keeping
+
+- `sim.sh`/`robot.sh` print their header comment as help with `sed -n '2,Np'`: when adding an option,
+  add its help line and update both the range and the comment that mentions it.
+- Saving from RViz (File > Save) rewrites the `.rviz` file and deletes its comments.
+- Robot docs use REP-103/105 (+X forward, +Y left, +Z up).
