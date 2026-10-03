@@ -29,8 +29,13 @@ All from `~/milo_ws` on the host:
 ./sim.sh build           # colcon build --symlink-install inside the container
 ./sim.sh shell           # bash inside the container (ROS sourced)
 ./sim.sh stop            # docker compose down
-./robot.sh ...           # same commands on the real robot's laptop (USB lidar + hoverboard)
+./sim.sh mapa [nombre]   # save the slam map
+./sim.sh cpu|software|sin-gazebo|gpu   # no NVIDIA / CPU rendering (black windows) / no gzclient / GPU check
+./robot.sh ...           # same commands on the real robot's laptop (USB lidar + hoverboard);
+                         # extra: rviz, puertos; ports via LIDAR=/dev/ttyUSB0 HOVER=... ./robot.sh
 ```
+
+Docker plumbing shared by both scripts lives in `docker/lib.sh` (`milo_init`, `milo_up`, ...).
 
 `build`, `shell` and `teleop` need the container already up (started by `./sim.sh` or
 `./sim.sh brazo` in another terminal). `--symlink-install`: edits to existing `.py`/`.xacro`/`.yaml`
@@ -95,6 +100,10 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
 - One `arm_controller` holds `vertical_lift_joint` + `joint_1..6` (so 7-DOF IK solutions move in
   sync; `allow_partial_joints_goal: true`); `gripper_controller` holds `right_finger_joint`.
 - Controllers are spawned only if `spawn_entity` exits 0.
+- Data flow: `arm_marker_node` (interactive marker at `gripper_tcp`) publishes `PoseStamped` on
+  `/arm_target_pose` → `arm_ik_node` (TF into the IK chain's base frame, IK seeded from `/joint_states`) →
+  `FollowJointTrajectory` on `/arm_controller/follow_joint_trajectory`. Anything that publishes
+  `/arm_target_pose` can drive the arm (params: `use_lift`, `position_only`, `lift_weight`, ...).
 - Uses mesh collisions by default (`simple_collision:=false`) because the simple boxes leave the arm
   without collision.
 - There is no arm driver for the real robot yet: arm control is sim-only.

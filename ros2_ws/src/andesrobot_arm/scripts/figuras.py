@@ -4,7 +4,7 @@ Genera en la carpeta de salida:
   fig_3d.png          vista 3D del robot
   fig_lateral.png     vista lateral (X-Z) con cotas
   fig_frontal.png     vista frontal (Y-Z) con cotas
-  fig_cadena.png      posición de cada articulación del brazo en cero
+  fig_cadena.png      cadena de 7 ejes (lift + brazo): desplazamiento de cada tramo y del lift
   fig_alcance.png     alcance del punto de agarre para 3 alturas del lift
   medidas.json        las medidas que aparecen en las figuras
 Las cotas se CALCULAN de las mallas, así que si cambia el xacro basta con volver a correrlo.
@@ -285,55 +285,131 @@ def fig_vistas(medidas):
         plt.close(fig)
 
 
+# Puntos de la cadena de 7 ejes: el origen de cada articulación (el punto del eje donde Fusion
+# puso el acoplamiento) y el TCP. Con q = 0 el origen de una articulación coincide con el frame
+# de su link hijo, así que basta con leer T[link hijo].
+CADENA = [('lift', 'lift_carriage_link_1'), ('joint_1', 'link_1_1'), ('joint_2', 'link_2_1'),
+          ('joint_3', 'link_3_1'), ('joint_4', 'link_4_1'), ('joint_5', 'link_5_1'),
+          ('joint_6', 'link_6_1'), ('TCP', 'gripper_tcp')]
+
+
+def cadena_pts(lift):
+    """Posición (x, y, z) de cada punto de CADENA en base_footprint, brazo en 0."""
+    T = world({LIFT_JOINT: lift})
+    return np.array([T[link][:3, 3] for _, link in CADENA]), T
+
+
 def fig_cadena(medidas):
-    T = world({})
-    names = ['arm_base_link_1', 'link_1_1', 'link_2_1', 'link_3_1', 'link_4_1', 'link_5_1',
-             'link_6_1', 'gripper_tcp']
-    labels = ['arm_base', 'joint_1', 'joint_2', 'joint_3', 'joint_4', 'joint_5', 'joint_6', 'TCP']
-    pts = np.array([T[n][:3, 3] for n in names])
+    """Cadena de 7 ejes (lift + brazo) con el desplazamiento de cada tramo y el rango del lift.
+
+    Izquierda: Milo completo con la cadena en las 3 alturas del lift (mínimo, 0, máximo), la
+    carrera del lift y el desplazamiento total lift -> TCP. Derecha: detalle de cada tramo
+    con ΔX, ΔZ y la distancia (con el brazo en 0 todos los ΔY son 0).
+    """
+    # Carrera del lift: los límites de vertical_lift_joint en el URDF.
+    limit = next(j for j in ROOT.findall('joint') if j.get('name') == LIFT_JOINT).find('limit')
+    lift_min, lift_max = float(limit.get('lower')), float(limit.get('upper'))
+    pts, T = cadena_pts(0.0)
+    labels = [lab for lab, _ in CADENA]
     # Eje de cada articulación en el mundo (q = 0), para la etiqueta.
     by_child = {j['child']: j for j in JOINTS}
     axes = {}
-    for n, lab in zip(names[1:7], labels[1:7]):
-        j = by_child[n]
+    for lab, link in CADENA[:-1]:
+        j = by_child[link]
         a = (T[j['parent']] @ j['origin'])[:3, :3] @ j['axis']
         k = int(np.argmax(np.abs(a)))
         axes[lab] = ('+' if a[k] > 0 else '−') + 'XYZ'[k]
-    offs = {'arm_base': (0.03, -0.03, 'left'), 'joint_1': (-0.03, 0.0, 'right'),
-            'joint_2': (0.03, -0.025, 'left'), 'joint_3': (0.03, 0.0, 'left'),
-            'joint_4': (-0.03, 0.0, 'right'), 'joint_5': (0.03, -0.035, 'left'),
-            'joint_6': (-0.03, 0.03, 'right'), 'TCP': (0.0, 0.035, 'center')}
+    d = np.diff(pts, axis=0)
+    seg = np.linalg.norm(d, axis=1)
+
+    fig, (axl, axr) = plt.subplots(1, 2, figsize=(13.5, 9.2),
+                                   gridspec_kw={'width_ratios': [1.0, 1.15]})
+
+    # ---- Izquierda: rango completo del lift ----
     polys, cols = ortho(T, 'xz')
-    fig, ax = plt.subplots(figsize=(6.4, 6.6))
-    ax.add_collection(PolyCollection(polys, facecolors=np.clip(cols * 0.25 + 0.75, 0, 1),
-                                     edgecolors='none'))
-    ax.plot(pts[:, 0], pts[:, 2], '-', color=INK, lw=1.6, zorder=5)
+    axl.add_collection(PolyCollection(polys, facecolors=np.clip(cols * 0.25 + 0.75, 0, 1),
+                                      edgecolors='none'))
+    ends = {}
+    for lift, color, name in ((lift_min, SERIES[2], 'mín.'), (0.0, INK, '0'),
+                              (lift_max, SERIES[1], 'máx.')):
+        p, _ = cadena_pts(lift)
+        ends[lift] = p
+        axl.plot(p[:, 0], p[:, 2], '-o', color=color, lw=1.4, ms=3.5, zorder=5,
+                 label=f'lift {name} ({lift:+.1f} m)')
+    lo_p, hi_p = ends[lift_min], ends[lift_max]
+    # Carrera del lift (se mide en el origen de vertical_lift_joint).
+    dim(axl, (lo_p[0, 0], lo_p[0, 2]), (lo_p[0, 0], hi_p[0, 2]),
+        f'carrera del lift {lift_max - lift_min:.3f} m', -0.13, vertical=True)
+    # Altura del TCP sobre el suelo en las 3 alturas del lift (cotas escalonadas a la derecha).
+    for lift, off in ((lift_min, 0.30), (0.0, 0.40), (lift_max, 0.50)):
+        p = ends[lift]
+        dim(axl, (p[-1, 0], 0), (p[-1, 0], p[-1, 2]), f'TCP {p[-1, 2]:.3f} m', off,
+            vertical=True)
+    # Desplazamiento total lift -> TCP (igual en cualquier altura del lift).
+    tot = hi_p[-1] - hi_p[0]
+    dim(axl, (hi_p[0, 0], hi_p[-1, 2]), (hi_p[-1, 0], hi_p[-1, 2]), f'ΔX {tot[0]:.3f}', 0.10)
+    axl.plot([hi_p[0, 0], hi_p[0, 0]], [hi_p[0, 2], hi_p[-1, 2] + 0.12], color=MUTED, lw=0.5)
+    axl.text(-0.62, 2.76,
+             f'lift → TCP: ΔX {tot[0]:.4f}, ΔZ {tot[2]:.4f}, |d| {np.linalg.norm(tot):.4f} m\n'
+             f'(igual en cualquier altura; el TCP sube {lift_max - lift_min:.3f} m '
+             f'de {lo_p[-1, 2]:.3f} a {hi_p[-1, 2]:.3f} m)', fontsize=8.5, va='top')
+    axl.axhline(0, color=MUTED, lw=0.8)
+    axl.set_xlim(-0.65, 1.05)
+    axl.set_ylim(-0.08, 2.82)
+    axl.set_aspect('equal')
+    axl.set_xlabel('X (m), adelante →')
+    axl.set_ylabel('Z (m)')
+    axl.legend(loc='upper left', bbox_to_anchor=(0.0, 0.88), fontsize=8.5, framealpha=0.95)
+    style(axl, 'Cadena de 7 ejes en todo el rango del lift (brazo en 0)')
+
+    # ---- Derecha: cada tramo, lift en 0 ----
+    axr.add_collection(PolyCollection(polys, facecolors=np.clip(cols * 0.2 + 0.8, 0, 1),
+                                      edgecolors='none'))
+    axr.plot(pts[:, 0], pts[:, 2], '-', color=INK, lw=1.6, zorder=5)
     for p, lab in zip(pts, labels):
-        is_joint = lab.startswith('joint')
-        ax.scatter(p[0], p[2], s=46 if is_joint else 30, zorder=6, edgecolors=SURF,
-                   color=C_ARM if is_joint else (C_GRIP if lab == 'TCP' else INK),
-                   linewidths=1.5)
-        dx, dz, ha = offs[lab]
-        txt = lab + (f'  (eje {axes[lab]})' if is_joint else '')
-        ax.text(p[0] + dx, p[2] + dz, txt, fontsize=8.5, zorder=7, ha=ha, va='center')
-    seg = np.linalg.norm(np.diff(pts, axis=0), axis=1)
-    for k in (2, 3):
-        mid = (pts[k] + pts[k + 1]) / 2
-        ax.text(mid[0] - 0.035, mid[2], f'{seg[k]:.3f} m', ha='right', va='center', fontsize=9,
-                color=C_ARM, fontweight='bold')
-    cx = pts[:, 0].mean()
-    ax.set_xlim(cx - 0.45, cx + 0.45)
-    ax.set_ylim(pts[:, 2].min() - 0.07, pts[:, 2].max() + 0.08)
-    ax.set_aspect('equal')
-    ax.set_xlabel('X (m)')
-    ax.set_ylabel('Z (m)')
-    style(ax, 'Cadena del brazo en posición cero (lift = 0)')
+        color = C_GRIP if lab == 'TCP' else (C_COL if lab == 'lift' else C_ARM)
+        axr.scatter(p[0], p[2], s=46, zorder=6, edgecolors=SURF, color=color, linewidths=1.5)
+        txt = 'vertical_lift_joint' if lab == 'lift' else lab
+        if lab in axes:
+            txt += f' (eje {axes[lab]})'
+        axr.text(p[0] - 0.035, p[2], txt, fontsize=8.5, zorder=7, ha='right', va='center',
+                 bbox=dict(fc=SURF, ec='none', alpha=0.85, pad=0.6))
+    # Etiquetas de los tramos en una columna a la derecha, en el mismo orden que su altura
+    # (así las líneas guía no se cruzan).
+    x_txt = 0.52
+    mids = (pts[:-1] + pts[1:]) / 2
+    order = np.argsort(mids[:, 2])
+    ys = np.linspace(pts[0, 2] + 0.02, pts[-1, 2] + 0.06, len(order))
+    for y, k in zip(ys, order):
+        txt = (f'{labels[k]} → {labels[k + 1]}\n'
+               f'ΔX {d[k, 0]:+.4f}   ΔZ {d[k, 2]:+.4f}   |d| {seg[k]:.4f} m')
+        axr.annotate(txt, xy=(mids[k, 0], mids[k, 2]), xytext=(x_txt, y), fontsize=8.5,
+                     va='center', ha='left',
+                     arrowprops=dict(arrowstyle='-', color=MUTED, lw=0.6, shrinkA=2, shrinkB=2),
+                     bbox=dict(fc=SURF, ec='#d6d5ce', lw=0.6, pad=2.5))
+    t1 = pts[-1] - pts[1]
+    t2 = pts[-1] - pts[2]
+    axr.text(-0.33, pts[0, 2] - 0.06,
+             f'joint_1 → TCP: ΔX {t1[0]:.4f}, ΔZ {t1[2]:.4f}, |d| {np.linalg.norm(t1):.4f} m\n'
+             f'joint_2 → TCP: ΔX {t2[0]:.4f}, ΔZ {t2[2]:.4f}, |d| {np.linalg.norm(t2):.4f} m\n'
+             'ΔY = 0 en todos los tramos con el brazo en 0', fontsize=8.5, va='top')
+    axr.set_xlim(-0.35, 1.08)
+    axr.set_ylim(pts[0, 2] - 0.24, pts[-1, 2] + 0.14)
+    axr.set_aspect('equal')
+    axr.set_xlabel('X (m)')
+    axr.set_ylabel('Z (m)')
+    style(axr, 'Desplazamiento de cada tramo (lift = 0)')
     fig.tight_layout()
     fig.savefig(os.path.join(OUT, 'fig_cadena.png'), dpi=130)
     plt.close(fig)
     medidas['cadena'] = {lab: np.round(p, 4).tolist() for lab, p in zip(labels, pts)}
-    medidas['tramos'] = np.round(seg, 4).tolist()
+    medidas['tramos'] = {f'{labels[k]}->{labels[k + 1]}': np.round([*d[k], seg[k]], 4).tolist()
+                         for k in range(len(seg))}
     medidas['ejes_mundo'] = axes
+    medidas['lift_rango'] = {'carrera': lift_max - lift_min,
+                             'tcp_z_lift_min': float(lo_p[-1, 2]),
+                             'tcp_z_lift_max': float(hi_p[-1, 2]),
+                             'lift_a_tcp': np.round([*tot, np.linalg.norm(tot)], 4).tolist()}
 
 
 def fig_alcance(medidas):
