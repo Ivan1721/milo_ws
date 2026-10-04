@@ -7,3 +7,8 @@ ros2_ws/build/
 ros2_ws/install/
 ros2_ws/log/
 __pycache__/
+# Documentación de terceros con derechos reservados (datasheets, manuales, CAD, imágenes de
+# Toolbox Robotics, Orbbec, Hiwonder...): se guarda solo en el PC. Git versiona únicamente el
+# README.md, que dice qué es cada archivo y de dónde descargarlo.
+ros2_ws/src/andesrobot_arm/docs/hardware/*
+!ros2_ws/src/andesrobot_arm/docs/hardware/README.md
