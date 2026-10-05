@@ -1,0 +1,1226 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Copia local del informe: funciona sin internet (MathJax y Mermaid en lib/; sin red, las fuentes IBM Plex caen a las del sistema). -->
+</head>
+<body>
+<title>Informe técnico de Milo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="lib/tex-svg-full.js" defer></script>
+<style>
+  /* Layout: single reading column (~70ch) with full-width figures and tables, grouped in parts; engineering-report tone. */
+  :root {
+    --bg: #f6f7f9;
+    --paper: #ffffff;
+    --fg: #1d2127;
+    --fg-2: #4a515c;
+    --muted: #6b7380;
+    --rule: #dde1e7;
+    --accent: #1f6fd1;      /* arm blue, from the renders */
+    --accent-2: #d9581f;    /* gripper orange */
+    --code-bg: #eef1f5;
+    --warn-bg: #fff4e5;
+    --warn-fg: #7a4300;
+    --ok: #13795b;
+    --bad: #b42318;
+    --font-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+    --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12151a; --paper: #191d23; --fg: #e6e9ee; --fg-2: #b8c0cc; --muted: #8b95a3;
+      --rule: #2c323b; --accent: #5aa0f0; --accent-2: #f08a55; --code-bg: #222831;
+      --warn-bg: #33270f; --warn-fg: #f3c27a; --ok: #4fc49b; --bad: #f2867c;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12151a; --paper: #191d23; --fg: #e6e9ee; --fg-2: #b8c0cc; --muted: #8b95a3;
+    --rule: #2c323b; --accent: #5aa0f0; --accent-2: #f08a55; --code-bg: #222831;
+    --warn-bg: #33270f; --warn-fg: #f3c27a; --ok: #4fc49b; --bad: #f2867c;
+    color-scheme: dark;
+  }
+
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: var(--font-body); font-size: 16px; line-height: 1.62;
+    padding-inline: 16px; padding-block: 0 64px;
+  }
+  .doc { max-width: 980px; margin: 0 auto; }
+  .prose { max-width: 70ch; }
+
+  header.masthead {
+    padding-block: 48px 28px; border-bottom: 1px solid var(--rule); margin-bottom: 8px;
+    display: grid; gap: 14px;
+  }
+  .eyebrow {
+    font-family: var(--font-mono); font-size: 12.5px; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  h1 {
+    font-family: var(--font-display); font-weight: 600; font-size: clamp(30px, 5vw, 44px);
+    line-height: 1.08; margin: 0; text-wrap: balance; letter-spacing: -0.005em;
+  }
+  .lede { font-size: 18px; color: var(--fg-2); margin: 0; max-width: 64ch; }
+  .meta { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 13.5px; color: var(--muted); }
+  .meta b { color: var(--fg-2); font-weight: 500; }
+
+  .figures-row {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px;
+    background: var(--rule); border: 1px solid var(--rule); margin-block: 28px 8px;
+  }
+  .kpi { background: var(--paper); padding: 14px 16px; display: grid; gap: 2px; min-width: 0; }
+  .kpi .v { font-family: var(--font-display); font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .kpi .l { font-size: 13px; color: var(--muted); line-height: 1.35; }
+  @media (max-width: 720px) { .figures-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+  nav.toc { margin-block: 28px; padding: 18px 20px; background: var(--paper); border: 1px solid var(--rule); }
+  nav.toc h2 { margin: 0 0 10px; font-size: 13px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 500; display: block; }
+  .toc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px 28px; }
+  .toc-grid > div { min-width: 0; }
+  .toc-grid h3 { margin: 0 0 4px; font-size: 12px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); font-weight: 500; }
+  nav.toc ol { margin: 0; padding-left: 26px; font-size: 14.5px; }
+  nav.toc li { padding-block: 1px; margin: 0; }
+  a { color: var(--accent); text-underline-offset: 2px; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .part {
+    margin-top: 56px; padding-top: 14px; border-top: 2px solid var(--fg);
+    display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline;
+  }
+  .part .k { font-family: var(--font-mono); font-size: 12.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+  .part .t { font-family: var(--font-display); font-size: 20px; font-weight: 600; }
+  .part .d { flex-basis: 100%; font-size: 14.5px; color: var(--muted); max-width: 70ch; }
+
+  section { padding-top: 36px; }
+  h2 {
+    font-family: var(--font-display); font-weight: 600; font-size: 27px; line-height: 1.2;
+    margin: 0 0 12px; text-wrap: balance; display: flex; gap: 12px; align-items: baseline;
+  }
+  h2 .n { font-family: var(--font-mono); font-size: 15px; color: var(--accent); font-weight: 500; }
+  h3 { font-family: var(--font-display); font-weight: 600; font-size: 19px; margin: 26px 0 6px; text-wrap: balance; }
+  p { margin: 0 0 14px; }
+  ul, ol { margin: 0 0 14px; padding-left: 22px; }
+  li { margin-bottom: 4px; }
+  code, .mono { font-family: var(--font-mono); font-size: 0.88em; }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+  pre {
+    background: var(--code-bg); padding: 14px 16px; overflow-x: auto; font-size: 13.5px;
+    line-height: 1.5; border-radius: 4px; margin: 0 0 16px;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+
+  .eq {
+    background: var(--paper); border: 1px solid var(--rule); border-left: 3px solid var(--accent);
+    padding: 12px 16px; margin: 6px 0 16px; overflow-x: auto;
+  }
+  .eq .why { font-size: 13.5px; color: var(--muted); margin: 6px 0 0; }
+  mjx-container { color: var(--fg); }
+  mjx-container[display="true"] { margin: 6px 0 !important; }
+
+  figure { margin: 18px 0 22px; background: var(--paper); border: 1px solid var(--rule); padding: 12px; }
+  figure img { display: block; margin: 0 auto; width: 100%; height: auto; background: #fcfcfb; }
+  figcaption { font-size: 13.5px; color: var(--fg-2); margin-top: 10px; line-height: 1.5; }
+  figcaption b { color: var(--fg); }
+  .fig-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .fig-grid figure { margin: 0; }
+  @media (max-width: 700px) { .fig-grid { grid-template-columns: 1fr; } }
+
+  .table-wrap { overflow-x: auto; margin: 6px 0 18px; border: 1px solid var(--rule); background: var(--paper); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
+  th, td { padding: 7px 12px; text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-weight: 600; color: var(--fg-2); font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.04em; background: var(--code-bg); }
+  tr:last-child td { border-bottom: none; }
+  tr.sum td { font-weight: 600; background: var(--code-bg); }
+  td.num, th.num { text-align: right; white-space: nowrap; }
+  .tag { font-family: var(--font-mono); font-size: 12px; padding: 1px 7px; border-radius: 10px; white-space: nowrap; border: 1px solid currentColor; }
+  .tag.ok { color: var(--ok); }
+  .tag.bad { color: var(--bad); }
+  .tag.warn { color: var(--warn-fg); }
+
+  .note { background: var(--warn-bg); color: var(--warn-fg); padding: 12px 16px; margin: 6px 0 18px; font-size: 14.5px; }
+  .note b { color: inherit; }
+  .note p:last-child { margin-bottom: 0; }
+
+  pre.mermaid { background: var(--paper); border: 1px solid var(--rule); }
+  footer { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 13.5px; }
+</style>
+<div class="doc">
+
+<header class="masthead">
+  <div class="eyebrow">milo_ws · ROS 2 Humble · Gazebo classic 11 · Docker</div>
+  <h1>Milo: el workspace completo</h1>
+  <p class="lede">Informe técnico de <span class="mono">milo_ws</span>: cómo se ejecuta (Docker y scripts), cómo está modelado el robot, cómo funcionan la base en simulación y en el robot real, el filtro de seguridad y el mapeo, y en detalle la cinemática y el control del brazo. Todos los valores están tomados del código y de pruebas corridas sobre él.</p>
+  <div class="meta">
+    <span><b>Fecha:</b> 3 de octubre de 2026</span>
+    <span><b>Alcance:</b> los 7 paquetes de <span class="mono">ros2_ws/src</span>, Docker y los scripts</span>
+    <span><b>Rama:</b> <span class="mono">brazo-ik</span> (base: <span class="mono">72fc3a1 Workspace de Milo</span>)</span>
+  </div>
+</header>
+
+<div class="figures-row" role="list">
+  <div class="kpi" role="listitem"><span class="v">7</span><span class="l">paquetes ROS 2: descripción, Gazebo, bringup, seguridad, SLAM, brazo y driver del hoverboard</span></div>
+  <div class="kpi" role="listitem"><span class="v">30.4 kg</span><span class="l">masa del modelo: 18.4 kg del CAD + 12 kg de lastre</span></div>
+  <div class="kpi" role="listitem"><span class="v">0 – 2.46 m</span><span class="l">alturas del TCP con brazo + lift; 0.97 m de alcance al frente</span></div>
+  <div class="kpi" role="listitem"><span class="v">15 / 15</span><span class="l">pruebas automáticas aprobadas (6 del brazo, 9 del filtro de seguridad)</span></div>
+</div>
+
+<nav class="toc" aria-label="Contenido">
+  <h2>Contenido</h2>
+  <div class="toc-grid">
+    <div>
+      <h3>I · Workspace</h3>
+      <ol start="1">
+        <li><a href="#alcance">Qué es Milo y qué hay aquí</a></li>
+        <li><a href="#docker">Docker y scripts</a></li>
+        <li><a href="#arquitectura">Paquetes y flujo de datos</a></li>
+      </ol>
+    </div>
+    <div>
+      <h3>II · Robot</h3>
+      <ol start="4">
+        <li><a href="#modelo">Modelo URDF y medidas</a></li>
+        <li><a href="#masas">Masas y estabilidad</a></li>
+      </ol>
+      <h3 style="margin-top:10px">III · Base móvil</h3>
+      <ol start="6">
+        <li><a href="#gazebo">Simulación en Gazebo</a></li>
+        <li><a href="#fisico">Milo físico</a></li>
+        <li><a href="#seguridad">Filtro de seguridad</a></li>
+        <li><a href="#slam">Mapeo (SLAM)</a></li>
+      </ol>
+    </div>
+    <div>
+      <h3>IV · Brazo</h3>
+      <ol start="10">
+        <li><a href="#cadena">Cadena cinemática</a></li>
+        <li><a href="#fk">Cinemática directa</a></li>
+        <li><a href="#tcp">Punto de agarre (TCP)</a></li>
+        <li><a href="#jacobiano">Jacobiano</a></li>
+        <li><a href="#ik">Cinemática inversa</a></li>
+        <li><a href="#lift">Inclusión del lift</a></li>
+        <li><a href="#workspace">Espacio de trabajo y rango con el lift</a></li>
+        <li><a href="#brazo-sim">El brazo en simulación</a></li>
+        <li><a href="#camara">Cámara de profundidad en la pinza</a></li>
+      </ol>
+    </div>
+    <div>
+      <h3>V · Estado</h3>
+      <ol start="19">
+        <li><a href="#validacion">Validación</a></li>
+        <li><a href="#problemas">Problemas y soluciones</a></li>
+        <li><a href="#pendientes">Pendientes</a></li>
+        <li><a href="#uso">Cómo usarlo</a></li>
+      </ol>
+    </div>
+  </div>
+</nav>
+
+<!-- ============================== PARTE I ============================== -->
+<div class="part"><span class="k">Parte I</span><span class="t">El workspace</span><span class="d">Cómo está organizado milo_ws y cómo se ejecuta.</span></div>
+
+<section id="alcance">
+  <h2><span class="n">1</span>Qué es Milo y qué hay aquí</h2>
+  <div class="prose">
+    <p>Milo (<span class="mono">andesrobot</span>) es un manipulador móvil: una base diferencial con ruedas y electrónica de hoverboard, un RPLIDAR C1, una IMU, una columna vertical con un carro que sube y baja (el <em>lift</em>), un brazo de 6 articulaciones rotativas y una pinza de dos dedos.</p>
+    <p><span class="mono">milo_ws</span> es el workspace del equipo. Contiene todo lo necesario para dos modos de trabajo con los mismos topics: <b>simulación</b> en Gazebo (en cualquier PC) y <b>robot físico</b> (en el portátil que va sobre Milo). Lo que funciona hoy:</p>
+    <ul>
+      <li><b>Base:</b> teleoperación con teclado, filtro de seguridad que frena ante obstáculos y mapeo 2D con slam_toolbox. En simulación y en el robot real.</li>
+      <li><b>Brazo:</b> cinemática directa e inversa (con el lift), control de brazo, lift y pinza en Gazebo, y un marcador en RViz para moverlo con el mouse. <b>Solo en simulación</b>: aún no hay driver del brazo real.</li>
+    </ul>
+    <p>La documentación del repositorio está en español y pensada para estudiantes: cada launch, xacro, YAML y script explica sus conceptos en comentarios. El <span class="mono">README.md</span> es un paso a paso; los detalles por paquete están en <span class="mono">andesrobot_description/docs/ROBOT.md</span> y <span class="mono">andesrobot_arm/docs/BRAZO.md</span>.</p>
+  </div>
+  <h3>Estado del repositorio</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Commit / cambio</th><th>Contenido</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">72fc3a1</td><td>Workspace de Milo: base, Gazebo, seguridad, SLAM, driver del hoverboard, Docker</td></tr>
+      <tr><td class="mono">0fbd9af</td><td>Brazo: cinemática inversa con lift, control en Gazebo y marcador en RViz</td></tr>
+      <tr><td class="mono">13cab44</td><td>Documentación del brazo: CLAUDE.md, figuras y medidas generadas del URDF</td></tr>
+      <tr><td>Sin commit</td><td><span class="mono">CLAUDE.md</span> (otros modos de los scripts y flujo de datos del brazo) y <span class="mono">andesrobot_arm/rviz/arm.rviz</span> (guardado desde RViz: perdió sus comentarios)</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note"><p><b>La rama <span class="mono">brazo-ik</span> todavía no está en GitHub.</b> El remoto es <span class="mono">https://github.com/Ivan1721/milo_ws.git</span>; falta configurar una credencial (llave SSH o token) para el <span class="mono">push</span>.</p></div>
+</section>
+
+<section id="docker">
+  <h2><span class="n">2</span>Docker y scripts</h2>
+  <div class="prose">
+    <p>Todo corre dentro de un contenedor para que cualquier PC con Docker tenga el mismo entorno. La carpeta <span class="mono">ros2_ws/</span> del PC se monta en el contenedor como <span class="mono">/ros2_ws</span>: el código se edita en el PC y se compila y ejecuta adentro. Lo compilado (<span class="mono">install/</span>) y los mapas quedan en el PC aunque el contenedor se borre.</p>
+  </div>
+  <h3>Imagen <span class="mono">milo:humble</span></h3>
+  <div class="prose">
+    <ul>
+      <li>Base <span class="mono">osrf/ros:humble-desktop</span> + Gazebo ROS, xacro, RViz, slam_toolbox, nav2_map_server, laser_filters, teleop_twist_keyboard, ros2_control, ros2_controllers y gazebo_ros2_control.</li>
+      <li>Driver del lidar <span class="mono">sllidar_ros2</span> de Slamtec, compilado en <span class="mono">/opt/milo_drivers</span> y fijado al commit <span class="mono">3430009</span>.</li>
+      <li>Usuario <span class="mono">ros</span> con el mismo UID/GID que el usuario del PC, para que los archivos compilados no queden a nombre de root. Pertenece a <span class="mono">video</span> y <span class="mono">dialout</span> (GPU y puertos serie).</li>
+    </ul>
+  </div>
+  <h3>Capas de docker compose</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Archivo</th><th>Cuándo se usa</th><th>Qué agrega</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">compose.yaml</td><td>siempre</td><td>contenedor <span class="mono">milo</span>, red e IPC del host (ROS 2 se ve en la red), X11 para ventanas, <span class="mono">/dev/dri</span>, montaje de <span class="mono">ros2_ws</span>, caché de modelos de Gazebo</td></tr>
+      <tr><td class="mono">compose.nvidia.yaml</td><td>si hay <span class="mono">nvidia-smi</span> y el runtime de NVIDIA, salvo con <span class="mono">cpu</span> o <span class="mono">software</span></td><td>la GPU NVIDIA</td></tr>
+      <tr><td class="mono">compose.robot.yaml</td><td><span class="mono">robot.sh</span></td><td>modo privilegiado y <span class="mono">/dev</span> completo (USB del lidar y del hoverboard)</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Comandos</h3>
+  <div class="prose"><p><span class="mono">sim.sh</span> y <span class="mono">robot.sh</span> comparten las funciones de <span class="mono">docker/lib.sh</span>. Si el workspace nunca se compiló, lo compilan al arrancar.</p></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Comando</th><th>Qué hace</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">./sim.sh</td><td>Gazebo + Milo (brazo bloqueado) + filtro de seguridad + slam_toolbox + RViz</td></tr>
+      <tr><td class="mono">./sim.sh brazo</td><td>Gazebo + Milo con brazo, lift y pinza controlados + IK + marcador en RViz</td></tr>
+      <tr><td class="mono">./sim.sh cpu · software · sin-gazebo</td><td>sin NVIDIA · render por CPU (si las ventanas se ven negras) · sin ventana de Gazebo</td></tr>
+      <tr><td class="mono">./sim.sh gpu</td><td>muestra con qué tarjeta dibuja el contenedor (<span class="mono">llvmpipe</span> = CPU)</td></tr>
+      <tr><td class="mono">./sim.sh teleop</td><td>teclado → <span class="mono">/cmd_vel_teleop</span> (entrada del filtro de seguridad)</td></tr>
+      <tr><td class="mono">./sim.sh mapa [nombre]</td><td>guarda el mapa en <span class="mono">andesrobot_slam/maps/</span> (.pgm + .yaml)</td></tr>
+      <tr><td class="mono">./sim.sh shell · build · stop</td><td>terminal en el contenedor · <span class="mono">colcon build --symlink-install</span> · apagar el contenedor</td></tr>
+      <tr><td class="mono">./robot.sh</td><td>Milo físico: hoverboard + lidar + filtro + slam_toolbox (+ RViz si hay pantalla). Puertos con <span class="mono">LIDAR=… HOVER=…</span></td></tr>
+      <tr><td class="mono">./robot.sh puertos · rviz</td><td>lista los USB conectados (para las reglas udev) · RViz de mapeo, en Milo o en otro PC de la misma red</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note"><p><b>No compilar con <span class="mono">colcon build</span> fuera de Docker dentro de <span class="mono">ros2_ws</span>.</b> El contenedor reutiliza <span class="mono">ros2_ws/install/</span> y un build del PC deja rutas que no existen adentro. Para correr sin Docker se compila en otra carpeta (<span class="mono">--build-base /tmp/milo_build --install-base /tmp/milo_install</span>).</p></div>
+  <div class="prose"><p>Con <span class="mono">--symlink-install</span>, los <span class="mono">.py</span>, <span class="mono">.xacro</span> y <span class="mono">.yaml</span> editados se toman al relanzar; solo los archivos nuevos y el código C++ exigen <span class="mono">./sim.sh build</span>.</p></div>
+</section>
+
+<section id="arquitectura">
+  <h2><span class="n">3</span>Paquetes y flujo de datos</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Paquete</th><th>Función</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">andesrobot_description</td><td>URDF/xacro, mallas STL, <span class="mono">rsp.launch.py</span>, <span class="mono">display.launch.py</span> (RViz con sliders). Única fuente de la geometría.</td></tr>
+      <tr><td class="mono">andesrobot_gazebo</td><td><span class="mono">sim.launch.py</span> (mundo + robot_state_publisher + spawn, brazo bloqueado) y la arena de mapeo</td></tr>
+      <tr><td class="mono">andesrobot_bringup</td><td>launches de nivel superior: <span class="mono">sim_mapping</span>, <span class="mono">robot</span>, <span class="mono">robot_mapping</span>, <span class="mono">rviz_mapping</span>; controladores de la base real</td></tr>
+      <tr><td class="mono">andesrobot_safety</td><td><span class="mono">safety_filter</span>: frena antes de los obstáculos. Matemática en <span class="mono">logic.py</span> (con pruebas)</td></tr>
+      <tr><td class="mono">andesrobot_slam</td><td><span class="mono">laser_filters</span> (quita la columna del scan) + slam_toolbox, y la carpeta de mapas</td></tr>
+      <tr><td class="mono">andesrobot_arm</td><td>cinemática e IK, nodos <span class="mono">arm_ik_node</span> y <span class="mono">arm_marker_node</span>, controladores y launch del brazo en Gazebo, figuras</td></tr>
+      <tr><td class="mono">drivers/hoverboard_hardware_interface</td><td>plugin C++ de ros2_control para las ruedas reales (puerto serie)</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Base: los mismos topics en simulación y en el robot</h3>
+  <pre class="mermaid">
+flowchart LR
+  KB["teleop<br/>teclado"] -- "/cmd_vel_teleop" --> SF["safety_filter"]
+  LID["lidar<br/>Gazebo o RPLIDAR C1"] -- "/scan" --> SF
+  LID -- "/scan" --> LF["laser_filters"]
+  LF -- "/scan_filtered" --> SLAM["slam_toolbox"]
+  SF -- "/cmd_vel (sim)<br/>/diff_drive_controller/cmd_vel_unstamped (real)" --> BASE["diff drive<br/>plugin de Gazebo o<br/>ros2_control + hoverboard"]
+  BASE -- "/odom + TF odom→base_footprint" --> SLAM
+  SLAM -- "/map + TF map→odom" --> RV["RViz"]
+  SF -- "/safety/state<br/>/safety/stop_zone" --> RV
+  </pre>
+  <div class="prose">
+    <p>En simulación los sensores y la tracción los dan plugins de Gazebo declarados en <span class="mono">andesrobot.sim.xacro</span>. En el robot real, <span class="mono">sllidar_ros2</span> publica <span class="mono">/scan</span> y ros2_control con el driver del hoverboard publica <span class="mono">/odom</span> y la TF. Por encima de esa capa (seguridad, SLAM, RViz) todo es idéntico. El brazo tiene su propio flujo, descrito en la <a href="#brazo-sim">sección 17</a>.</p>
+  </div>
+</section>
+
+<!-- ============================== PARTE II ============================== -->
+<div class="part"><span class="k">Parte II</span><span class="t">El robot</span><span class="d">Modelo URDF, medidas y masas. Todas salen del CAD exportado de Fusion 360.</span></div>
+
+<section id="modelo">
+  <h2><span class="n">4</span>Modelo URDF y medidas</h2>
+  <div class="prose">
+    <p>El modelo es <span class="mono">andesrobot.urdf.xacro</span>, que incluye otros archivos: colores y fricción (<span class="mono">materials</span>, <span class="mono">gazebo</span>), plugins de simulación (<span class="mono">sim</span>), el ros2_control de las ruedas reales (<span class="mono">ros2_control</span>) y el del brazo en Gazebo (<span class="mono">arm_control</span>). Sigue REP-103/105: +X adelante, +Y izquierda, +Z arriba.</p>
+    <p>En Fusion el robot se modeló girado 180° en Z. Por eso las uniones a nivel de la base llevan <span class="mono">rpy="0 0 π"</span> y las mallas tienen <em>origins</em> que las devuelven a su sitio (Fusion exporta cada malla en coordenadas del ensamblaje).</p>
+  </div>
+  <h3>Frames principales</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Frame</th><th>Dónde</th><th>Lo usan</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">base_footprint</td><td>suelo, bajo el centro del eje de las ruedas; raíz del árbol</td><td>odometría, SLAM, filtro de seguridad, IK con lift</td></tr>
+      <tr><td class="mono">base_link</td><td>centro del eje de ruedas, z = 0.08255 m</td><td>chasis, ruedas, sensores</td></tr>
+      <tr><td class="mono">laser</td><td>centro óptico del C1: x = 0.408, z = 0.363 m</td><td>lidar (mismo frame en sim y real)</td></tr>
+      <tr><td class="mono">imu_link_1</td><td>x = 0.13, z = 0.103 m</td><td>IMU</td></tr>
+      <tr><td class="mono">arm_base_link_1</td><td>sobre el carro del lift; x = 0.1225, z = 0.920 m con el lift en 0</td><td>IK de 6 ejes</td></tr>
+      <tr><td class="mono">gripper_tcp</td><td>0.102 m hacia −X de <span class="mono">link_6_1</span>, entre los dedos</td><td>punta de la IK y marcador</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Argumentos del xacro</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Argumento</th><th>Defecto</th><th>Efecto</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">lock_arm</td><td>false</td><td>true = brazo, lift y dedos <span class="mono">fixed</span>. Lo usa la simulación de mapeo: sin motores, el brazo se desplomaría</td></tr>
+      <tr><td class="mono">simple_collision</td><td>false</td><td>true = cajas en vez de mallas, incluida una caja fija para el brazo (los eslabones del brazo quedan sin colisión)</td></tr>
+      <tr><td class="mono">sim_lidar / sim_imu</td><td>true</td><td>apagar sensores simulados para depurar</td></tr>
+      <tr><td class="mono">use_hardware / hoverboard_port</td><td>false / <span class="mono">/dev/hoverboard</span></td><td>agrega el ros2_control del hoverboard (robot real)</td></tr>
+      <tr><td class="mono">arm_control / arm_controllers_file</td><td>false / vacío</td><td>brazo, lift y pinza con ros2_control en Gazebo</td></tr>
+    </tbody>
+  </table></div>
+
+  <figure>
+    <img src="img/fig_3d.png" alt="Vista 3D de Milo: base de perfiles con dos ruedas y rueda loca, columna vertical gris, y brazo azul de seis ejes con la pinza naranja arriba." width="910" height="988">
+    <figcaption><b>Figura 1.</b> Modelo 3D generado a partir de las mallas de <span class="mono">andesrobot_description</span> (brazo en azul, pinza en naranja, columna y base en gris). Postura de ejemplo: joint_2 = 0.35, joint_3 = 0.9, joint_5 = 0.6 rad.</figcaption>
+  </figure>
+  <div class="fig-grid">
+    <figure>
+      <img src="img/fig_side.png" alt="Vista lateral de Milo con cotas: largo 0.556 m, altura 1.816 m con el brazo vertical, altura de la base 0.374 m, base del brazo a 0.920 m." width="806" height="1066">
+      <figcaption><b>Figura 2.</b> Vista lateral (X-Z), brazo en cero y lift en 0. El frente está a la derecha; el eje de las ruedas en x = 0.</figcaption>
+    </figure>
+    <figure>
+      <img src="img/fig_front.png" alt="Vista frontal de Milo con cotas: ancho 0.500 m y separación entre ruedas 0.3605 m." width="806" height="1066">
+      <figcaption><b>Figura 3.</b> Vista frontal (Y-Z). +Y es la izquierda del robot.</figcaption>
+    </figure>
+  </div>
+  <div class="prose"><p><b>Método de medición:</b> el script <span class="mono">andesrobot_arm/scripts/figuras.py</span> coloca cada malla STL donde la pone el URDF y toma los extremos de sus vértices. Un vértice \(\mathbf v\) (en mm) del eslabón \(L\) queda en el mundo en:</p></div>
+  <div class="eq">
+    \[ \mathbf p_w = {}^{w}T_{L}(\mathbf q)\; T_{\text{vis}}\; \begin{bmatrix} s\,\mathbf v \\ 1 \end{bmatrix}, \qquad s = 0.001\ \text{m/mm} \]
+    <p class="why">\({}^{w}T_{L}\) es la pose del eslabón (cinemática directa, sección 11) y \(T_{\text{vis}}\) el <span class="mono">&lt;visual&gt;&lt;origin&gt;</span> del URDF. Las dimensiones son \(\max_i p_{w,i} - \min_i p_{w,i}\) en cada eje.</p>
+  </div>
+  <h3>Medidas</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Medida</th><th class="num">Valor</th><th>Nota</th></tr></thead>
+    <tbody>
+      <tr><td>Largo (X)</td><td class="num">0.556 m</td><td>de −0.120 a +0.436 m (el frente es el lidar)</td></tr>
+      <tr><td>Ancho (Y)</td><td class="num">0.500 m</td><td>de −0.250 a +0.250 m</td></tr>
+      <tr><td>Altura, brazo vertical, lift en 0 / −0.4 / +0.6 m</td><td class="num">1.816 / 1.603 / 2.416 m</td><td>con el lift abajo, lo más alto es la columna</td></tr>
+      <tr><td>Altura de la base</td><td class="num">0.374 m</td><td>hasta el lidar; el chasis llega a 0.333 m</td></tr>
+      <tr><td>Rueda: diámetro / radio / ancho</td><td class="num">0.1651 / 0.08255 / 0.045 m</td><td>rueda de hoverboard de 6.5"</td></tr>
+      <tr><td>Separación entre ruedas</td><td class="num">0.3604 m</td><td>centro a centro de la banda (las mallas dan 0.3605; 0.3155 es entre orígenes de los joints)</td></tr>
+      <tr><td>Rueda loca</td><td class="num">x = 0.35 m</td><td>radio de colisión 0.025 m, provisorio</td></tr>
+      <tr><td>Columna</td><td class="num">6 × 6 cm</td><td>sobre el eje de ruedas, de z = 0.103 a 1.603 m</td></tr>
+      <tr><td>Carrera del lift</td><td class="num">−0.4 a +0.6 m</td><td>150 N, 0.20 m/s; base del brazo entre z = 0.520 y 1.520 m</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="masas">
+  <h2><span class="n">5</span>Masas y estabilidad</h2>
+  <div class="prose">
+    <p>Cada link tiene en su <span class="mono">&lt;inertial&gt;</span> la masa, el centro de masa y la inercia exportados de Fusion. El xacro <b>no tiene una lista de componentes</b> (motores, tornillería, electrónica): cada masa es la pieza sólida completa del CAD, con el material que tenía asignado allí.</p>
+  </div>
+  <div class="fig-grid">
+    <div class="table-wrap" style="margin:0"><table>
+      <thead><tr><th>Brazo y lift</th><th class="num">kg</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">arm_base_link_1</td><td class="num">0.377</td></tr>
+        <tr><td class="mono">link_1_1</td><td class="num">0.434</td></tr>
+        <tr><td class="mono">link_2_1</td><td class="num">1.338</td></tr>
+        <tr><td class="mono">link_3_1</td><td class="num">0.756</td></tr>
+        <tr><td class="mono">link_4_1</td><td class="num">0.223</td></tr>
+        <tr><td class="mono">link_5_1</td><td class="num">0.225</td></tr>
+        <tr><td class="mono">link_6_1</td><td class="num">0.739</td></tr>
+        <tr><td>dedos (2)</td><td class="num">0.331</td></tr>
+        <tr class="sum"><td>Brazo + pinza</td><td class="num">4.422</td></tr>
+        <tr><td class="mono">lift_carriage_link_1</td><td class="num">0.434</td></tr>
+        <tr class="sum"><td>Carga del lift</td><td class="num">4.856</td></tr>
+      </tbody>
+    </table></div>
+    <div class="table-wrap" style="margin:0"><table>
+      <thead><tr><th>Base y columna</th><th class="num">kg</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">base_link</td><td class="num">5.535</td></tr>
+        <tr><td class="mono">vertical_column_link_1</td><td class="num">5.724</td></tr>
+        <tr><td>ruedas (2)</td><td class="num">2.042</td></tr>
+        <tr><td>lidar, IMU, rueda loca</td><td class="num">0.231</td></tr>
+        <tr class="sum"><td>Total del CAD (con brazo y carro)</td><td class="num">18.390</td></tr>
+        <tr><td class="mono">ballast_link</td><td class="num">12.000</td></tr>
+        <tr class="sum"><td>Total del modelo</td><td class="num">30.389</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+  <div class="prose" style="margin-top:16px">
+    <p><b>Lastre:</b> con solo las masas del CAD, el centro de masa quedaba a 0.69 m y el robot se volcaba con unos 1.3 m/s². <span class="mono">ballast_link</span> representa baterías y electrónica: 12 kg en el piso del chasis (propiedad <span class="mono">ballast_mass</span>). Con él, el centro de masa baja a 0.45 m y el vuelco ocurre a unos 2.2 m/s² laterales y 2.7 m/s² al frenar, muy por encima de los 0.8 m/s² de aceleración del diff drive.</p>
+    <p><b>Torque de las ruedas:</b> con 20 N·m por rueda el robot hacía "caballito" (más que el momento del peso sobre el eje, unos 37 N·m) y se volcaba. Se limitó a 5 N·m por rueda, de sobra para 0.8 m/s² (unos 1 N·m).</p>
+  </div>
+  <div class="note"><p><b>Las masas no están verificadas.</b> Dependen del material asignado en Fusion: la columna pesa 5.7 kg en el CAD, posiblemente por el material por defecto.</p></div>
+  <h3>Con qué densidad calculó Fusion las masas</h3>
+  <div class="prose"><p>Dividiendo la masa de cada link por el volumen de su malla se ve qué material tenía asignado en el CAD:</p></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Links</th><th class="num">Densidad</th><th>Material que corresponde</th><th>Consecuencia</th></tr></thead>
+    <tbody>
+      <tr><td>base, columna, ruedas, carro del lift, <span class="mono">arm_base_link_1</span>, <span class="mono">link_1_1</span> … <span class="mono">link_5_1</span></td><td class="num">1.06 g/cm³</td><td>ABS, <b>macizo</b> (100 % de relleno)</td><td>Las piezas impresas con relleno parcial pesan menos; los tubos, perfiles y metales no están representados</td></tr>
+      <tr><td><span class="mono">link_6_1</span> y los dos dedos (el gripper)</td><td class="num">7.85 g/cm³</td><td><b>acero</b>: el material por defecto de Fusion</td><td>El gripper pesa 1.07 kg en el URDF; impreso en ABS pesa menos de 0.23 kg</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Brazo real: EB300 de Toolbox Robotics</h3>
+  <div class="prose">
+    <p>Brazo colaborativo de 6 ejes impreso en 3D (PLA+, ABS o PA-CF), con tubos de ABS de 3" y 2". Ninguno de sus componentes de hardware está en las masas del URDF:</p>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Articulación</th><th>Motor (guía eléctrica)</th><th class="num">Torque de retención</th><th class="num">Corriente</th><th class="num">Masa del motor</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">joint_1</td><td>NEMA23 82 mm + reductor EBA-23</td><td class="num">2.4 N·m</td><td class="num">4.0 A</td><td class="num">≈ 1.1 kg</td></tr>
+      <tr><td class="mono">joint_2</td><td>NEMA23 82 mm + reductor EBA-23</td><td class="num">2.4 N·m</td><td class="num">4.0 A</td><td class="num">≈ 1.1 kg</td></tr>
+      <tr><td class="mono">joint_3</td><td>NEMA23 76 mm + reductor EBA-23</td><td class="num">1.85 N·m</td><td class="num">2.8 A</td><td class="num">≈ 1.07 kg</td></tr>
+      <tr><td class="mono">joint_4 · joint_5 · joint_6</td><td>NEMA17 60 mm + reductor EBA-17</td><td class="num">0.65 N·m</td><td class="num">2.1 A</td><td class="num">≈ 0.41 kg c/u</td></tr>
+      <tr class="sum"><td colspan="4">Motores sin reductores</td><td class="num">≈ 4.5 kg</td></tr>
+    </tbody>
+  </table></div>
+  <div class="prose">
+    <p>El motor de cada articulación sale de la guía eléctrica del fabricante (págs. 22–27); torque y corriente, de su documento de ensamblaje (pág. 4). Control: Arduino MEGA 2560 + 6 drivers TB6600 + fuente 24 V 15 A, que van en la base, no en el brazo.</p>
+    <p>Masas: el datasheet del NEMA23 de 82 mm (23HS32-4004S, que coincide en 2.4 N·m y 4.0 A) no trae la masa, así que se extrapoló. Las otras dos salen de las tablas de los datasheets CUI/LIN del proyecto para el largo de cuerpo más cercano (3.10" → 2.35 lb; 2.34" → 0.90 lb). Los documentos del fabricante no traen modelo Denavit-Hartenberg ni medidas de los eslabones. Todo está guardado en <span class="mono">andesrobot_arm/docs/hardware/</span>.</p>
+  </div>
+  <div class="note"><p><b>Solo los motores pesan más que todo el brazo del URDF (4.42 kg),</b> y faltan los reductores EBA. Los NEMA23 van en las tres primeras articulaciones, las que más cargan.</p></div>
+
+  <h3>Gripper real: EBG-20 de Toolbox Robotics</h3>
+  <div class="prose">
+    <p>Pinza paralela de piñón y cremalleras, movida por un servo MG99x (en la lista de materiales: "MG99 or +"). Sus planos y mallas confirman que es el gripper del URDF: el cuerpo mide 85 × 65 × 52 mm, igual que <span class="mono">link_6_1</span> (85 × 65 mm en Y-Z), y las piezas de cada dedo suman 21.1 cm³, exactamente el volumen de cada dedo del URDF.</p>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>EBG-20</th><th class="num">Valor</th><th>Cómo sale</th></tr></thead>
+    <tbody>
+      <tr><td>Piezas impresas (15)</td><td class="num">156 cm³</td><td>volumen de sus mallas STL</td></tr>
+      <tr><td>Masa impresa en ABS, maciza</td><td class="num">0.17 kg</td><td>156 cm³ × 1.06 g/cm³; con relleno parcial pesa menos</td></tr>
+      <tr><td>Servo MG99x + tornillos e insertos M3/M4</td><td class="num">≈ 0.07 kg</td><td>servo MG996R típico ≈ 55 g</td></tr>
+      <tr class="sum"><td>Gripper completo, estimado</td><td class="num">≤ 0.23 kg</td><td>máximo, con piezas macizas; contra <b>1.07 kg</b> en el URDF</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Cómo corregir las masas del brazo</h3>
+  <div class="prose">
+    <ol>
+      <li><b>Gripper:</b> el EBG-20 es de ABS como el resto: cambiar la densidad de <span class="mono">link_6_1</span> y los dedos de 7.85 a 1.06 g/cm³ (de 1.07 a 0.17 kg) y sumar el servo (≈ 55 g) a <span class="mono">link_6_1</span>.</li>
+      <li><b>Eslabones impresos:</b> pesar las piezas reales, o usar la masa que da el slicer, en vez del ABS macizo.</li>
+      <li><b>Motores y reductores:</b> sumar cada uno al eslabón <b>donde va montado</b> (no al que mueve) y mover el centro de masa de ese eslabón hacia el motor.</li>
+      <li>Con eso, recalcular el torque estático de joint_2 y joint_3 (brazos de palanca de 0.35 y 0.32 m) y la fuerza del lift. Esos valores sirven después para reemplazar los límites provisorios (20 N·m).</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============================== PARTE III ============================== -->
+<div class="part"><span class="k">Parte III</span><span class="t">Base móvil</span><span class="d">Simulación, robot real, filtro de seguridad y mapeo.</span></div>
+
+<section id="gazebo">
+  <h2><span class="n">6</span>Simulación en Gazebo</h2>
+  <div class="prose">
+    <p><span class="mono">./sim.sh</span> corre <span class="mono">sim_mapping.launch.py</span>, que junta tres launches: <span class="mono">sim.launch.py</span> (Gazebo, robot_state_publisher con <span class="mono">lock_arm:=true</span> y <span class="mono">simple_collision:=true</span>, y el spawn de Milo 2 cm sobre el suelo), el filtro de seguridad y el mapeo, más RViz. Todos usan el reloj de Gazebo (<span class="mono">use_sim_time</span>).</p>
+  </div>
+  <h3>Plugins de <span class="mono">andesrobot.sim.xacro</span></h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Plugin</th><th>Publica / recibe</th><th>Parámetros</th></tr></thead>
+    <tbody>
+      <tr><td>RPLIDAR C1 (<span class="mono">ray_sensor</span>)</td><td><span class="mono">/scan</span>, frame <span class="mono">laser</span></td><td>360°, 500 muestras (0.72°), 10 Hz, 0.05–12 m, ruido gaussiano σ = 12 mm</td></tr>
+      <tr><td>IMU</td><td><span class="mono">/imu</span></td><td>100 Hz, ruido σ = 2·10⁻⁴ rad/s (giro) y 1.7·10⁻² m/s² (aceleración)</td></tr>
+      <tr><td>Diff drive</td><td>recibe <span class="mono">/cmd_vel</span>; publica <span class="mono">/odom</span> y TF <span class="mono">odom→base_footprint</span></td><td>50 Hz, separación 0.3604 m, diámetro 0.1651 m, 5 N·m y 0.8 m/s² por rueda</td></tr>
+      <tr><td>Joint states</td><td><span class="mono">/joint_states</span> (30 Hz)</td><td>ruedas; las del brazo solo si no está bloqueado ni lo maneja ros2_control</td></tr>
+    </tbody>
+  </table></div>
+  <div class="prose"><p>Fricción de las ruedas μ = 1.2 con contacto rígido (kp = 10⁶, kd = 100); la rueda loca tiene μ = 0 para que deslice. Física ODE a 1 ms por paso, en tiempo real.</p></div>
+  <h3>La arena</h3>
+  <figure>
+    <img src="img/arena.png" alt="Plano de la arena de 24 por 18 metros con cinco zonas: oficina, bodega con tres pasillos, hall central, zona colapsada con escombros y zona de pilares; una línea roja marca el recorrido sugerido desde el spawn en el centro." width="1105" height="850">
+    <figcaption><b>Figura 4.</b> <span class="mono">andesrobot_arena.world</span>: 24 × 18 m, muros de 1.5 m. Zonas de oficina, bodega, hall, zona colapsada y pilares. En verde, donde cabe Milo girando en el lugar; en rojo, el recorrido sugerido para mapear (unos 203 m). Puertas de al menos 2.2 m y obstáculos de al menos 0.5 m de alto (el lidar escanea a 0.36 m). Milo aparece en (0, 0) mirando a +X.</figcaption>
+  </figure>
+</section>
+
+<section id="fisico">
+  <h2><span class="n">7</span>Milo físico</h2>
+  <div class="prose">
+    <p><span class="mono">./robot.sh</span> corre <span class="mono">robot_mapping.launch.py</span> = <span class="mono">robot.launch.py</span> + el mismo mapeo que en simulación (con reloj real) + RViz opcional. Antes de arrancar revisa que existan los dos puertos serie.</p>
+  </div>
+  <h3>ros2_control en tres piezas</h3>
+  <div class="prose">
+    <ol>
+      <li><b>Hardware interface</b> (<span class="mono">hoverboard_hardware_interface</span>): habla por serie con el hoverboard. Expone velocidad de cada rueda como comando y posición/velocidad como estado. Se carga desde el bloque <span class="mono">&lt;ros2_control&gt;</span> del URDF (solo con <span class="mono">use_hardware:=true</span>).</li>
+      <li><b>controller_manager</b> (<span class="mono">ros2_control_node</span>) a 50 Hz.</li>
+      <li><b>Controladores</b> (<span class="mono">milo_controllers.yaml</span>): <span class="mono">joint_state_broadcaster</span> y, cuando este termina de arrancar, <span class="mono">diff_drive_controller</span>.</li>
+    </ol>
+  </div>
+  <div class="eq">
+    \[ \omega_{L} = \frac{v - \omega\,b/2}{r}, \qquad \omega_{R} = \frac{v + \omega\,b/2}{r}, \qquad b = 0.3604\ \text{m},\ r = 0.08255\ \text{m} \]
+    <p class="why">Lo que hace el <span class="mono">diff_drive_controller</span> con el comando \((v, \omega)\) del robot. Al revés, integra la velocidad de las ruedas para la odometría (<span class="mono">/odom</span> y TF <span class="mono">odom→base_footprint</span>, igual que el plugin de Gazebo). Límites: 0.4 m/s y 1.0 rad/s; 0.8 m/s² y 1.5 rad/s². Si no recibe comandos en 0.5 s, se detiene.</p>
+  </div>
+  <h3>Driver del hoverboard</h3>
+  <div class="prose">
+    <p>Firmware <span class="mono">hoverboard-firmware-hack-FOC</span> (<span class="mono">VARIANT_USART</span>) a 115200 baudios. El driver se basa en <span class="mono">DataBot-Labs/hoverboard_ros2_control</span> (Apache-2.0). Cada mensaje empieza con <span class="mono">0xABCD</span> y termina con un XOR de los campos como checksum. Se envían <span class="mono">steer</span> y <span class="mono">speed</span> (diferencia y promedio de las ruedas); el hoverboard devuelve rpm, contadores Hall, voltaje de batería y temperatura.</p>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Calibración (probada en Milo)</th><th>Valor</th><th>Por qué</th></tr></thead>
+    <tbody>
+      <tr><td>Sentido</td><td class="mono">izq = −der_cmd, der = −izq_cmd</td><td>el avance salía invertido y el giro bien: esto invierte solo la traslación</td></tr>
+      <tr><td>Encoders</td><td>cruzados y con signo negado</td><td>consistente con lo anterior</td></tr>
+      <tr><td>Velocidad máxima por rueda</td><td class="num">6 km/h (1.67 m/s)</td><td>tope duro en el driver</td></tr>
+      <tr><td>Rampa</td><td class="num">0.5 m/s²</td><td>sin arranques ni frenadas bruscas (de 6 km/h a 0 en unos 3.3 s)</td></tr>
+      <tr><td>Encoder</td><td class="num">90 pasos/vuelta</td><td>15 pares de polos × 6 estados Hall (4° por paso)</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Lidar y puertos</h3>
+  <div class="prose">
+    <p><span class="mono">sllidar_node</span> a 460800 baudios, modo <span class="mono">Standard</span>, frame <span class="mono">laser</span> (el mismo de la simulación). El lidar y el hoverboard aparecen como <span class="mono">/dev/ttyUSBx</span> con un número que cambia según el orden de conexión. Las reglas de <span class="mono">docker/udev/99-milo.rules</span> los fijan como <span class="mono">/dev/rplidar</span> y <span class="mono">/dev/hoverboard</span>; todavía tienen valores <span class="mono">CAMBIAR_…</span> por completar con <span class="mono">./robot.sh puertos</span>. Mientras tanto se pasan a mano con <span class="mono">LIDAR=/dev/ttyUSB0 HOVER=/dev/ttyUSB1 ./robot.sh</span>.</p>
+    <p>El filtro de seguridad envía su salida a <span class="mono">/diff_drive_controller/cmd_vel_unstamped</span>. La primera prueba se hace con las ruedas en el aire: con <span class="mono">i</span> ambas ruedas avanzan y con <span class="mono">j</span> gira a la izquierda.</p>
+  </div>
+</section>
+
+<section id="seguridad">
+  <h2><span class="n">8</span>Filtro de seguridad</h2>
+  <div class="prose">
+    <p><span class="mono">safety_filter</span> se interpone entre el teclado y las ruedas: recibe <span class="mono">/cmd_vel_teleop</span> y <span class="mono">/scan</span>, y a 20 Hz publica la velocidad segura. Es igual en simulación y en el robot. La parte ROS está en <span class="mono">safety_filter.py</span>; la matemática, en <span class="mono">logic.py</span>, que se prueba sin ROS.</p>
+    <p>Cada scan se pasa a puntos \((x, y)\) en <span class="mono">base_footprint</span> con la TF del lidar (se lee una vez). Se descartan los puntos dentro de la caja del robot + 2 cm, que son lecturas del propio Milo (la columna).</p>
+  </div>
+  <h3>Corredor y escala de velocidad</h3>
+  <div class="prose"><p>Solo cuentan los puntos dentro del corredor (ancho del robot + <span class="mono">side_margin</span> a cada lado) y en la dirección de avance. Si va hacia adelante, solo importa lo de adelante; si retrocede, lo de atrás. Así siempre puede alejarse de un obstáculo.</p></div>
+  <div class="eq">
+    \[ s(d) = \begin{cases} 0 & d \le d_{\text{stop}} \\ \dfrac{d - d_{\text{stop}}}{d_{\text{slow}} - d_{\text{stop}}} & d_{\text{stop}} &lt; d &lt; d_{\text{slow}} \\ 1 & d \ge d_{\text{slow}} \end{cases} \qquad v_{\text{out}} = s(d)\cdot \operatorname{clip}(v, \pm v_{\max}) \]
+    <p class="why">\(d\) es la distancia libre desde el borde del robot (frente en x = 0.44 m, cola en x = −0.12 m) hasta el punto más cercano del corredor. Con \(d_{\text{stop}} = 0.30\) m y \(d_{\text{slow}} = 0.70\) m, a 0.5 m va a la mitad de la velocidad pedida.</p>
+  </div>
+  <div class="eq">
+    \[ r_{\text{giro}} = \max\big(\lVert(x_{\max}, w/2)\rVert,\ \lVert(x_{\min}, w/2)\rVert\big) = \lVert(0.44,\ 0.25)\rVert = 0.506\ \text{m} \]
+    <p class="why">Radio que barre la esquina más lejana al girar en el lugar. Si hay un punto a menos de \(r_{\text{giro}} + 0.15 = 0.656\) m del centro, se bloquea el giro (\(\omega = 0\)).</p>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Parámetro (<span class="mono">safety.yaml</span>)</th><th class="num">Valor</th><th>Efecto</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">stop_distance / slow_distance</td><td class="num">0.30 / 0.70 m</td><td>se detiene / empieza a frenar</td></tr>
+      <tr><td class="mono">side_margin</td><td class="num">0.10 m</td><td>holgura a cada lado del corredor</td></tr>
+      <tr><td class="mono">rotation_clearance</td><td class="num">0.15 m</td><td>holgura para girar en el lugar</td></tr>
+      <tr><td class="mono">max_linear / max_angular</td><td class="num">0.4 m/s / 1.0 rad/s</td><td>recorte del comando</td></tr>
+      <tr><td class="mono">footprint_x_min / x_max / half_width</td><td class="num">−0.12 / 0.44 / 0.25 m</td><td>caja del robot, medida en las mallas</td></tr>
+      <tr><td class="mono">scan_timeout</td><td class="num">0.5 s</td><td>sin lidar, se detiene</td></tr>
+      <tr><td class="mono">cmd_timeout</td><td class="num">0 (apagado)</td><td>mantiene el último comando (el teleop por teclado no repite)</td></tr>
+    </tbody>
+  </table></div>
+  <div class="prose"><p>Publica siempre, aunque sea velocidad 0: si el nodo se cae, el <span class="mono">diff_drive_controller</span> deja de recibir y se detiene a los 0.5 s. También publica <span class="mono">/safety/state</span> (texto, solo cuando cambia) y <span class="mono">/safety/stop_zone</span> (rectángulo para RViz).</p></div>
+</section>
+
+<section id="slam">
+  <h2><span class="n">9</span>Mapeo (SLAM)</h2>
+  <div class="prose">
+    <p><span class="mono">mapping.launch.py</span> se usa igual en simulación y en el robot (solo cambia <span class="mono">use_sim_time</span>).</p>
+    <ol>
+      <li><b>laser_filters</b> (<span class="mono">rplidar_c1_filter.yaml</span>): la columna queda unos 0.4 m detrás del lidar y tapa ±4.5° alrededor de 180°. Se anulan los sectores con |ángulo| &gt; 173° y las lecturas fuera de 0.15–12 m. Resultado: <span class="mono">/scan_filtered</span>.</li>
+      <li><b>slam_toolbox</b> en modo <em>online async</em>: con <span class="mono">/scan_filtered</span> y la odometría arma <span class="mono">/map</span> y publica la TF <span class="mono">map→odom</span>. Si llega un scan mientras procesa otro, lo salta.</li>
+    </ol>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Parámetro de slam_toolbox</th><th class="num">Valor</th></tr></thead>
+    <tbody>
+      <tr><td>Resolución del mapa</td><td class="num">0.05 m</td></tr>
+      <tr><td>Rango láser usado</td><td class="num">0.15 – 12 m</td></tr>
+      <tr><td>Procesar un scan nuevo tras moverse / girar</td><td class="num">0.25 m / 0.25 rad</td></tr>
+      <tr><td>Actualización del mapa</td><td class="num">cada 2 s</td></tr>
+      <tr><td>Cierre de lazos</td><td class="num">activo, búsqueda hasta 3 m</td></tr>
+      <tr><td>Solver</td><td class="num">Ceres, Levenberg-Marquardt</td></tr>
+    </tbody>
+  </table></div>
+  <div class="prose"><p>El mapa se guarda con <span class="mono">./sim.sh mapa nombre</span> (o <span class="mono">./robot.sh mapa</span>), que llama a <span class="mono">map_saver_cli</span> y deja <span class="mono">nombre.pgm</span> + <span class="mono">nombre.yaml</span> en <span class="mono">andesrobot_slam/maps/</span>.</p></div>
+</section>
+
+<!-- ============================== PARTE IV ============================== -->
+<div class="part"><span class="k">Parte IV</span><span class="t">Brazo</span><span class="d">Paquete andesrobot_arm: cinemática, punto de agarre, cinemática inversa con lift y control en Gazebo.</span></div>
+
+<section id="cadena">
+  <h2><span class="n">10</span>Cadena cinemática</h2>
+  <div class="prose">
+    <p>El trabajo del brazo empezó en un workspace aparte (<span class="mono">preparacion_ws</span>) y se migró a <span class="mono">milo_ws</span>, cuya descripción tiene exactamente la misma cadena del brazo. No se duplicó el URDF: se agregó lo necesario a <span class="mono">andesrobot_description</span> y el resto va en <span class="mono">andesrobot_arm</span>.</p>
+    <p>La cadena va de <span class="mono">arm_base_link_1</span> a <span class="mono">gripper_tcp</span>. Cada articulación tiene un desplazamiento fijo (<span class="mono">origin</span>) respecto al eslabón anterior y un eje de giro:</p>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Articulación</th><th>Tipo</th><th>Desplazamiento xyz (m)</th><th class="num">Distancia</th><th>Eje local</th><th>Eje en el mundo (q = 0)</th><th>Límites</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">vertical_lift_joint</td><td>prismática</td><td class="mono">(−0.06, 0, 0.75)</td><td class="num">—</td><td class="mono">+Z</td><td class="mono">+Z</td><td>−0.4 … 0.6 m</td></tr>
+      <tr><td class="mono">joint_1</td><td>rotativa</td><td class="mono">(0, 0, 0.037)</td><td class="num">0.037 m</td><td class="mono">+Z</td><td class="mono">+Z</td><td>±π (provisorio)</td></tr>
+      <tr><td class="mono">joint_2</td><td>rotativa</td><td class="mono">(−0.065, 0, 0.056)</td><td class="num">0.086 m</td><td class="mono">−X</td><td class="mono">+X</td><td>±π (provisorio)</td></tr>
+      <tr><td class="mono">joint_3</td><td>rotativa</td><td class="mono">(−0.001077, 0, 0.350077)</td><td class="num"><b>0.350 m</b></td><td class="mono">+X</td><td class="mono">−X</td><td>±π (provisorio)</td></tr>
+      <tr><td class="mono">joint_4</td><td>rotativa</td><td class="mono">(0.026, 0, 0.3235)</td><td class="num"><b>0.325 m</b></td><td class="mono">−X</td><td class="mono">+X</td><td>±π (provisorio)</td></tr>
+      <tr><td class="mono">joint_5</td><td>rotativa</td><td class="mono">(−0.0495, 0, 0.04)</td><td class="num">0.064 m</td><td class="mono">+Z</td><td class="mono">+Z</td><td>±π (provisorio)</td></tr>
+      <tr><td class="mono">joint_6</td><td>rotativa</td><td class="mono">(−0.041, 0, 0.0495)</td><td class="num">0.064 m</td><td class="mono">−X</td><td class="mono">+X</td><td>±π (provisorio)</td></tr>
+      <tr><td class="mono">gripper_tcp_joint</td><td>fija</td><td class="mono">(−0.102, 0, 0)</td><td class="num">0.102 m</td><td>—</td><td>—</td><td>—</td></tr>
+    </tbody>
+  </table></div>
+  <div class="prose">
+    <p>El eje en el mundo difiere del local por la corrección de 180° en Z de la base. El brazo mide 0.350 m (joint_2 → joint_3) y el antebrazo 0.325 m (joint_3 → joint_4). Los límites provisorios están en las propiedades <span class="mono">arm_lower</span>, <span class="mono">arm_upper</span>, <span class="mono">arm_effort</span> (20 N·m) y <span class="mono">arm_velocity</span> (1 rad/s).</p>
+  </div>
+  <figure>
+    <img src="img/fig_cadena.png" alt="Dos paneles. Izquierda: Milo de perfil con la cadena del brazo dibujada en tres alturas del lift, la carrera del lift de 1.000 m y cotas de altura del TCP de 1.376, 1.776 y 2.376 m; arriba, el desplazamiento total del lift al TCP, ΔX 0.3251 y ΔZ 0.9236. Derecha: detalle de la cadena con lift en 0 y una etiqueta por tramo con ΔX, ΔZ y distancia, desde vertical_lift_joint hasta el TCP." width="1755" height="1196">
+    <figcaption><b>Figura 5.</b> Cadena de 7 ejes con el brazo en cero, proyectada en X-Z. <b>Izquierda:</b> la cadena en las tres alturas del lift (−0.4, 0 y +0.6 m), la carrera de 1.000 m medida en el origen de <span class="mono">vertical_lift_joint</span>, la altura del TCP sobre el suelo en cada caso y el desplazamiento total lift → TCP, que no cambia con la altura. <b>Derecha:</b> cada tramo con ΔX, ΔZ y su distancia; entre paréntesis, el eje de giro en el marco del mundo. Con el brazo en cero todos los ΔY son 0. Generada por <span class="mono">scripts/figuras.py</span>.</figcaption>
+  </figure>
+  <div class="prose">
+    <ul>
+      <li>Con joint_1 = 0, los ejes de joint_2, 3, 4 y 6 son paralelos a X: el brazo se dobla en el plano Y-Z (hacia los lados). Para trabajar al frente, joint_1 tiene que girar.</li>
+      <li>La muñeca <b>no es esférica</b>: joint_4 y joint_6 son paralelos y están a unos 9 cm. No hay solución cerrada de la cinemática inversa; se usa un método numérico (sección 14).</li>
+    </ul>
+  </div>
+
+  <h3 id="distancias">Distancias entre articulaciones en coordenadas globales</h3>
+  <div class="prose">
+    <p>En la cadena de 7 ejes el prismático es la primera articulación: en el código se llama <span class="mono">vertical_lift_joint</span>, y <span class="mono">joint_1</span> es la base giratoria. Las posiciones están en <span class="mono">base_footprint</span> (suelo bajo el eje de las ruedas), con todas las articulaciones en 0 y el lift en 0. En esa pose el brazo apunta hacia arriba y la pinza hacia +X.</p>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Punto</th><th class="num">X (m)</th><th class="num">Y (m)</th><th class="num">Z (m)</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">vertical_lift_joint</td><td class="num">0.0300</td><td class="num">0</td><td class="num">0.8528</td></tr>
+      <tr><td class="mono">joint_1</td><td class="num">0.1225</td><td class="num">0</td><td class="num">0.9573</td></tr>
+      <tr><td class="mono">joint_2</td><td class="num">0.1875</td><td class="num">0</td><td class="num">1.0133</td></tr>
+      <tr><td class="mono">joint_3</td><td class="num">0.1886</td><td class="num">0</td><td class="num">1.3634</td></tr>
+      <tr><td class="mono">joint_4</td><td class="num">0.1626</td><td class="num">0</td><td class="num">1.6869</td></tr>
+      <tr><td class="mono">joint_5</td><td class="num">0.2121</td><td class="num">0</td><td class="num">1.7269</td></tr>
+      <tr><td class="mono">joint_6</td><td class="num">0.2531</td><td class="num">0</td><td class="num">1.7764</td></tr>
+      <tr><td class="mono">gripper_tcp</td><td class="num">0.3551</td><td class="num">0</td><td class="num">1.7764</td></tr>
+    </tbody>
+  </table></div>
+  <div class="prose">
+    <p>Cada tramo se descompone en dos partes. La parte <b>perpendicular</b> a los ejes es el largo útil del eslabón. La parte <b>a lo largo del eje</b> es un desplazamiento que corre el plano en que trabaja el brazo. Cuando dos ejes se cortan, no hay largo perpendicular.</p>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Tramo</th><th class="num">ΔX</th><th class="num">ΔY</th><th class="num">ΔZ</th><th class="num">Distancia</th><th>Ejes</th><th>Largo útil / desplazamiento</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">lift → joint_1</td><td class="num">0.0925</td><td class="num">0</td><td class="num">0.1045</td><td class="num">0.1396</td><td>paralelos (Z)</td><td>0.0925 horizontal hasta el eje de joint_1; 0.1045 vertical</td></tr>
+      <tr><td class="mono">joint_1 → joint_2</td><td class="num">0.0650</td><td class="num">0</td><td class="num">0.0560</td><td class="num">0.0858</td><td>se cortan (Z, X)</td><td>0.056 de altura; 0.065 corre el plano del brazo respecto al eje de joint_1</td></tr>
+      <tr><td class="mono">joint_2 → joint_3</td><td class="num">0.0011</td><td class="num">0</td><td class="num">0.3501</td><td class="num">0.3501</td><td>paralelos (X)</td><td><b>0.3501 brazo</b>; 0.0011 a lo largo del eje</td></tr>
+      <tr><td class="mono">joint_3 → joint_4</td><td class="num">−0.0260</td><td class="num">0</td><td class="num">0.3235</td><td class="num">0.3245</td><td>paralelos (X)</td><td><b>0.3235 antebrazo</b>; −0.026 a lo largo del eje</td></tr>
+      <tr><td class="mono">joint_4 → joint_5</td><td class="num">0.0495</td><td class="num">0</td><td class="num">0.0400</td><td class="num">0.0636</td><td>se cortan (X, Z)</td><td>0.0495 a lo largo de joint_4; 0.040 a lo largo de joint_5</td></tr>
+      <tr><td class="mono">joint_5 → joint_6</td><td class="num">0.0410</td><td class="num">0</td><td class="num">0.0495</td><td class="num">0.0643</td><td>se cortan (Z, X)</td><td>0.0495 a lo largo de joint_5; 0.041 a lo largo de joint_6</td></tr>
+      <tr><td class="mono">joint_6 → gripper_tcp</td><td class="num">0.1020</td><td class="num">0</td><td class="num">0</td><td class="num">0.1020</td><td>sobre el eje de joint_6</td><td>0.102: el TCP está en el eje de giro de la pinza</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Totales hasta la pinza</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Desde</th><th class="num">ΔX</th><th class="num">ΔY</th><th class="num">ΔZ</th><th class="num">En línea recta (pose cero)</th><th class="num">Suma de tramos</th></tr></thead>
+    <tbody>
+      <tr><td><span class="mono">vertical_lift_joint</span> (prismático)</td><td class="num">0.3251</td><td class="num">0</td><td class="num">0.9236</td><td class="num">0.9791</td><td class="num">1.1299</td></tr>
+      <tr><td><span class="mono">joint_1</span> (base giratoria)</td><td class="num">0.2326</td><td class="num">0</td><td class="num">0.8191</td><td class="num">0.8515</td><td class="num">0.9903</td></tr>
+      <tr><td><span class="mono">joint_2</span> (hombro)</td><td class="num">0.1676</td><td class="num">0</td><td class="num">0.7631</td><td class="num">0.7813</td><td class="num">0.9045</td></tr>
+    </tbody>
+  </table></div>
+  <div class="prose">
+    <p>La distancia más grande que puede haber entre el hombro y el TCP es <b>0.843 m</b> (buscada en todas las posturas). Es menor que la suma de tramos (0.905 m) porque los desplazamientos a lo largo de los ejes y la muñeca no se alinean nunca en una sola recta. En la pose cero, ΔY = 0 porque con joint_1 = 0 el brazo se dobla en el plano Y-Z: la componente Y aparece al mover joint_2 y joint_3.</p>
+  </div>
+  <div class="note"><p><b>Los orígenes están en los acoplamientos.</b> Cada <span class="mono">origin</span> del URDF es el punto donde Fusion definió la unión entre dos piezas, no necesariamente el centro del motor. Sobre el propio eje, ese punto no cambia el movimiento. Pero los desplazamientos a lo largo de los ejes (0.065, 0.0011, −0.026, 0.0495, 0.041 m) sí corren el plano del brazo, así que conviene confirmarlos en el robot real.</p></div>
+</section>
+
+<section id="fk">
+  <h2><span class="n">11</span>Cinemática directa</h2>
+  <div class="prose">
+    <p><b>Para qué:</b> calcular dónde queda la pinza dados los ángulos. La usan la inversa, el Jacobiano, las mediciones y las figuras.</p>
+    <p><b>Método:</b> producto de transformaciones homogéneas leídas del URDF procesado (<span class="mono">ArmKinematics</span> en <span class="mono">kinematics.py</span>, solo numpy). No hay tabla Denavit-Hartenberg: el código recorre el URDF desde la punta hasta la base, así que un cambio en el xacro se refleja solo. Lee el xacro <b>instalado</b> con <span class="mono">lock_arm:=false</span>.</p>
+  </div>
+  <div class="eq">
+    \[ {}^{b}T_{e}(\mathbf q) \;=\; \prod_{i=1}^{n} T_{o,i}\; M_i(q_i) \]
+    <p class="why">\(T_{o,i}\) es el <span class="mono">origin</span> fijo de la articulación \(i\) y \(M_i(q_i)\) su movimiento. Las articulaciones fijas aportan solo \(T_{o,i}\).</p>
+  </div>
+  <div class="eq">
+    \[ T_{o} = \begin{bmatrix} R_{\text{rpy}} & \mathbf t \\ \mathbf 0^\top & 1 \end{bmatrix}, \qquad R_{\text{rpy}}(\phi,\theta,\psi) = R_z(\psi)\,R_y(\theta)\,R_x(\phi) \]
+    <p class="why">Convención URDF: <em>roll</em> \(\phi\), <em>pitch</em> \(\theta\), <em>yaw</em> \(\psi\), en ejes fijos.</p>
+  </div>
+  <div class="eq">
+    \[ M_i^{\text{rot}}(q) = \begin{bmatrix} I + \sin q\,[\mathbf k]_\times + (1-\cos q)\,[\mathbf k]_\times^2 & \mathbf 0 \\ \mathbf 0^\top & 1 \end{bmatrix}, \qquad M_i^{\text{pris}}(d) = \begin{bmatrix} I & d\,\mathbf k \\ \mathbf 0^\top & 1 \end{bmatrix} \]
+    <p class="why">Fórmula de Rodrigues para articulaciones rotativas con eje unitario \(\mathbf k\); traslación a lo largo de \(\mathbf k\) para las prismáticas (el lift). \([\mathbf k]_\times\) es la matriz antisimétrica del producto cruz.</p>
+  </div>
+  <div class="prose">
+    <p>Con todo en cero, el TCP queda en \((-0.2326,\ 0,\ 0.8561)\) m respecto a <span class="mono">arm_base_link_1</span> (lo comprueba una prueba) y en \((0.3551,\ 0,\ 1.7764)\) m respecto a <span class="mono">base_footprint</span> con el lift en 0.</p>
+  </div>
+</section>
+
+<section id="tcp">
+  <h2><span class="n">12</span>Punto de agarre (TCP)</h2>
+  <div class="prose">
+    <p>Cuando se manda una pose, lo que llega a ella es el TCP. El origen de <span class="mono">link_6_1</span> está 10 cm detrás de los dedos; el TCP es el centro de la zona de agarre. Se midió colocando las mallas de los dedos en el marco de <span class="mono">link_6_1</span> y analizándolas por cortes a lo largo de X.</p>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Resultado (marco link_6_1)</th><th class="num">Valor</th></tr></thead>
+    <tbody>
+      <tr><td>Dirección en la que apunta la pinza</td><td class="num">−X</td></tr>
+      <tr><td>Punta de los dedos</td><td class="num">x = −0.1224 m</td></tr>
+      <tr><td>Cara interna de los dedos (contacto)</td><td class="num">x = −0.083 a −0.121 m</td></tr>
+      <tr><td>Dedo derecho / izquierdo en la punta</td><td class="num">y ∈ [0.0085, 0.019] / [−0.019, −0.0085] m</td></tr>
+      <tr><td>Simetría en Z</td><td class="num">z ∈ [−0.0106, 0.0104] m</td></tr>
+      <tr><td>Dirección de cierre</td><td class="num">eje Y</td></tr>
+      <tr><td><b>TCP elegido</b> (mitad de la cara de contacto)</td><td class="num"><b>(−0.102, 0, 0) m</b></td></tr>
+    </tbody>
+  </table></div>
+  <div class="eq">
+    \[ g(q_f) = 0.017 + 2\,q_f \quad\Rightarrow\quad g \in [0.003,\ 0.049]\ \text{m para } q_f \in [-0.007,\ 0.016]\ \text{m} \]
+    <p class="why">Apertura entre las caras internas en función de <span class="mono">right_finger_joint</span>; el izquierdo lo imita con multiplicador −1 (<em>mimic</em>). Con \(q_f = 0\) quedan 17 mm.</p>
+  </div>
+  <div class="prose"><p>En el xacro, <span class="mono">gripper_tcp</span> es un eslabón sin masa unido a <span class="mono">link_6_1</span> por una articulación fija. Para poner el TCP en la punta de los dedos basta cambiar su <span class="mono">origin</span> a −0.1224.</p></div>
+</section>
+
+<section id="jacobiano">
+  <h2><span class="n">13</span>Jacobiano</h2>
+  <div class="prose">
+    <p>Relaciona velocidades articulares con la velocidad del TCP; la cinemática inversa lo usa en cada iteración. Es el Jacobiano geométrico, calculado a partir de los marcos de cada articulación.</p>
+  </div>
+  <div class="eq">
+    \[ J = \begin{bmatrix} J_v \\ J_\omega \end{bmatrix} \in \mathbb R^{6\times n}, \qquad
+       J_i = \begin{cases} \begin{bmatrix} \mathbf z_i \times (\mathbf p_e - \mathbf p_i) \\ \mathbf z_i \end{bmatrix} & \text{rotativa} \\[10pt] \begin{bmatrix} \mathbf z_i \\ \mathbf 0 \end{bmatrix} & \text{prismática} \end{cases} \]
+    <p class="why">\(\mathbf z_i = R_i\,\mathbf k_i\) es el eje de la articulación \(i\) en el marco base, \(\mathbf p_i\) su posición y \(\mathbf p_e\) la del TCP.</p>
+  </div>
+  <div class="eq">
+    \[ J_{v,i} \approx \frac{\mathbf p_e(\mathbf q + h\,\mathbf e_i) - \mathbf p_e(\mathbf q - h\,\mathbf e_i)}{2h}, \qquad h = 10^{-6} \]
+    <p class="why">Verificación: la parte lineal coincide con diferencias finitas centradas con tolerancia \(10^{-8}\). La parte angular se valida de forma indirecta con las pruebas de cinemática inversa.</p>
+  </div>
+</section>
+
+<section id="ik">
+  <h2><span class="n">14</span>Cinemática inversa</h2>
+  <div class="prose">
+    <p>Dada una pose deseada \(T_d = (R_d, \mathbf p_d)\), encontrar \(\mathbf q\). Como la muñeca no es esférica, se usa mínimos cuadrados amortiguados (<em>damped least squares</em>, DLS), un método iterativo que se comporta bien cerca de singularidades.</p>
+  </div>
+  <h3>Error de pose</h3>
+  <div class="eq">
+    \[ \mathbf e = \begin{bmatrix} \mathbf e_p \\ \mathbf e_R \end{bmatrix} = \begin{bmatrix} \mathbf p_d - \mathbf p(\mathbf q) \\ \log\!\big(R_d\,R(\mathbf q)^\top\big)^\vee \end{bmatrix} \]
+    <p class="why">El error de orientación es el vector de rotación (eje × ángulo) que lleva la orientación actual a la deseada.</p>
+  </div>
+  <div class="eq">
+    \[ \theta = \arccos\!\left(\frac{\operatorname{tr} R - 1}{2}\right), \qquad
+       \log(R)^\vee = \frac{\theta}{2\sin\theta}\begin{bmatrix} R_{32}-R_{23} \\ R_{13}-R_{31} \\ R_{21}-R_{12} \end{bmatrix} \]
+    <p class="why">Si \(\theta \approx 0\) el resultado es cero; si \(\theta \approx \pi\) el eje se obtiene de la parte simétrica de \(R\), porque la fórmula se indefine.</p>
+  </div>
+  <h3>Paso de actualización (DLS ponderado)</h3>
+  <div class="eq">
+    \[ \Delta\mathbf q = W^{-1} J^\top \left( J\,W^{-1} J^\top + \lambda^2 I \right)^{-1} \mathbf e \]
+    <p class="why">Solución de \(\min_{\Delta\mathbf q}\ \lVert J\Delta\mathbf q - \mathbf e\rVert^2 + \lambda^2\,\Delta\mathbf q^\top W \Delta\mathbf q\). \(\lambda\) evita pasos enormes cerca de singularidades. \(W = \operatorname{diag}(w_i)\) da un costo a cada articulación: una con más peso se mueve menos.</p>
+  </div>
+  <div class="eq">
+    \[ \Delta\mathbf q \leftarrow \Delta\mathbf q \cdot \min\!\left(1,\ \frac{\Delta_{\max}}{\lVert \Delta\mathbf q \rVert}\right), \qquad \mathbf q \leftarrow \operatorname{lim}(\mathbf q + \Delta\mathbf q) \]
+  </div>
+  <div class="eq">
+    \[ \operatorname{lim}(q_i) = \begin{cases} \big((q_i - q_i^{\min}) \bmod 2\pi\big) + q_i^{\min} & \text{rotativa con } q_i^{\max} - q_i^{\min} \ge 2\pi \\ \operatorname{clip}(q_i,\ q_i^{\min},\ q_i^{\max}) & \text{otra con límites} \end{cases} \]
+    <p class="why">Con rangos de vuelta completa (los ±π provisorios) el ángulo da la vuelta en vez de recortarse; si no, una solución cerca de −π se quedaba pegada al límite.</p>
+  </div>
+  <h3>Convergencia y reinicios</h3>
+  <div class="prose">
+    <p>Se itera hasta \(\lVert\mathbf e_p\rVert &lt; 10^{-4}\) m y \(\lVert\mathbf e_R\rVert &lt; 10^{-3}\) rad. El primer intento parte de la posición actual, para que la solución quede cerca. Si no converge, se reintenta desde configuraciones aleatorias dentro de los límites. Si ninguno converge, se devuelve el mejor (menor \(\lVert\mathbf e_p\rVert + 0.1\,\lVert\mathbf e_R\rVert\)) marcado como fallido y el nodo no mueve el brazo.</p>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Parámetro</th><th class="num">Valor</th><th>Efecto</th></tr></thead>
+    <tbody>
+      <tr><td>Amortiguamiento \(\lambda\)</td><td class="num">0.01</td><td>estabilidad cerca de singularidades</td></tr>
+      <tr><td>Paso máximo \(\Delta_{\max}\)</td><td class="num">0.5</td><td>evita saltos grandes</td></tr>
+      <tr><td>Iteraciones por intento / reinicios</td><td class="num">200 / 20</td><td>robustez ante mínimos locales</td></tr>
+      <tr><td>Tolerancia de posición / orientación</td><td class="num">0.1 mm / 0.057°</td><td>criterio de éxito</td></tr>
+      <tr><td>Modo solo posición</td><td class="num">opcional</td><td>usa solo las 3 filas de posición</td></tr>
+    </tbody>
+  </table></div>
+  <div class="eq">
+    \[ R(x,y,z,w) = \begin{bmatrix} 1-2(y^2+z^2) & 2(xy - zw) & 2(xz + yw) \\ 2(xy + zw) & 1-2(x^2+z^2) & 2(yz - xw) \\ 2(xz - yw) & 2(yz + xw) & 1-2(x^2+y^2) \end{bmatrix} \]
+    \[ w = \tfrac12\sqrt{1+R_{11}+R_{22}+R_{33}},\quad x = \operatorname{sgn}(R_{32}-R_{23})\,\tfrac12\sqrt{1+R_{11}-R_{22}-R_{33}},\ \ldots \]
+    <p class="why">Conversión entre cuaterniones de ROS y matrices. El cuaternión se normaliza antes. Se verifica con 50 rotaciones aleatorias (ida y vuelta, error &lt; \(10^{-9}\)).</p>
+  </div>
+</section>
+
+<section id="lift">
+  <h2><span class="n">15</span>Inclusión del lift (7 ejes)</h2>
+  <div class="prose">
+    <p>Con el lift fijo el brazo cubre unos 1.66 m de altura; con él, la pinza va del suelo a 2.4 m. La cadena empieza en <span class="mono">base_footprint</span> (supone la base quieta) y contiene <span class="mono">vertical_lift_joint</span> + joint_1…6. Con 7 articulaciones para 6 restricciones hay infinitas soluciones; los pesos \(W\) eligen. Al lift se le da \(w = 10\) y a las demás \(w = 1\).</p>
+    <p>Para elegir el peso se probaron 30 correcciones pequeñas (pose actual desplazada unos 5 cm al azar, desde posturas aleatorias con el lift en 0), con la cadena de <span class="mono">preparacion_ws</span>, idéntica en brazo y lift:</p>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Peso del lift</th><th class="num">Resueltas</th><th class="num">Movimiento del lift (mediana)</th><th class="num">Máximo</th></tr></thead>
+    <tbody>
+      <tr><td>3</td><td class="num">26 / 30</td><td class="num">4.2 cm</td><td class="num">24.7 cm</td></tr>
+      <tr><td><b>10 (elegido)</b></td><td class="num">24 / 30</td><td class="num"><b>2.4 cm</b></td><td class="num">40.0 cm</td></tr>
+      <tr><td>30</td><td class="num">30 / 30</td><td class="num">2.7 cm</td><td class="num">46.6 cm</td></tr>
+    </tbody>
+  </table></div>
+  <div class="prose">
+    <p>Las diferencias son modestas: el peso afecta sobre todo al primer intento. Con reinicios aleatorios el lift puede saltar más. Con pesos 1, 3 y 10 se resolvieron 40 de 40 poses alcanzables aleatorias, y un descenso de 30 cm con el brazo vertical se resolvió moviendo el lift −0.30 m. El lift va en el mismo controlador de trayectorias que el brazo, para que ambos se muevan sincronizados.</p>
+  </div>
+</section>
+
+<section id="workspace">
+  <h2><span class="n">16</span>Espacio de trabajo y rango con el lift</h2>
+  <div class="prose">
+    <p><b>Método (Monte Carlo):</b> se muestrean configuraciones uniformes dentro de los límites, se calcula \(\mathbf p = \text{FK}(\mathbf q)\) y se toman los extremos. 60 000 muestras para el alcance al frente y 12 000 por panel en la figura. Se descartan puntos bajo el suelo.</p>
+  </div>
+  <figure>
+    <img src="img/fig_workspace.png" alt="Tres paneles, uno por altura del lift (−0.4, 0 y +0.6 m), con nubes de puntos alcanzables por la pinza alrededor de Milo; la nube sube con el lift." width="1320" height="672">
+    <figcaption><b>Figura 6.</b> Puntos alcanzados por el TCP, proyectados en X-Z, para tres alturas del lift. No se revisan choques: parte de cada nube cae dentro de la base o la columna.</figcaption>
+  </figure>
+  <h3 id="rango">Rango completo con el prismático</h3>
+  <div class="prose">
+    <p>Como la distancia hombro–TCP llega a 0.843 m en cualquier dirección, el espacio de acción es aproximadamente una <b>cápsula</b>: una esfera de ese radio alrededor del hombro, estirada a lo largo de la carrera del lift. Los extremos salen de buscar el máximo en cada dirección, no solo de muestreo aleatorio.</p>
+  </div>
+  <figure>
+    <img src="img/fig_rango.png" alt="Vista lateral X-Z de Milo con el contorno del espacio de acción del TCP: una cápsula de 0 a 2.456 m de alto y de −0.73 a 0.97 m en X, el hombro en tres alturas del lift separadas por la carrera de 1.0 m, y una curva punteada más pequeña para el lift fijo en 0." width="990" height="1144">
+    <figcaption><b>Figura 7.</b> Espacio de acción del TCP en vista lateral. En azul lleno, el contorno exterior con el lift en todo su rango; punteado, con el lift fijo en 0. En naranja, la carrera del lift y las tres alturas del hombro. No descuenta choques: la parte que cae sobre la base y la columna no es alcanzable en la práctica.</figcaption>
+  </figure>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Magnitud</th><th class="num">Valor</th><th>Cómo sale</th></tr></thead>
+    <tbody>
+      <tr><td>Carrera del prismático</td><td class="num">1.000 m (−0.4 … +0.6)</td><td>límite del URDF; 150 N, 0.20 m/s (la IK usa 0.1 m/s)</td></tr>
+      <tr><td>Altura de <span class="mono">joint_1</span></td><td class="num">0.557 … 1.557 m</td><td>0.9573 + carrera</td></tr>
+      <tr><td>Altura del hombro (<span class="mono">joint_2</span>)</td><td class="num">0.613 … 1.613 m</td><td>1.0133 + carrera</td></tr>
+      <tr><td>TCP en pose cero</td><td class="num">z = 1.376 … 2.376 m</td><td>x = 0.355 m fijo</td></tr>
+      <tr><td>Distancia máx. hombro → TCP</td><td class="num">0.843 m</td><td>búsqueda en todas las posturas</td></tr>
+      <tr><td>Radio horizontal máx. alrededor del eje de <span class="mono">joint_1</span></td><td class="num">0.848 m</td><td>0.843 más el corrimiento del plano del brazo</td></tr>
+      <tr><td>Alcance al frente desde <span class="mono">base_footprint</span></td><td class="num">0.971 m</td><td>eje de joint_1 en x = 0.1225 + 0.848</td></tr>
+      <tr><td>Alcance hacia atrás</td><td class="num">−0.726 m</td><td>geométrico; la columna está en el camino</td></tr>
+      <tr><td>Altura máx. del TCP</td><td class="num">2.456 m</td><td>1.613 + 0.843</td></tr>
+      <tr><td>Altura mín. del TCP</td><td class="num">suelo (0 m)</td><td>0.613 − 0.843 &lt; 0: el lift abajo permite llegar al suelo</td></tr>
+      <tr><td>Franja de alcance completo</td><td class="num">0.613 … 1.613 m</td><td>a esas alturas el radio de 0.848 m está disponible entero</td></tr>
+      <tr><td>Volumen aproximado</td><td class="num">≈ 4.7 m³</td><td>cápsula de radio 0.848 m y 1.0 m de carrera, menos lo que queda bajo el suelo; sin descontar el robot</td></tr>
+    </tbody>
+  </table></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Lift</th><th class="num">Hombro (z)</th><th class="num">Alturas del TCP</th><th class="num">Alcance horizontal máx.</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">−0.4 m</td><td class="num">0.61 m</td><td class="num">suelo … 1.46 m</td><td class="num">0.97 m</td></tr>
+      <tr><td class="mono">0.0 m</td><td class="num">1.01 m</td><td class="num">0.17 … 1.86 m</td><td class="num">0.97 m</td></tr>
+      <tr><td class="mono">+0.6 m</td><td class="num">1.61 m</td><td class="num">0.77 … 2.46 m</td><td class="num">0.97 m</td></tr>
+      <tr class="sum"><td>Combinado</td><td class="num"></td><td class="num">suelo … 2.46 m</td><td class="num">0.97 m</td></tr>
+    </tbody>
+  </table></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Altura del objetivo</th><th class="num">Alcance al frente (x máx.)</th><th class="num">Más allá del frente del robot (x = 0.436)</th></tr></thead>
+    <tbody>
+      <tr><td>Suelo</td><td class="num">0.52 m</td><td class="num">~8 cm</td></tr>
+      <tr><td>0.30 m</td><td class="num">0.77 m</td><td class="num">~33 cm</td></tr>
+      <tr><td>0.75 m (mesa típica)</td><td class="num">0.89 m</td><td class="num">~45 cm</td></tr>
+      <tr><td>1.00 m</td><td class="num">0.93 m</td><td class="num">~50 cm</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note"><p><b>Cifras aproximadas.</b> El muestreo aleatorio subestima un poco los máximos (sobre todo a ras del suelo) y no considera choques ni límites reales (usa los ±π provisorios). El alcance se mide desde <span class="mono">base_footprint</span>; la base del brazo está 0.12 m más adelante.</p></div>
+</section>
+
+<section id="brazo-sim">
+  <h2><span class="n">17</span>El brazo en simulación</h2>
+  <div class="prose">
+    <p><span class="mono">./sim.sh brazo</span> corre <span class="mono">arm_sim.launch.py</span>. Este launch procesa el xacro con <span class="mono">lock_arm:=false arm_control:=true</span> y mallas como colisión, abre la misma arena, pone a Milo, arranca los controladores solo si el spawn terminó bien y lanza los dos nodos y RViz.</p>
+  </div>
+  <pre class="mermaid">
+flowchart LR
+  RV["RViz<br/>marcador interactivo"] -- "/arm_target_marker/feedback" --> MK["arm_marker_node"]
+  CLI["ros2 topic pub"] -- "/arm_target_pose" --> IK
+  MK -- "/arm_target_pose" --> IK["arm_ik_node<br/>IK de 7 ejes"]
+  IK -- "FollowJointTrajectory" --> AC["arm_controller<br/>lift + joint_1..6"]
+  GC["gripper_controller<br/>right_finger_joint"]
+  AC --> HW["gazebo_ros2_control<br/>GazeboSystem"]
+  GC --> HW
+  HW --> JSB["joint_state_broadcaster"]
+  JSB -- "/joint_states" --> IK
+  JSB -- "/joint_states" --> RSP["robot_state_publisher"]
+  RSP -- "/tf" --> IK
+  RSP -- "/tf" --> MK
+  </pre>
+  <h3>Control en Gazebo</h3>
+  <div class="prose">
+    <ul>
+      <li><span class="mono">andesrobot.arm_control.xacro</span>: hardware <span class="mono">GazeboSystem</span> con mando de <b>posición</b> para el lift, joint_1…6 y <span class="mono">right_finger_joint</span>. El dedo izquierdo es <em>mimic</em> y aparece como <span class="mono">left_finger_joint_mimic</span>.</li>
+      <li>Con <span class="mono">arm_control:=true</span>, el plugin de joint states de Gazebo publica solo las ruedas; el brazo lo publica únicamente <span class="mono">joint_state_broadcaster</span>.</li>
+      <li><span class="mono">arm_controllers.yaml</span> (100 Hz): <span class="mono">arm_controller</span> con el lift + joint_1…6 (acepta metas parciales) y <span class="mono">gripper_controller</span>.</li>
+      <li>El launch quita los comentarios XML del URDF: <span class="mono">gazebo_ros2_control</span> en Humble no logra leerlo si los tiene, y el controller_manager nunca arranca.</li>
+    </ul>
+  </div>
+  <h3>Nodo <span class="mono">arm_ik_node</span></h3>
+  <div class="prose">
+    <p>Recibe <span class="mono">geometry_msgs/PoseStamped</span> en <span class="mono">/arm_target_pose</span>, en cualquier marco de TF. La transforma al marco base de la cadena, resuelve la IK desde la posición actual (<span class="mono">/joint_states</span>) y manda una trayectoria de un punto a <span class="mono">/arm_controller/follow_joint_trajectory</span>. La duración la marca la articulación más lenta:</p>
+  </div>
+  <div class="eq">
+    \[ T = \max\!\left(T_{\min},\ \max_i \frac{\lvert q_i^{\text{nuevo}} - q_i^{\text{actual}} \rvert}{v_i}\right), \qquad v_{\text{brazo}} = 0.5\ \text{rad/s},\ \ v_{\text{lift}} = 0.1\ \text{m/s},\ \ T_{\min} = 1\ \text{s} \]
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Parámetro</th><th class="num">Por defecto</th><th>Qué hace</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">use_lift</td><td class="num">true</td><td>false = IK de 6 ejes en <span class="mono">arm_base_link_1</span>, el lift no se mueve</td></tr>
+      <tr><td class="mono">lift_weight</td><td class="num">10.0</td><td>peso \(w\) del lift en la IK</td></tr>
+      <tr><td class="mono">position_only</td><td class="num">false</td><td>ignora la orientación del objetivo</td></tr>
+      <tr><td class="mono">max_joint_velocity / max_lift_velocity</td><td class="num">0.5 rad/s / 0.1 m/s</td><td>velocidades para calcular la duración</td></tr>
+      <tr><td class="mono">min_duration</td><td class="num">1.0 s</td><td>duración mínima de cada movimiento</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Nodo <span class="mono">arm_marker_node</span></h3>
+  <div class="prose">
+    <p>Crea un marcador interactivo sobre <span class="mono">gripper_tcp</span>, con flechas para mover y anillos para girar en X, Y y Z. Al soltar el mouse publica la pose en <span class="mono">/arm_target_pose</span>, en <span class="mono">base_footprint</span> (así el marcador no sube y baja con el lift). Con clic derecho: “Enviar objetivo” y “Volver a la pinza”. La pinza no pasa por la IK: se manda directo a <span class="mono">gripper_controller</span>.</p>
+  </div>
+</section>
+
+<section id="camara">
+  <h2><span class="n">18</span>Cámara de profundidad en la pinza</h2>
+  <div class="prose">
+    <p><b>Para qué:</b> ver el objeto desde la pinza, medir su posición 3D y mandarla a la cinemática inversa. La cámara es una <b>Orbbec Gemini Plus</b>. Esta sección es una <b>guía de implementación</b>: la cámara todavía no está en el workspace. El sensor de Gazebo propuesto y sus topics sí se probaron dentro del contenedor de Milo con un modelo de prueba.</p>
+  </div>
+  <pre class="mermaid">
+flowchart LR
+  CAM["Gemini Plus<br/>Gazebo o real"] -- "image_raw (color)<br/>depth/image_raw<br/>points" --> DET["detector del objeto<br/>(por hacer)"]
+  DET -- "/arm_target_pose<br/>PoseStamped" --> IK["arm_ik_node"]
+  TF["TF: link_6_1 → cámara<br/>(robot_state_publisher)"] --> DET
+  TF --> IK
+  IK -- "FollowJointTrajectory" --> AC["arm_controller"]
+  </pre>
+
+  <h3>Paso 1 · La cámara y lo que implica en Milo</h3>
+  <div class="prose"><p>La Gemini Plus es una cámara de <b>luz estructurada binocular</b>: un proyector infrarrojo dibuja un patrón y dos sensores infrarrojos lo ven desde dos posiciones. Un chip de la propia cámara (MX6000) calcula la profundidad, así que entrega directamente la imagen de profundidad y la nube de puntos; no hace falta calcular la disparidad en el PC.</p></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Especificación</th><th>Valor</th></tr></thead>
+    <tbody>
+      <tr><td>Rango de profundidad</td><td><b>0.25 – 2.5 m</b></td></tr>
+      <tr><td>Campo de visión de profundidad</td><td>H 67.9° · V 45.3°</td></tr>
+      <tr><td>Profundidad</td><td>USB 3.0: 1280×800 @ 30 fps, 640×400 @ 60 fps (USB 2.0: 1280×800 @ 7 fps, 640×400 @ 30 fps)</td></tr>
+      <tr><td>Precisión</td><td>5 mm a 1 m</td></tr>
+      <tr><td>Color (RGB)</td><td>H 71° · V 56.7°; hasta 1920×1080 @ 30 fps por USB 3.0</td></tr>
+      <tr><td>Conexión y consumo</td><td>USB 3.0, &lt; 2.2 W, láser clase 1</td></tr>
+      <tr><td>Medidas</td><td>76 mm de ancho × 20 mm de fondo; 68 mm de alto con su soporte metálico con bisagra (inclinación ajustable, agujeros Φ4 mm a 30 mm)</td></tr>
+      <tr><td>Masa</td><td>0.122 kg (dato del vendedor)</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note"><p><b>La distancia mínima de 0.25 m cambia el plan.</b> Montada sobre la pinza, la cámara queda unos 8 cm detrás del TCP: <b>no ve el objeto en el momento del agarre</b>. El uso correcto es en dos fases: (1) desde una pose de pre-agarre a 0.3 m o más, la cámara mide la posición del objeto; (2) el brazo se acerca y cierra la pinza con esa medida, sin ver. Con 76 mm de ancho cabe sobre la cara superior de <span class="mono">link_6_1</span> (85 mm en Y), y su soporte con bisagra permite darle la inclinación hacia abajo del paso 2. Su masa se suma al último eslabón.</p></div>
+  <div class="prose"><p><b>Alternativa:</b> montarla fija en el carro del lift o en la columna (cámara "eye-to-hand"), mirando la zona de trabajo frente a Milo. A esa distancia el rango de 0.25–2.5 m le calza mejor y no carga el brazo; a cambio, el brazo puede taparle el objeto. Los pasos siguientes sirven para las dos ubicaciones cambiando solo el <span class="mono">parent</span> del joint.</p></div>
+  <div class="prose"><p>Fuente: la ficha técnica y el plano de medidas de la página de <a href="https://hubot.cl/producto/camara-3d-orbbec-gemini-plus-para-robotica-y-vehiculos-inteligentes-compatible-ros-y-slam-sku-5012/">Hubot</a>, guardados con los tutoriales y el driver de Hiwonder en <span class="mono">andesrobot_arm/docs/hardware/camara_gemini_plus/</span>. Orbbec no publica datasheet ni modelo 3D de este modelo.</p></div>
+
+  <h3>Paso 2 · Ubicarla y agregar sus frames al URDF</h3>
+  <div class="prose">
+    <p>Medidas de la pinza en el marco de <span class="mono">link_6_1</span>, tomadas de sus mallas: el cuerpo va de x = −0.0725 a 0 (±0.0425 en Y, ±0.0325 en Z); los dedos llegan a x = −0.1224, cierran en Y y no pasan de ±0.021 en Z. La pinza apunta hacia −X. Una cámara <b>sobre la cara superior (+Z)</b>, mirando hacia −X e inclinada hacia abajo, no queda tapada por los dedos.</p>
+    <p>Se usan dos frames:</p>
+    <ul>
+      <li><span class="mono">gripper_camera_link</span>: el cuerpo de la cámara, con la convención REP-103 (X hacia adelante, Z arriba).</li>
+      <li><span class="mono">gripper_camera_depth_optical_frame</span>: la convención óptica (Z hacia adelante, X a la derecha, Y hacia abajo), que es la que usan las imágenes y la nube de puntos. Se obtiene con <span class="mono">rpy="−π/2 0 −π/2"</span> desde el cuerpo.</li>
+    </ul>
+  </div>
+  <div class="eq">
+    \[ \hat{\mathbf x}_{\text{cám}} = R_z(\pi)\,R_y(p)\,\hat{\mathbf x} = \begin{bmatrix} -\cos p \\ 0 \\ -\sin p \end{bmatrix} \ \text{en } link\_6\_1 \]
+    <p class="why">Con <span class="mono">rpy="0 p π"</span> el eje de la cámara apunta hacia −X (hacia donde apunta la pinza) y baja un ángulo \(p\). Ejemplo: xyz = (−0.040, 0, 0.055) y \(p\) = 0.35 rad (20°). Así el TCP queda 21.5° bajo el eje de la cámara, dentro de su FOV vertical (±22.6°), y un objeto a 0.3 m o más delante de la pinza queda en el rango de profundidad. Son valores de partida: se reemplazan por los del soporte real.</p>
+  </div>
+<pre><code>&lt;!-- andesrobot.urdf.xacro, después de gripper_tcp_joint --&gt;
+&lt;!-- gripper_camera:=true -&gt; Orbbec Gemini Plus sobre la pinza (por defecto no, así los
+     launches actuales no cambian). --&gt;
+&lt;xacro:arg name="gripper_camera" default="false"/&gt;
+&lt;xacro:if value="$(arg gripper_camera)"&gt;
+  &lt;!-- Datos de la cámara (plano de Hubot): 76 mm de ancho y 20 mm de fondo; el alto del
+       cuerpo sin soporte (~30 mm) es aproximado: medirlo en la cámara real. --&gt;
+  &lt;xacro:property name="cam_mass" value="0.122"/&gt;     &lt;!-- [kg] --&gt;
+  &lt;xacro:property name="cam_sx" value="0.020"/&gt;       &lt;!-- [m] fondo, ancho y alto --&gt;
+  &lt;xacro:property name="cam_sy" value="0.076"/&gt;
+  &lt;xacro:property name="cam_sz" value="0.030"/&gt;
+  &lt;link name="gripper_camera_link"&gt;
+    &lt;inertial&gt;
+      &lt;mass value="${cam_mass}"/&gt;
+      &lt;inertia ixx="${cam_mass/12*(cam_sy**2 + cam_sz**2)}" ixy="0" ixz="0"
+               iyy="${cam_mass/12*(cam_sx**2 + cam_sz**2)}" iyz="0"
+               izz="${cam_mass/12*(cam_sx**2 + cam_sy**2)}"/&gt;
+    &lt;/inertial&gt;
+    &lt;visual&gt;&lt;geometry&gt;&lt;box size="${cam_sx} ${cam_sy} ${cam_sz}"/&gt;&lt;/geometry&gt;
+      &lt;material name="caster_black"/&gt;&lt;/visual&gt;
+    &lt;collision&gt;&lt;geometry&gt;&lt;box size="${cam_sx} ${cam_sy} ${cam_sz}"/&gt;&lt;/geometry&gt;&lt;/collision&gt;
+  &lt;/link&gt;
+  &lt;!-- Sobre la cara superior de link_6_1, mirando hacia -X (como la pinza), 20° hacia abajo. --&gt;
+  &lt;joint name="gripper_camera_joint" type="fixed"&gt;
+    &lt;origin xyz="-0.040 0 0.055" rpy="0 0.35 ${pi}"/&gt;
+    &lt;parent link="link_6_1"/&gt;
+    &lt;child link="gripper_camera_link"/&gt;
+  &lt;/joint&gt;
+  &lt;!-- Frame óptico (Z adelante, X derecha, Y abajo): lo usan las imágenes y la nube. --&gt;
+  &lt;link name="gripper_camera_depth_optical_frame"/&gt;
+  &lt;joint name="gripper_camera_depth_optical_joint" type="fixed"&gt;
+    &lt;origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/&gt;
+    &lt;parent link="gripper_camera_link"/&gt;
+    &lt;child link="gripper_camera_depth_optical_frame"/&gt;
+  &lt;/joint&gt;
+&lt;/xacro:if&gt;</code></pre>
+  <div class="prose"><p>En Gazebo, la articulación fija hace que la cámara se funda con <span class="mono">link_6_1</span>: su masa se suma a ese eslabón y el sensor se mueve con la pinza. Este bloque se procesó en una copia del xacro: sin el argumento el URDF no cambia, y con <span class="mono">gripper_camera:=true</span> aparecen los dos frames, con el TCP a 8.3 cm y 21.5° bajo el eje de la cámara.</p></div>
+
+  <h3>Paso 3 · Sensor en Gazebo</h3>
+  <div class="prose"><p>En <span class="mono">andesrobot.sim.xacro</span>, junto al lidar y la IMU. Un sensor <span class="mono">depth</span> con el plugin <span class="mono">libgazebo_ros_camera.so</span> entrega lo mismo que la cámara real (color, profundidad y nube), con su rango y su campo de visión:</p></div>
+<pre><code>&lt;xacro:if value="$(arg gripper_camera)"&gt;
+&lt;gazebo reference="gripper_camera_link"&gt;
+  &lt;sensor type="depth" name="gripper_gemini"&gt;
+    &lt;update_rate&gt;15&lt;/update_rate&gt;
+    &lt;camera&gt;
+      &lt;horizontal_fov&gt;1.185&lt;/horizontal_fov&gt;  &lt;!-- 67.9° de la Gemini Plus --&gt;
+      &lt;image&gt;&lt;width&gt;640&lt;/width&gt;&lt;height&gt;400&lt;/height&gt;&lt;format&gt;R8G8B8&lt;/format&gt;&lt;/image&gt;
+      &lt;clip&gt;&lt;near&gt;0.05&lt;/near&gt;&lt;far&gt;3.0&lt;/far&gt;&lt;/clip&gt;
+    &lt;/camera&gt;
+    &lt;plugin name="gripper_camera_driver" filename="libgazebo_ros_camera.so"&gt;
+      &lt;ros&gt;&lt;namespace&gt;gripper_camera&lt;/namespace&gt;&lt;/ros&gt;
+      &lt;camera_name&gt;gemini&lt;/camera_name&gt;
+      &lt;frame_name&gt;gripper_camera_depth_optical_frame&lt;/frame_name&gt;
+      &lt;!-- Rango de la cámara real: fuera de él no hay profundidad. --&gt;
+      &lt;min_depth&gt;0.25&lt;/min_depth&gt;
+      &lt;max_depth&gt;2.5&lt;/max_depth&gt;
+    &lt;/plugin&gt;
+  &lt;/sensor&gt;
+&lt;/gazebo&gt;
+&lt;/xacro:if&gt;</code></pre>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Resultado de la prueba en el contenedor</th><th>Valor</th></tr></thead>
+    <tbody>
+      <tr><td>Topics</td><td class="mono">/gripper_camera/gemini/image_raw, …/camera_info, …/depth/image_raw, …/depth/camera_info, …/points</td></tr>
+      <tr><td>Frecuencia de la nube (pedida 10 Hz)</td><td>9.0 Hz</td></tr>
+      <tr><td>Profundidad</td><td>640 × 400, <span class="mono">32FC1</span> (metros), <span class="mono">frame_id</span> = <span class="mono">gripper_camera_depth_optical_frame</span></td></tr>
+    </tbody>
+  </table></div>
+  <div class="prose"><p>La simulación no reproduce el patrón infrarrojo ni sus errores: la profundidad de Gazebo es perfecta dentro del rango. Para algo más realista se puede agregar ruido gaussiano al sensor (unos 5 mm a 1 m, según la precisión de la ficha).</p></div>
+
+  <h3>Paso 4 · Activarla en la simulación del brazo</h3>
+  <div class="prose">
+    <p>En <span class="mono">arm_sim.launch.py</span>, función <span class="mono">robot_description_urdf</span>, agregar <span class="mono">'gripper_camera': 'true'</span> a los <span class="mono">mappings</span> del xacro (o un <span class="mono">DeclareLaunchArgument</span> para prenderla y apagarla). La simulación de mapeo no se toca, y los controladores tampoco cambian: la cámara no tiene articulaciones.</p>
+    <p>Todos los cambios son en archivos que ya existen, así que con <span class="mono">--symlink-install</span> basta con relanzar. Las cámaras de Gazebo necesitan OpenGL: con <span class="mono">./sim.sh software</span> funcionan, pero más lento.</p>
+  </div>
+
+  <h3>Paso 5 · Verificar en la simulación</h3>
+<pre><code>./sim.sh shell
+ros2 topic hz /gripper_camera/gemini/points
+ros2 run tf2_ros tf2_echo gripper_tcp gripper_camera_depth_optical_frame
+ros2 run rqt_image_view rqt_image_view /gripper_camera/gemini/image_raw</code></pre>
+  <div class="prose">
+    <ul>
+      <li>La TF entre el TCP y la cámara tiene que coincidir con el <span class="mono">origin</span> del paso 2.</li>
+      <li>En RViz (<span class="mono">arm.rviz</span>) agregar un display <b>Image</b> con <span class="mono">image_raw</span> y uno <b>PointCloud2</b> con <span class="mono">points</span>. Guardar desde RViz borra los comentarios del archivo: copiar los displays a mano.</li>
+      <li>Poner un objeto en Gazebo a 0.3–1 m de la pinza y comparar su distancia en la nube con la real.</li>
+    </ul>
+  </div>
+
+  <h3>Paso 6 · Conectar con la cinemática inversa</h3>
+  <div class="prose">
+    <p><span class="mono">arm_ik_node</span> acepta un <span class="mono">PoseStamped</span> en cualquier frame de TF, así que un detector puede publicar la pose del objeto en <span class="mono">/arm_target_pose</span>.</p>
+    <p><b>Cuidado:</b> el nodo usa la TF más reciente, no la del instante de la imagen. Si el brazo se movió entre la foto y el envío, el objetivo queda corrido. Lo seguro es que el detector transforme la pose a <span class="mono">base_footprint</span> con la TF del <span class="mono">stamp</span> de la imagen y publique en ese marco, que no se mueve con el brazo.</p>
+    <p>Por la distancia mínima, el detector manda primero una pose de pre-agarre (unos 0.3 m antes del objeto, sobre la misma recta) y después la pose final, ya sin imagen.</p>
+  </div>
+
+  <h3>Paso 7 · Cámara real</h3>
+  <div class="prose">
+    <ol>
+      <li><b>Driver:</b> Orbbec tiene dos drivers para ROS 2, <span class="mono">OrbbecSDK_ROS2</span> (cámaras recientes) y <span class="mono">ros2_astra_camera</span> (Astra y Gemini antiguas). Revisar cuál lista la Gemini Plus, compilarlo en la imagen de Docker como se hace con <span class="mono">sllidar_ros2</span> en <span class="mono">/opt/milo_drivers</span>, y agregar sus reglas udev.</li>
+      <li><b>Nombres:</b> configurar el driver para que use <span class="mono">gripper_camera_depth_optical_frame</span> y los mismos topics que la simulación, o remapearlos en el launch.</li>
+      <li><b>Conexión:</b> USB 3.0 para tener 30 fps a 1280×800 (por USB 2.0 baja a 7 fps). <span class="mono">compose.robot.yaml</span> ya le da al contenedor acceso a <span class="mono">/dev</span>. El cable pasa por joint_1…6: con los límites provisorios de ±π se puede enrollar.</li>
+      <li><b>Montaje:</b> medir el soporte y corregir el <span class="mono">origin</span> de <span class="mono">gripper_camera_joint</span>. Para afinarlo, una calibración mano-ojo: mover el brazo frente a un marcador conocido y estimar la transformación cámara–pinza.</li>
+      <li><b>Masa:</b> sumar la de la cámara y su soporte a la del gripper (sección 5).</li>
+    </ol>
+  </div>
+
+  <h3>Archivos a modificar</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Archivo</th><th>Cambio</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">andesrobot_description/urdf/andesrobot.urdf.xacro</td><td>argumento <span class="mono">gripper_camera</span>, link, joint y frame óptico</td></tr>
+      <tr><td class="mono">andesrobot_description/urdf/andesrobot.sim.xacro</td><td>sensor <span class="mono">depth</span> con el plugin de cámara</td></tr>
+      <tr><td class="mono">andesrobot_arm/launch/arm_sim.launch.py</td><td><span class="mono">gripper_camera: true</span> en los mappings</td></tr>
+      <tr><td class="mono">andesrobot_arm/rviz/arm.rviz</td><td>displays Image y PointCloud2</td></tr>
+      <tr><td class="mono">docker/Dockerfile · docker/udev/</td><td>driver de Orbbec y sus reglas (solo robot real)</td></tr>
+      <tr><td class="mono">andesrobot_description/docs/ROBOT.md · andesrobot_arm/docs/BRAZO.md</td><td>documentar el argumento, los frames y los topics</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============================== PARTE V ============================== -->
+<div class="part"><span class="k">Parte V</span><span class="t">Estado</span><span class="d">Qué se probó, qué falló en el camino, qué falta y cómo usarlo.</span></div>
+
+<section id="validacion">
+  <h2><span class="n">19</span>Validación</h2>
+  <h3>Pruebas automáticas (pytest, sin ROS corriendo)</h3>
+  <div class="prose"><p>Corridas el 3 de octubre de 2026 dentro del contenedor: <b>6 de 6</b> en <span class="mono">andesrobot_arm</span> y <b>9 de 9</b> en <span class="mono">andesrobot_safety</span>.</p></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Prueba</th><th>Qué comprueba</th><th>Resultado</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">pose_cero_coincide_con_el_urdf</td><td>TCP en cero = (−0.232577, 0, 0.856077) m desde la base del brazo, orientación identidad</td><td><span class="tag ok">pasa</span></td></tr>
+      <tr><td class="mono">jacobiano_igual_a_diferencias_finitas</td><td>parte lineal de \(J\) vs. diferencias finitas, tolerancia \(10^{-8}\)</td><td><span class="tag ok">pasa</span></td></tr>
+      <tr><td class="mono">ik_llega_a_poses_alcanzables</td><td>20 poses aleatorias, 6 ejes, error ≤ 1 mm</td><td><span class="tag ok">pasa</span></td></tr>
+      <tr><td class="mono">ik_con_lift</td><td>10 poses aleatorias con 7 ejes + un punto a 5 cm del suelo frente a Milo</td><td><span class="tag ok">pasa</span></td></tr>
+      <tr><td class="mono">cuaternion_ida_y_vuelta</td><td>50 rotaciones, matriz → cuaternión → matriz</td><td><span class="tag ok">pasa</span></td></tr>
+      <tr><td class="mono">duracion_de_trayectoria</td><td>fórmula de duración, velocidad común y por articulación</td><td><span class="tag ok">pasa</span></td></tr>
+      <tr><td class="mono">libre_avanza_y_satura</td><td>sin obstáculos avanza, recortado a la velocidad máxima</td><td><span class="tag ok">pasa</span></td></tr>
+      <tr><td class="mono">para_en_stop_distance / frena_en_zona_lenta</td><td>se detiene a 0.30 m y frena proporcionalmente antes</td><td><span class="tag ok">pasa</span></td></tr>
+      <tr><td class="mono">puede_retroceder_con_muro_adelante / para_atras</td><td>con muro adelante puede retroceder; atrás también se detiene</td><td><span class="tag ok">pasa</span></td></tr>
+      <tr><td class="mono">pasa_puerta_de_1m</td><td>los marcos de una puerta de 1 m quedan fuera del corredor</td><td><span class="tag ok">pasa</span></td></tr>
+      <tr><td class="mono">giro_bloqueado… / giro_permitido…</td><td>bloquea el giro si hay algo dentro del radio de giro, lo permite si hay espacio</td><td><span class="tag ok">pasa</span></td></tr>
+      <tr><td class="mono">ignora_columna_propia</td><td>los puntos de la columna no cuentan como obstáculo</td><td><span class="tag ok">pasa</span></td></tr>
+    </tbody>
+  </table></div>
+  <h3>Pruebas en Gazebo</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Prueba</th><th>Resultado medido</th><th>Estado</th></tr></thead>
+    <tbody>
+      <tr><td>Arranque de los controladores del brazo (sin Docker y en Docker)</td><td>los 3 controladores en <span class="mono">active</span></td><td><span class="tag ok">bien</span></td></tr>
+      <tr><td>Pose alcanzable (0.5048, −0.2163, 1.862) en <span class="mono">base_footprint</span></td><td>TF medido (0.505, −0.216, 1.862), orientación igual; lift en +0.19</td><td><span class="tag ok">bien</span></td></tr>
+      <tr><td>Marcador: soltar en (0.70, 0, 0.60), pinza hacia abajo</td><td>TF medido (0.700, 0.000, 0.600); lift bajó a −0.40</td><td><span class="tag ok">bien</span></td></tr>
+      <tr><td>Estabilidad de la base mientras el brazo se mueve</td><td>sin vuelco (inclinación ≤ 0.002 rad); se desplazó 1.5 cm</td><td><span class="tag ok">bien</span></td></tr>
+      <tr><td>Pinza a 0.016 m</td><td>meta alcanzada</td><td><span class="tag ok">bien</span></td></tr>
+      <tr><td>Simulación de mapeo (<span class="mono">lock_arm:=true</span>)</td><td>Milo aparece, <span class="mono">/scan</span> a 10 Hz, <span class="mono">/odom</span> a 50 Hz, base nivelada</td><td><span class="tag ok">bien</span></td></tr>
+      <tr><td>Objetivo bajo justo delante de la base (en <span class="mono">preparacion_ws</span>)</td><td>la trayectoria atraviesa la base: Gazebo bloqueó el brazo a 5.9 cm del objetivo y el controlador igual reportó éxito</td><td><span class="tag bad">falla conocida</span></td></tr>
+    </tbody>
+  </table></div>
+  <div class="prose"><p>El robot físico (hoverboard, lidar y mapeo real) no se probó como parte de este informe; la calibración del driver viene documentada como "ya probada en el robot".</p></div>
+</section>
+
+<section id="problemas">
+  <h2><span class="n">20</span>Problemas y soluciones</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Problema</th><th>Causa</th><th>Solución</th></tr></thead>
+    <tbody>
+      <tr><td>Milo se volcaba en simulación</td><td>centro de masa a 0.69 m con las masas del CAD; 20 N·m por rueda levantaban la rueda loca</td><td>lastre de 12 kg y 5 N·m por rueda (sección 5)</td></tr>
+      <tr><td>La columna aparecía como obstáculo en el scan</td><td>queda ~0.4 m detrás del lidar y tapa ±4.5°</td><td><span class="mono">laser_filters</span> quita |ángulo| &gt; 173°; el filtro de seguridad descarta puntos dentro del robot</td></tr>
+      <tr><td>En el robot real el avance salía invertido</td><td>cableado y sentido de los motores</td><td>el driver cruza y niega los comandos y encoders (sección 7)</td></tr>
+      <tr><td>El controller_manager del brazo no arrancaba</td><td><span class="mono">gazebo_ros2_control</span> (Humble) no lee el URDF con comentarios XML</td><td><span class="mono">arm_sim.launch.py</span> quita los comentarios</td></tr>
+      <tr><td><span class="mono">/joint_states</span> duplicado</td><td>plugin de Gazebo y <span class="mono">joint_state_broadcaster</span> publicaban lo mismo</td><td>con <span class="mono">arm_control:=true</span> el plugin publica solo las ruedas</td></tr>
+      <tr><td>Compilar sin Docker rompe el contenedor</td><td>el contenedor reutiliza <span class="mono">ros2_ws/install/</span></td><td>sin Docker, compilar con <span class="mono">--build-base</span>/<span class="mono">--install-base</span> fuera de <span class="mono">ros2_ws</span></td></tr>
+      <tr><td><span class="mono">No module named 'rclpy._rclpy_pybind11'</span></td><td>VS Code activa Anaconda (Python 3.13); Humble usa 3.10</td><td><span class="mono">conda deactivate</span>. En Docker no pasa</td></tr>
+      <tr><td><span class="mono">gzserver</span> muere al arrancar (código 255)</td><td>un Gazebo anterior quedó ocupando el puerto 11345</td><td><span class="mono">killall gzserver gzclient</span> o <span class="mono">./sim.sh stop</span></td></tr>
+      <tr><td>RViz no mostraba el modelo si se abría después</td><td>el modelo se publica una vez y RViz escuchaba en <span class="mono">Volatile</span></td><td><span class="mono">arm.rviz</span> usa <span class="mono">Transient Local</span></td></tr>
+      <tr><td>Soluciones de IK pegadas en ±π</td><td>recortar en ±π impide dar la vuelta</td><td>envolver en vez de recortar si el rango cubre 2π</td></tr>
+      <tr><td>Ventanas de Gazebo o RViz negras</td><td>OpenGL sin aceleración utilizable en el contenedor</td><td><span class="mono">./sim.sh software</span> (render por CPU)</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="pendientes">
+  <h2><span class="n">21</span>Pendientes</h2>
+  <h3>Repositorio</h3>
+  <div class="prose"><ul>
+    <li><b>Subir <span class="mono">brazo-ik</span> a GitHub</b>: falta una credencial (llave SSH o token).</li>
+    <li>Decidir si se guardan o descartan los cambios de <span class="mono">arm.rviz</span> hechos desde RViz (borraron los comentarios del archivo).</li>
+  </ul></div>
+  <h3>Brazo</h3>
+  <div class="prose"><ul>
+    <li><b>Límites provisorios</b> (±π, 20 N·m, 1 rad/s): medir los topes físicos y los motores. La IK puede devolver posturas que el brazo real no hace.</li>
+    <li><b>Masas reales</b>: sumar los motores paso a paso, reductores y acoples a cada eslabón (sección 5) para que la simulación y el cálculo de torques sean realistas.</li>
+    <li><b>Confirmar los desplazamientos a lo largo de los ejes</b> (orígenes en los acoplamientos, sección 10) midiendo el brazo real.</li>
+    <li><b>Sin driver del brazo real</b>: el control existe solo en Gazebo. El EB300 se controla con un Arduino MEGA 2560 y 6 drivers TB6600; el camino natural es un plugin de ros2_control que hable por serie con el Arduino, como el del hoverboard.</li>
+    <li><b>Sin revisión de choques</b>: el brazo puede atravesar la base o la columna. Mejora directa: descartar soluciones que entren en cajas que aproximen la base y la columna (medidas de la sección 4).</li>
+    <li><b>Éxito sin verificar</b>: <span class="mono">arm_controller</span> no tiene tolerancias de meta.</li>
+    <li><b>Mando por posición</b>: Gazebo coloca las articulaciones sin fuerzas; agarrar objetos no será realista.</li>
+  </ul></div>
+  <h3>Robot físico (según <span class="mono">ROBOT.md</span>)</h3>
+  <div class="prose"><ul>
+    <li>Completar las reglas udev con los datos reales de los adaptadores.</li>
+    <li>Verificar el yaw de <span class="mono">laser_joint</span> según cómo quede montado el conector del C1, y el plano de escaneo (+30 mm estimado).</li>
+    <li>Calibrar <span class="mono">wheel_radius</span> y <span class="mono">wheel_separation</span> en <span class="mono">milo_controllers.yaml</span>.</li>
+    <li>Ajustar <span class="mono">ballast_mass</span> al peso real de baterías y electrónica, y medir la rueda loca.</li>
+  </ul></div>
+</section>
+
+<section id="uso">
+  <h2><span class="n">22</span>Cómo usarlo</h2>
+  <div class="prose"><p>Desde <span class="mono">~/milo_ws</span>. El código se edita en el PC; Docker ejecuta. Al terminar: Ctrl+C en la terminal 1 y <span class="mono">./sim.sh stop</span>.</p></div>
+  <h3>Mapeo en simulación</h3>
+<pre><code>./sim.sh                  # terminal 1: Gazebo + Milo + seguridad + SLAM + RViz
+./sim.sh teleop           # terminal 2: i adelante, , atrás, j/l girar, k frenar
+./sim.sh mapa arena_1     # terminal 3: guardar el mapa</code></pre>
+  <h3>Brazo en simulación</h3>
+<pre><code>./sim.sh brazo            # en RViz: herramienta Interact (tecla i), arrastrar la esfera naranja
+
+./sim.sh shell            # otra terminal: mandar una pose o mover la pinza
+ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped \
+  "{header: {frame_id: base_footprint}, pose: {position: {x: 0.5048, y: -0.2163, z: 1.862},
+    orientation: {x: -0.1252, y: 0.5501, z: -0.7869, w: 0.2502}}}"
+ros2 action send_goal /gripper_controller/follow_joint_trajectory control_msgs/action/FollowJointTrajectory \
+  "{trajectory: {joint_names: [right_finger_joint], points: [{positions: [0.016], time_from_start: {sec: 1}}]}}"</code></pre>
+  <h3>Milo físico</h3>
+<pre><code>./robot.sh puertos                               # ver qué /dev/ttyUSBx es cada uno (10c4 = lidar)
+LIDAR=/dev/ttyUSB0 HOVER=/dev/ttyUSB1 ./robot.sh  # la primera vez, con las ruedas en el aire
+./robot.sh teleop
+./robot.sh rviz                                  # en otro PC de la misma red</code></pre>
+  <h3>Pruebas y figuras (dentro de <span class="mono">./sim.sh shell</span>)</h3>
+<pre><code>source /ros2_ws/install/setup.bash
+cd /ros2_ws/src/andesrobot_arm && python3 -m pytest -q test
+cd /ros2_ws/src/andesrobot_safety && python3 -m pytest -q test
+cd /ros2_ws/src/andesrobot_arm && python3 scripts/figuras.py docs/figuras   # tras cambiar la geometría</code></pre>
+</section>
+
+<footer>
+  Figuras 1–3, 5 y 6 generadas con <span class="mono">andesrobot_arm/scripts/figuras.py</span> a partir del URDF procesado y las mallas STL; la figura 4 es <span class="mono">andesrobot_gazebo/worlds/andesrobot_arena.png</span>; la figura 7 y las distancias de la sección 10 se calcularon con <span class="mono">ArmKinematics</span> sobre el mismo URDF. Masas leídas del URDF procesado. Medidas en metros y radianes salvo que se indique otra unidad.
+</footer>
+
+</div>
+
+<script src="lib/mermaid.min.js"></script>
+<script>
+  // Diagramas: mismo tema que la página (claro u oscuro según el sistema).
+  var oscuro = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: oscuro ? 'dark' : 'default', securityLevel: 'strict' });
+</script>
+</body>
+</html>
