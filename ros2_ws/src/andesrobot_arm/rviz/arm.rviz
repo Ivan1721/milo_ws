@@ -1,57 +1,254 @@
-# RViz para el brazo de Milo (lo abre arm_sim.launch.py). Se carga con "rviz2 -d este_archivo".
-# Ojo: si haces File > Save, RViz reescribe este archivo y BORRA estos comentarios.
-#
-#   RobotModel          /robot_description        el modelo 3D de Milo
-#   TF                  (solo gripper_tcp)         el punto de agarre
-#   Objetivo de la pinza /arm_target_marker        marcador interactivo (herramienta Interact, tecla i)
 Panels:
   - Class: rviz_common/Displays
-    Name: Displays
     Help Height: 0
-    Tree Height: 300
+    Name: Displays
+    Property Tree Widget:
+      Expanded: ~
+      Splitter Ratio: 0.5
+    Tree Height: 380
 Visualization Manager:
   Class: ""
   Displays:
-    - Class: rviz_default_plugins/Grid
-      Name: Grid
-      Enabled: true
+    - Alpha: 0.4000000059604645
       Cell Size: 0.5
-      Plane Cell Count: 10
+      Class: rviz_default_plugins/Grid
       Color: 160; 160; 164
-      Alpha: 0.4
+      Enabled: true
+      Line Style:
+        Line Width: 0.029999999329447746
+        Value: Lines
+      Name: Grid
+      Normal Cell Count: 0
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Plane: XY
+      Plane Cell Count: 10
       Reference Frame: <Fixed Frame>
       Value: true
-    # Transient Local: recibe el modelo aunque RViz se abra después de robot_state_publisher.
-    - Class: rviz_default_plugins/RobotModel
-      Name: RobotModel
-      Enabled: true
+    - Alpha: 1
+      Class: rviz_default_plugins/RobotModel
+      Collision Enabled: false
+      Description File: ""
       Description Source: Topic
       Description Topic:
-        Value: /robot_description
         Depth: 5
         Durability Policy: Transient Local
         History Policy: Keep Last
         Reliability Policy: Reliable
-      Visual Enabled: true
-      Collision Enabled: false
-      Alpha: 1
-      Value: true
-    - Class: rviz_default_plugins/TF
-      Name: TF
+        Value: /robot_description
       Enabled: true
-      Show Names: true
-      Show Axes: true
-      Show Arrows: false
-      Marker Scale: 0.3
+      Links:
+        All Links Enabled: true
+        Expand Joint Details: false
+        Expand Link Details: false
+        Expand Tree: false
+        Link Tree Style: Links in Alphabetic Order
+        arm_base_link_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        ballast_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        base_footprint:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_caster_link_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        gripper_tcp:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        imu_link_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        laser:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        left_finger_link_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        left_wheel_link_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lidar_link_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lift_carriage_link_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        link_1_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        link_2_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        link_3_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        link_4_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        link_5_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        link_6_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        right_finger_link_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        right_wheel_link_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        vertical_column_link_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+      Mass Properties:
+        Inertia: false
+        Mass: false
+      Name: RobotModel
+      TF Prefix: ""
+      Update Interval: 0
+      Value: true
+      Visual Enabled: true
+    - Class: rviz_default_plugins/TF
+      Enabled: true
+      Frame Timeout: 15
       Frames:
         All Enabled: false
+        arm_base_link_1:
+          Value: true
+        ballast_link:
+          Value: true
+        base_footprint:
+          Value: true
+        base_link:
+          Value: true
+        front_caster_link_1:
+          Value: true
         gripper_tcp:
           Value: true
+        imu_link_1:
+          Value: true
+        laser:
+          Value: true
+        left_finger_link_1:
+          Value: true
+        left_wheel_link_1:
+          Value: true
+        lidar_link_1:
+          Value: true
+        lift_carriage_link_1:
+          Value: true
+        link_1_1:
+          Value: true
+        link_2_1:
+          Value: true
+        link_3_1:
+          Value: true
+        link_4_1:
+          Value: true
+        link_5_1:
+          Value: true
+        link_6_1:
+          Value: true
+        odom:
+          Value: true
+        right_finger_link_1:
+          Value: true
+        right_wheel_link_1:
+          Value: true
+        vertical_column_link_1:
+          Value: true
+      Marker Scale: 0.30000001192092896
+      Name: TF
+      Show Arrows: false
+      Show Axes: true
+      Show Names: true
+      Tree:
+        base_footprint:
+          base_link:
+            ballast_link:
+              {}
+            front_caster_link_1:
+              {}
+            imu_link_1:
+              {}
+            left_wheel_link_1:
+              {}
+            lidar_link_1:
+              laser:
+                {}
+            right_wheel_link_1:
+              {}
+            vertical_column_link_1:
+              lift_carriage_link_1:
+                arm_base_link_1:
+                  link_1_1:
+                    link_2_1:
+                      link_3_1:
+                        link_4_1:
+                          link_5_1:
+                            link_6_1:
+                              gripper_tcp:
+                                {}
+                              left_finger_link_1:
+                                {}
+                              right_finger_link_1:
+                                {}
+        odom:
+          {}
+      Update Interval: 0
       Value: true
     - Class: rviz_default_plugins/InteractiveMarkers
-      Name: Objetivo de la pinza
+      Enable Transparency: true
       Enabled: true
       Interactive Markers Namespace: /arm_target_marker
+      Name: Objetivo de la pinza
       Show Axes: false
       Show Descriptions: true
       Show Visual Aids: false
@@ -68,21 +265,41 @@ Visualization Manager:
     - Class: rviz_default_plugins/MoveCamera
     - Class: rviz_default_plugins/Select
     - Class: rviz_default_plugins/Measure
+      Line color: 128; 128; 0
+  Transformation:
+    Current:
+      Class: rviz_default_plugins/TF
   Value: true
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Name: Current View
-      Distance: 3.2
+      Distance: 3.1270437240600586
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.05999999865889549
+        Stereo Focal Distance: 1
+        Swap Stereo Eyes: false
+        Value: false
       Focal Point:
-        X: 0.15
+        X: 0.15000000596046448
         Y: 0
-        Z: 0.9
+        Z: 0.8999999761581421
       Focal Shape Fixed Size: true
-      Focal Shape Size: 0.05
-      Near Clip Distance: 0.01
-      Pitch: 0.35
-      Yaw: 0.8
+      Focal Shape Size: 0.05000000074505806
+      Invert Z Axis: false
+      Name: Current View
+      Near Clip Distance: 0.009999999776482582
+      Pitch: 0.21500012278556824
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz_default_plugins)
+      Yaw: 1.1999996900558472
     Saved: ~
+Window Geometry:
+  Displays:
+    collapsed: true
+  Height: 903
+  Hide Left Dock: true
+  Hide Right Dock: false
+  QMainWindow State: 000000ff00000000fd000000010000000000000156000001b7fc0200000001fb000000100044006900730070006c006100790073000000003b000001b7000000c700ffffff000002bc0000033100000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Width: 700
+  X: 120
+  Y: 77
