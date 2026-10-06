@@ -62,6 +62,16 @@
 <!-- Interruptores de sensores simulados (para depurar). Los usa andesrobot.sim.xacro. -->
 <xacro:arg name="sim_lidar" default="true"/>
 <xacro:arg name="sim_imu" default="true"/>
+<!-- MATERIAL DE LA PINZA (gripper EBG-20 de Toolbox Robotics)
+     Las masas de este archivo vienen del CAD de Fusion: masa = volumen de la pieza x densidad del
+     material que tenía asignado. Casi todo quedó en ABS macizo (1.06 g/cm3), pero la pinza
+     (link_6_1 y los dos dedos) quedó en acero (7.85 g/cm3, el material por defecto de Fusion):
+     pesaba 1.07 kg. La pinza real es de ABS impreso, así que su masa e inercia se multiplican por
+     1.06 / 7.85 (misma forma, otro material: la inercia escala igual que la masa).
+     Ver andesrobot_arm/docs/hardware/README.md. -->
+<xacro:property name="gripper_cad_density" value="7.85"/>  <!-- [g/cm3] acero, lo que usó el CAD -->
+<xacro:property name="gripper_density" value="1.06"/>      <!-- [g/cm3] ABS, el material real -->
+<xacro:property name="gripper_mass_scale" value="${gripper_density / gripper_cad_density}"/>
 <!--
   Convención REP-103 / REP-105 (estándar de ROS):
   +X = adelante, +Y = izquierda, +Z = arriba.
@@ -254,12 +264,13 @@
   </xacro:unless>
 </link>
 
-<!-- Brazo, eslabón 6: muñeca final, donde va la pinza. -->
+<!-- Brazo, eslabón 6: muñeca final, donde va la pinza. La malla es el cuerpo de la pinza EBG-20;
+     masa e inercia del CAD (acero) escaladas a ABS con gripper_mass_scale. -->
 <link name="link_6_1">
   <inertial>
     <origin xyz="-0.04672721914174861 0.0010341455962512703 -4.467579352440687e-05" rpy="0 0 0"/>
-    <mass value="0.7388320393848112"/>
-    <inertia ixx="0.000723" iyy="0.000493" izz="0.000757" ixy="5e-06" iyz="-1e-06" ixz="-1e-06"/>
+    <mass value="${0.7388320393848112 * gripper_mass_scale}"/>
+    <inertia ixx="${0.000723 * gripper_mass_scale}" iyy="${0.000493 * gripper_mass_scale}" izz="${0.000757 * gripper_mass_scale}" ixy="${5e-06 * gripper_mass_scale}" iyz="${-1e-06 * gripper_mass_scale}" ixz="${-1e-06 * gripper_mass_scale}"/>
   </inertial>
   <visual>
     <origin xyz="0.123077 -0.0 -1.173577" rpy="0 0 0"/>
@@ -282,8 +293,8 @@
 <link name="right_finger_link_1">
   <inertial>
     <origin xyz="-0.0246083952902236 0.013356716518430598 -0.007375101628988023" rpy="0 0 0"/>
-    <mass value="0.16542337365750662"/>
-    <inertia ixx="4.2e-05" iyy="6.6e-05" izz="8.3e-05" ixy="1.6e-05" iyz="9e-06" ixz="-1.6e-05"/>
+    <mass value="${0.16542337365750662 * gripper_mass_scale}"/>
+    <inertia ixx="${4.2e-05 * gripper_mass_scale}" iyy="${6.6e-05 * gripper_mass_scale}" izz="${8.3e-05 * gripper_mass_scale}" ixy="${1.6e-05 * gripper_mass_scale}" iyz="${9e-06 * gripper_mass_scale}" ixz="${-1.6e-05 * gripper_mass_scale}"/>
   </inertial>
   <visual>
     <origin xyz="0.180677 0.0038 -1.187077" rpy="0 0 0"/>
@@ -306,8 +317,8 @@
 <link name="left_finger_link_1">
   <inertial>
     <origin xyz="-0.024608395290223434 -0.013356716294173003 0.007375804549700549" rpy="0 0 0"/>
-    <mass value="0.16542337365750778"/>
-    <inertia ixx="4.2e-05" iyy="6.6e-05" izz="8.3e-05" ixy="-1.6e-05" iyz="9e-06" ixz="1.6e-05"/>
+    <mass value="${0.16542337365750778 * gripper_mass_scale}"/>
+    <inertia ixx="${4.2e-05 * gripper_mass_scale}" iyy="${6.6e-05 * gripper_mass_scale}" izz="${8.3e-05 * gripper_mass_scale}" ixy="${-1.6e-05 * gripper_mass_scale}" iyz="${9e-06 * gripper_mass_scale}" ixz="${1.6e-05 * gripper_mass_scale}"/>
   </inertial>
   <visual>
     <origin xyz="0.180677 -0.0038 -1.160077" rpy="0 0 0"/>
@@ -544,6 +555,89 @@
     <limit lower="${arm_lower}" upper="${arm_upper}" effort="${arm_effort}" velocity="${arm_velocity}"/>
   </xacro:unless>
 </xacro:macro>
+
+<!-- ================= MOTORES DEL BRAZO (EB300 de Toolbox Robotics) =================
+  El CAD solo tiene las piezas impresas: los motores paso a paso no estaban en las masas.
+  Qué motor va en cada articulación sale de la guía eléctrica del EB300 (págs. 22-27); la masa,
+  de los datasheets de andesrobot_arm/docs/hardware/ (README.md):
+    joint_1, joint_2  NEMA23 82 mm  (23HS32-4004S, 2.4 N·m)  ~1.10 kg (el datasheet no la trae:
+                                                              extrapolada del de 3.10" = 1.07 kg)
+    joint_3           NEMA23 76 mm  (1.85 N·m)               ~1.07 kg
+    joint_4, 5, 6     NEMA17 60 mm  (0.65 N·m)               ~0.41 kg
+  Faltan los reductores planetarios impresos EBA-17/EBA-23: quedan en 0 hasta tener sus STL.
+
+  Cada motor va montado en el eslabón ANTERIOR a la articulación que mueve (el motor del hombro
+  va en la carcasa de link_1_1 y mueve link_2_1), coaxial con su eje. Se agrega como un link
+  fijo con solo <inertial>: Gazebo funde los links fijos con su padre, así que la masa, el
+  centro de masa y la inercia del eslabón quedan bien sin tocar los valores del CAD.
+  Simplificación: el centro del motor se pone en el origen de su articulación (sobre el eje).
+  Correrlo a lo largo del eje no cambia el torque que hace el peso en las articulaciones
+  paralelas a ese eje. Cuerpo del motor = caja de lado x lado x largo, con el largo en el eje. -->
+<xacro:property name="nema23_side" value="0.057"/>   <!-- [m] cara del NEMA23 -->
+<xacro:property name="nema17_side" value="0.042"/>   <!-- [m] cara del NEMA17 -->
+<xacro:property name="nema23_82_mass" value="1.10"/>  <!-- [kg] ver arriba -->
+<xacro:property name="nema23_76_mass" value="1.07"/>
+<xacro:property name="nema17_60_mass" value="0.41"/>
+
+<!-- arm_motor: un motor como link fijo.
+     parent / xyz / rpy = el mismo padre y origin que la articulación que mueve.
+     axis = eje del motor en ese frame ('x' o 'z'; el signo no importa para la inercia). -->
+<xacro:macro name="arm_motor" params="name parent xyz rpy mass side length axis">
+  <link name="${name}">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="${mass}"/>
+      <!-- Caja: I = m/12 (a² + b²) con a, b las medidas perpendiculares a cada eje. -->
+      <xacro:if value="${axis == 'x'}">
+        <inertia ixx="${mass/12*(2*side**2)}" ixy="0" ixz="0"
+                 iyy="${mass/12*(side**2 + length**2)}" iyz="0"
+                 izz="${mass/12*(side**2 + length**2)}"/>
+      </xacro:if>
+      <xacro:if value="${axis == 'z'}">
+        <inertia ixx="${mass/12*(side**2 + length**2)}" ixy="0" ixz="0"
+                 iyy="${mass/12*(side**2 + length**2)}" iyz="0"
+                 izz="${mass/12*(2*side**2)}"/>
+      </xacro:if>
+    </inertial>
+  </link>
+  <joint name="${name}_joint" type="fixed">
+    <origin xyz="${xyz}" rpy="${rpy}"/>
+    <parent link="${parent}"/>
+    <child link="${name}"/>
+  </joint>
+</xacro:macro>
+
+<!-- Un motor por articulación (xyz/rpy copiados del origin de cada joint_k, más abajo). -->
+<xacro:arm_motor name="motor_joint_1" parent="arm_base_link_1" xyz="0.0 0.0 0.037" rpy="0 0 0"
+                 mass="${nema23_82_mass}" side="${nema23_side}" length="0.082" axis="z"/>
+<xacro:arm_motor name="motor_joint_2" parent="link_1_1" xyz="-0.065 0.0 0.056" rpy="0 0 0"
+                 mass="${nema23_82_mass}" side="${nema23_side}" length="0.082" axis="x"/>
+<xacro:arm_motor name="motor_joint_3" parent="link_2_1" xyz="-0.001077 0.0 0.350077" rpy="0 0 0"
+                 mass="${nema23_76_mass}" side="${nema23_side}" length="0.076" axis="x"/>
+<xacro:arm_motor name="motor_joint_4" parent="link_3_1" xyz="0.026 0.0 0.3235" rpy="0 0 0"
+                 mass="${nema17_60_mass}" side="${nema17_side}" length="0.060" axis="x"/>
+<xacro:arm_motor name="motor_joint_5" parent="link_4_1" xyz="-0.0495 0.0 0.04" rpy="0 0 0"
+                 mass="${nema17_60_mass}" side="${nema17_side}" length="0.060" axis="z"/>
+<xacro:arm_motor name="motor_joint_6" parent="link_5_1" xyz="-0.041 0.0 0.0495" rpy="0 0 0"
+                 mass="${nema17_60_mass}" side="${nema17_side}" length="0.060" axis="x"/>
+
+<!-- Servo de la pinza (MG996R o similar, ~55 g), dentro del cuerpo de la pinza: en el centro de
+     link_6_1 (su malla va de x = -0.0725 a 0). Caja de 40 x 20 x 43 mm. -->
+<xacro:property name="gripper_servo_mass" value="0.055"/>
+<link name="gripper_servo_link">
+  <inertial>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <mass value="${gripper_servo_mass}"/>
+    <inertia ixx="${gripper_servo_mass/12*(0.020**2 + 0.043**2)}" ixy="0" ixz="0"
+             iyy="${gripper_servo_mass/12*(0.040**2 + 0.043**2)}" iyz="0"
+             izz="${gripper_servo_mass/12*(0.040**2 + 0.020**2)}"/>
+  </inertial>
+</link>
+<joint name="gripper_servo_joint" type="fixed">
+  <origin xyz="-0.036 0.0 0.0" rpy="0 0 0"/>
+  <parent link="link_6_1"/>
+  <child link="gripper_servo_link"/>
+</joint>
 <!-- Brazo 1: gira la base del brazo alrededor de Z (vertical). -->
 <joint name="joint_1" type="${arm_joint_type}">
   <!-- Dónde queda el hijo respecto al padre (aquí 3.7 cm más arriba). -->
@@ -765,6 +859,13 @@
 <!-- Brazo en simulación: ros2_control con Gazebo (solo con arm_control:=true). -->
 <xacro:if value="${arm_control and not lock_arm}">
   <xacro:include filename="$(find andesrobot_description)/urdf/andesrobot.arm_control.xacro" />
+</xacro:if>
+<!-- Cámara Orbbec Gemini Plus sobre la pinza (solo con gripper_camera:=true): cuerpo, soporte,
+     frames de cada lente y sus sensores en Gazebo (color, profundidad + nube, infrarrojo).
+     Por defecto no, así la simulación de mapeo no cambia. La activa andesrobot_arm/arm_sim.launch.py. -->
+<xacro:arg name="gripper_camera" default="false"/>
+<xacro:if value="$(arg gripper_camera)">
+  <xacro:include filename="$(find andesrobot_description)/urdf/andesrobot.gripper_camera.xacro" />
 </xacro:if>
 
 </robot>

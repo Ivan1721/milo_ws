@@ -1,0 +1,226 @@
+<?xml version="1.0"?>
+<!-- =============================================================================================
+  CÁMARA ORBBEC GEMINI PLUS SOBRE LA PINZA (solo con gripper_camera:=true)
+
+  QUÉ ES
+  Cámara 3D de luz estructurada binocular: un proyector infrarrojo dibuja un patrón y dos cámaras
+  infrarrojas lo ven; un chip de la cámara (MX6000) calcula la profundidad. Trae además una cámara
+  a color. Ficha y plano en andesrobot_arm/docs/hardware/ (README.md).
+    profundidad 0.25 - 2.5 m, 640x400, FOV 67.9° x 45.3°
+    color       640x480 (hasta 1920x1080), FOV 71° x 56.7°
+    cuerpo      76 x 31 x 16 mm + soporte metálico con bisagra, 0.122 kg
+
+  CANALES (mismos nombres que el driver real OrbbecSDK_ROS2 con camera_name:=gripper_camera,
+  así el mismo código sirve en simulación y en el robot):
+    /gripper_camera/color/image_raw   + camera_info   imagen a color (rgb8)
+    /gripper_camera/depth/image_raw   + camera_info   profundidad en metros (32FC1)
+    /gripper_camera/depth/points                      nube de puntos (con color)
+    /gripper_camera/ir/image_raw      + camera_info   infrarrojo (mono8)
+  El driver real publica UNA imagen IR: la de la cámara IR con la que calcula la profundidad.
+  Diferencias con la cámara real: la profundidad real llega en milímetros (16UC1) y el IR real
+  muestra el patrón de puntos del proyector; en Gazebo la profundidad es perfecta (sin ruido ni
+  huecos) y el IR es una imagen gris normal. Gazebo publica además
+  /gripper_camera/depth/color_sim/*, la imagen a color que ve el sensor de profundidad (no existe
+  en la cámara real: no usarla).
+
+  FRAMES (convención REP-103: X adelante, Y izquierda, Z arriba)
+    gripper_camera_mount            soporte fijo sobre la pinza (bisagra)
+    gripper_camera_link             centro del cuerpo de la cámara
+    gripper_camera_<canal>_frame    cada lente (X hacia donde mira la lente)
+    gripper_camera_<canal>_optical_frame   el mismo punto en convención ÓPTICA (Z adelante,
+                                    X derecha, Y abajo): es el frame_id de las imágenes y la nube.
+  ============================================================================================= -->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+<!-- ===== Datos de la cámara (plano de Orbbec y modelo meshes/orbbec_gemini_plus.stl) ===== -->
+<xacro:property name="gemini_mass" value="0.122"/>       <!-- [kg] dato del vendedor -->
+<xacro:property name="gemini_size_x" value="0.016"/>     <!-- [m] fondo del cuerpo (lentes incluidos) -->
+<xacro:property name="gemini_size_y" value="0.076"/>     <!-- [m] ancho -->
+<xacro:property name="gemini_size_z" value="0.031"/>     <!-- [m] alto del cuerpo, sin el soporte -->
+<!-- Posición de cada lente respecto al centro del cuerpo (medida en el plano: 76 mm = ancho).
+     +Y = a la izquierda de la cámara mirando hacia donde mira ella. La cámara IR izquierda es la
+     de referencia de la profundidad; la RGB está entre ella y el proyector. -->
+<xacro:property name="gemini_lens_x" value="0.008"/>     <!-- [m] cara delantera -->
+<xacro:property name="gemini_ir_y" value="0.0199"/>      <!-- [m] IR izquierda = profundidad -->
+<xacro:property name="gemini_color_y" value="0.0091"/>   <!-- [m] RGB -->
+
+<!-- ===== Montaje sobre la pinza =====
+  El soporte de la cámara tiene una bisagra: la placa de abajo se atornilla sobre la cara superior
+  del cuerpo de la pinza (link_6_1, z = +0.0325 m) y la de arriba sostiene la cámara. Girando la
+  bisagra se inclina la cámara hacia abajo para que mire hacia adelante de los dedos.
+  La pinza apunta hacia -X de link_6_1, así que la cámara va girada 180° en Z (yaw = pi).
+  gripper_camera_tilt = inclinación hacia abajo [rad]. Con 0.35 (20°) un objeto a 0.3 m o más
+  delante de la pinza queda en el centro de la imagen y la punta de los dedos se ve abajo. -->
+<xacro:property name="gripper_camera_tilt" value="0.35"/>
+<xacro:property name="gripper_camera_hinge_x" value="-0.015"/>  <!-- [m] eje de la bisagra en link_6_1 -->
+<xacro:property name="gripper_camera_hinge_z" value="0.04025"/> <!-- [m] cara superior 0.0325 + placa 2 mm + radio 5.75 mm -->
+<!-- Del eje de la bisagra al centro del cuerpo (sin inclinar): la placa del soporte va detrás del
+     cuerpo y baja 28.35 mm bajo su centro (medido en el modelo STEP). -->
+<xacro:property name="gripper_camera_body_dx" value="0.01325"/>
+<xacro:property name="gripper_camera_body_dz" value="0.02835"/>
+
+<!-- Frecuencia de los sensores simulados. La cámara real llega a 30 Hz; en Gazebo cada canal
+     cuesta GPU, así que por defecto se simula a 15 Hz. -->
+<xacro:property name="gripper_camera_rate" value="15"/>
+
+<!-- ===== Soporte (bisagra), fijo sobre la pinza, sin inclinar ===== -->
+<link name="gripper_camera_mount">
+  <!-- Masa simbólica: Gazebo Classic descarta los links sin <inertial>. La masa del soporte va
+       incluida en los 0.122 kg de la cámara. -->
+  <inertial>
+    <mass value="0.001"/>
+    <inertia ixx="1e-6" iyy="1e-6" izz="1e-6" ixy="0" ixz="0" iyz="0"/>
+  </inertial>
+  <!-- Bisagra: cilindro de 11.5 mm a lo ancho (eje Y) + placa de abajo apoyada en la pinza. -->
+  <visual>
+    <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+    <geometry><cylinder radius="0.00575" length="0.0446"/></geometry>
+    <material name="caster_black"/>
+  </visual>
+  <visual>
+    <origin xyz="-0.008 0 -0.00675" rpy="0 0 0"/>
+    <geometry><box size="0.016 0.0446 0.002"/></geometry>
+    <material name="caster_black"/>
+  </visual>
+</link>
+<joint name="gripper_camera_mount_joint" type="fixed">
+  <origin xyz="${gripper_camera_hinge_x} 0 ${gripper_camera_hinge_z}" rpy="0 0 ${pi}"/>
+  <parent link="link_6_1"/>
+  <child link="gripper_camera_mount"/>
+</joint>
+
+<!-- ===== Cuerpo de la cámara: gira en la bisagra un ángulo gripper_camera_tilt =====
+  El centro del cuerpo está a (body_dx, body_dz) del eje de la bisagra. Al inclinar en pitch p,
+  ese vector se rota: x' = dx cos p + dz sin p ; z' = -dx sin p + dz cos p. -->
+<link name="gripper_camera_link">
+  <inertial>
+    <!-- Caja del tamaño del cuerpo: I = m/12 (a² + b²). (3 g van en los frames de las lentes.) -->
+    <mass value="${gemini_mass - 0.003}"/>
+    <inertia ixx="${gemini_mass/12*(gemini_size_y**2 + gemini_size_z**2)}" ixy="0" ixz="0"
+             iyy="${gemini_mass/12*(gemini_size_x**2 + gemini_size_z**2)}" iyz="0"
+             izz="${gemini_mass/12*(gemini_size_x**2 + gemini_size_y**2)}"/>
+  </inertial>
+  <!-- Malla del modelo STEP (Orbbec.step, en mm, lentes hacia +Z, ancho en X, alto en Y):
+       rpy = (pi/2, 0, pi/2) la gira a X adelante / Y izquierda / Z arriba, y el xyz lleva su
+       centro (38.05, -4.355, 7.5 mm) al origen de este link. -->
+  <visual>
+    <origin xyz="-0.0075 -0.03805 0.004355" rpy="${pi/2} 0 ${pi/2}"/>
+    <geometry>
+      <mesh filename="file://$(find andesrobot_description)/meshes/orbbec_gemini_plus.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="caster_black"/>
+  </visual>
+  <!-- Colisión: una caja del tamaño del cuerpo (más estable que la malla). -->
+  <collision>
+    <geometry><box size="${gemini_size_x} ${gemini_size_y} ${gemini_size_z}"/></geometry>
+  </collision>
+</link>
+<joint name="gripper_camera_tilt_joint" type="fixed">
+  <origin xyz="${gripper_camera_body_dx*cos(gripper_camera_tilt) + gripper_camera_body_dz*sin(gripper_camera_tilt)} 0 ${-gripper_camera_body_dx*sin(gripper_camera_tilt) + gripper_camera_body_dz*cos(gripper_camera_tilt)}"
+          rpy="0 ${gripper_camera_tilt} 0"/>
+  <parent link="gripper_camera_mount"/>
+  <child link="gripper_camera_link"/>
+</joint>
+
+<!-- ===== Frames de las lentes =====
+  lens_frames: para un canal crea <canal>_frame (donde va el sensor de Gazebo, que mira hacia +X)
+  y <canal>_optical_frame (el frame_id de los mensajes). rpy = (-pi/2, 0, -pi/2) pasa de
+  X adelante / Z arriba a Z adelante / Y abajo. Masa de 1 g: sin <inertial> Gazebo descarta el
+  link y con él el sensor. -->
+<xacro:macro name="lens_frames" params="canal y">
+  <link name="gripper_camera_${canal}_frame">
+    <inertial>
+      <mass value="0.001"/>
+      <inertia ixx="1e-6" iyy="1e-6" izz="1e-6" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+  <joint name="gripper_camera_${canal}_joint" type="fixed">
+    <origin xyz="${gemini_lens_x} ${y} 0" rpy="0 0 0"/>
+    <parent link="gripper_camera_link"/>
+    <child link="gripper_camera_${canal}_frame"/>
+  </joint>
+  <link name="gripper_camera_${canal}_optical_frame"/>
+  <joint name="gripper_camera_${canal}_optical_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+    <parent link="gripper_camera_${canal}_frame"/>
+    <child link="gripper_camera_${canal}_optical_frame"/>
+  </joint>
+</xacro:macro>
+<!-- La profundidad y el IR salen de la misma cámara IR (la izquierda). -->
+<xacro:lens_frames canal="depth" y="${gemini_ir_y}"/>
+<xacro:lens_frames canal="ir" y="${gemini_ir_y}"/>
+<xacro:lens_frames canal="color" y="${gemini_color_y}"/>
+
+<!-- ================= SENSORES EN GAZEBO (fuera de Gazebo se ignoran) =================
+  Plugin libgazebo_ros_camera.so: publica la imagen y su camera_info (y, en un sensor "depth",
+  también la profundidad y la nube). <namespace> + <camera_name> arman el nombre del topic. -->
+
+<!-- Color: cámara RGB, FOV horizontal 71° = 1.239 rad, 640x480. -->
+<gazebo reference="gripper_camera_color_frame">
+  <sensor type="camera" name="gripper_camera_color">
+    <always_on>true</always_on>
+    <update_rate>${gripper_camera_rate}</update_rate>
+    <camera>
+      <horizontal_fov>1.239</horizontal_fov>
+      <image><width>640</width><height>480</height><format>R8G8B8</format></image>
+      <clip><near>0.02</near><far>10.0</far></clip>
+      <noise><type>gaussian</type><mean>0.0</mean><stddev>0.007</stddev></noise>
+    </camera>
+    <plugin name="gripper_camera_color_driver" filename="libgazebo_ros_camera.so">
+      <ros><namespace>gripper_camera</namespace></ros>
+      <camera_name>color</camera_name>
+      <frame_name>gripper_camera_color_optical_frame</frame_name>
+    </plugin>
+  </sensor>
+</gazebo>
+
+<!-- Profundidad + nube: sensor "depth", FOV 67.9° = 1.185 rad, 640x400, rango 0.25-2.5 m.
+     Este plugin nombra sus topics depth/image_raw (imagen a color), depth/depth/image_raw
+     (profundidad) y depth/points. Los <remapping> los dejan como en el driver real:
+     la profundidad pasa a depth/image_raw y la imagen a color del sensor a depth/color_sim/. -->
+<gazebo reference="gripper_camera_depth_frame">
+  <sensor type="depth" name="gripper_camera_depth">
+    <always_on>true</always_on>
+    <update_rate>${gripper_camera_rate}</update_rate>
+    <camera>
+      <horizontal_fov>1.185</horizontal_fov>
+      <image><width>640</width><height>400</height><format>R8G8B8</format></image>
+      <clip><near>0.05</near><far>3.0</far></clip>
+    </camera>
+    <plugin name="gripper_camera_depth_driver" filename="libgazebo_ros_camera.so">
+      <ros>
+        <namespace>gripper_camera</namespace>
+        <remapping>depth/depth/image_raw:=depth/image_raw</remapping>
+        <remapping>depth/depth/camera_info:=depth/camera_info</remapping>
+        <remapping>depth/image_raw:=depth/color_sim/image_raw</remapping>
+        <remapping>depth/camera_info:=depth/color_sim/camera_info</remapping>
+      </ros>
+      <camera_name>depth</camera_name>
+      <frame_name>gripper_camera_depth_optical_frame</frame_name>
+      <!-- Fuera de este rango no hay profundidad (como la cámara real). -->
+      <min_depth>0.25</min_depth>
+      <max_depth>2.5</max_depth>
+    </plugin>
+  </sensor>
+</gazebo>
+
+<!-- Infrarrojo: misma lente y FOV que la profundidad, imagen en escala de grises (L8). -->
+<gazebo reference="gripper_camera_ir_frame">
+  <sensor type="camera" name="gripper_camera_ir">
+    <always_on>true</always_on>
+    <update_rate>${gripper_camera_rate}</update_rate>
+    <camera>
+      <horizontal_fov>1.185</horizontal_fov>
+      <image><width>640</width><height>400</height><format>L8</format></image>
+      <clip><near>0.02</near><far>10.0</far></clip>
+      <noise><type>gaussian</type><mean>0.0</mean><stddev>0.007</stddev></noise>
+    </camera>
+    <plugin name="gripper_camera_ir_driver" filename="libgazebo_ros_camera.so">
+      <ros><namespace>gripper_camera</namespace></ros>
+      <camera_name>ir</camera_name>
+      <frame_name>gripper_camera_ir_optical_frame</frame_name>
+    </plugin>
+  </sensor>
+</gazebo>
+
+</robot>

@@ -17,6 +17,7 @@ setup(
         (os.path.join('share', package_name, 'launch'), glob('launch/*.py')),
         (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
         (os.path.join('share', package_name, 'rviz'), glob('rviz/*.rviz')),
+        (os.path.join('share', package_name, 'worlds'), glob('worlds/*.sdf')),
         (os.path.join('share', package_name, 'docs'), glob('docs/*.*')),
     ],
     install_requires=['setuptools'],
@@ -29,5 +30,6 @@ setup(
     entry_points={'console_scripts': [
         'arm_ik_node = andesrobot_arm.arm_ik_node:main',
         'arm_marker_node = andesrobot_arm.arm_marker_node:main',
+        'capturar_camara = andesrobot_arm.capturar_camara:main',
     ]},
 )

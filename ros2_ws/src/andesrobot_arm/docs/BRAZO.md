@@ -31,19 +31,63 @@ ros2 action send_goal /gripper_controller/follow_joint_trajectory control_msgs/a
 ```
 
 Sin Docker (ROS Humble instalado en el PC): `ros2 launch andesrobot_arm arm_sim.launch.py`
-(`gui:=false` sin ventana de Gazebo, `rviz:=false` sin RViz).
+(`gui:=false` sin ventana de Gazebo, `rviz:=false` sin RViz, `camara:=false` sin la cámara de la
+pinza, `mesa:=false` sin la mesa de prueba).
 
 Tests (sin ROS corriendo): `source install/setup.bash && cd src/andesrobot_arm && python3 -m pytest -q test`
+
+## Cámara de la pinza (Orbbec Gemini Plus)
+
+`./sim.sh brazo` monta la cámara sobre la pinza (`andesrobot_description/urdf/andesrobot.gripper_camera.xacro`,
+malla `meshes/orbbec_gemini_plus.stl`) y pone una mesa con tres objetos frente a Milo
+(`worlds/mesa_prueba.sdf`). Canales, con los mismos nombres que el driver real `OrbbecSDK_ROS2`
+lanzado con `camera_name:=gripper_camera`:
+
+| Topic | Qué es | Simulación |
+|---|---|---|
+| `/gripper_camera/color/image_raw` | imagen a color | 640×480 `rgb8`, FOV 71° |
+| `/gripper_camera/depth/image_raw` | profundidad | 640×400 `32FC1` en metros, 0.25–2.5 m, FOV 67.9° |
+| `/gripper_camera/depth/points` | nube de puntos con color | en `gripper_camera_depth_optical_frame` |
+| `/gripper_camera/ir/image_raw` | infrarrojo | 640×400 `mono8` |
+
+Cada uno trae su `camera_info`; todos a 15 Hz (`gripper_camera_rate` en el xacro; la real llega a
+30). RViz los muestra en los paneles *Camara color / profundidad / infrarrojo* y la nube en 3D.
+Guardar una imagen de cada canal (en otra terminal, `./sim.sh shell`):
+
+```bash
+ros2 run andesrobot_arm capturar_camara     # -> ~/milo_ws/ros2_ws/capturas/<fecha>/
+```
+
+Deja `color.png`, `ir.png`, `profundidad_mm.png` (16 bits en mm, como la real), `profundidad_vista.png`,
+`nube.ply` y `resumen.txt`. Para que la cámara mire la mesa, mandar la pinza arriba de ella
+apuntando 45° hacia abajo:
+
+```bash
+ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped \
+  "{header: {frame_id: base_footprint}, pose: {position: {x: 0.5, y: 0.0, z: 1.4},
+    orientation: {x: 0.3827, y: 0.0, z: 0.9239, w: 0.0}}}"
+```
+
+Montaje: soporte con bisagra sobre la cara superior de `link_6_1`, cámara mirando hacia donde apunta
+la pinza e inclinada 20° hacia abajo (`gripper_camera_tilt`). Frames: `gripper_camera_link` (cuerpo),
+`gripper_camera_{color,depth,ir}_frame` (cada lente) y sus `_optical_frame` (Z adelante, los de los
+mensajes). La profundidad empieza a 0.25 m: la cámara **no ve el objeto en el agarre final** (los
+dedos quedan a ~9 cm); se mide desde una pose previa y después se cierra sin ver.
+
+Diferencias con la cámara real: la profundidad real llega en mm (`16UC1`) con ruido y huecos, y el IR
+real muestra el patrón de puntos del proyector; en Gazebo la profundidad es perfecta y el IR es una
+imagen gris. Gazebo publica además `/gripper_camera/depth/color_sim/*`, que no existe en la real.
 
 ## Qué corre
 
 | Pieza | Qué hace |
 |---|---|
-| `arm_sim.launch.py` | xacro con `lock_arm:=false arm_control:=true` → Gazebo, spawn, controladores, nodos, RViz |
+| `arm_sim.launch.py` | xacro con `lock_arm:=false arm_control:=true gripper_camera:=true` → Gazebo, spawn de Milo y la mesa, controladores, nodos, RViz |
 | `arm_controller` | `JointTrajectoryController`: `vertical_lift_joint` + `joint_1..6` en una sola trayectoria |
 | `gripper_controller` | `JointTrajectoryController`: `right_finger_joint` (el izquierdo lo copia Gazebo, `mimic`) |
 | `arm_ik_node` | escucha `/arm_target_pose` (cualquier frame de TF), resuelve la IK y manda la trayectoria |
 | `arm_marker_node` | marcador en RViz sobre `gripper_tcp`; al soltar publica en `/arm_target_pose` (frame `base_footprint`) |
+| `capturar_camara` | guarda una imagen de cada canal de la cámara de la pinza (`ros2 run andesrobot_arm capturar_camara`) |
 
 Parámetros de `arm_ik_node`:
 

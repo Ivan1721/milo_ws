@@ -12,3 +12,6 @@ __pycache__/
 # README.md, que dice qué es cada archivo y de dónde descargarlo.
 ros2_ws/src/andesrobot_arm/docs/hardware/*
 !ros2_ws/src/andesrobot_arm/docs/hardware/README.md
+# Capturas de la cámara de la pinza (ros2 run andesrobot_arm capturar_camara): datos de prueba,
+# cada una pesa varios MB (la nube .ply), no van al repo.
+ros2_ws/capturas/

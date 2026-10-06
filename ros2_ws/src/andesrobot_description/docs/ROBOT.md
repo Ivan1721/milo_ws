@@ -38,12 +38,22 @@ El plano de escaneo (+30 mm sobre la base del sensor) es estimado: confirmar con
 | `hoverboard_port` | /dev/hoverboard | puerto serie del hoverboard |
 | `arm_control` | false | true = brazo, lift y pinza con ros2_control en Gazebo (`andesrobot.arm_control.xacro`; lo usa `andesrobot_arm`) |
 | `arm_controllers_file` | (vacío) | YAML de controladores para el plugin `gazebo_ros2_control` (con `arm_control`) |
+| `gripper_camera` | false | true = cámara Orbbec Gemini Plus sobre la pinza con sus sensores de Gazebo (`andesrobot.gripper_camera.xacro`; lo usa `andesrobot_arm`) |
 
 ## Brazo
 - 6 articulaciones `revolute` (joint_1..6) + lift prismático (`vertical_lift_joint`, −0.4…0.6 m) + pinza.
 - Límites del brazo **provisorios**: ±π, 20 N·m, 1 rad/s (propiedades `arm_lower`/`arm_upper`/`arm_effort`/`arm_velocity`).
 - `gripper_tcp`: punto de agarre, 0.102 m hacia −X de `link_6_1`, centrado entre los dedos (medido en sus mallas).
 - Cinemática, control en Gazebo y marcador en RViz: paquete `andesrobot_arm` (ver su `docs/BRAZO.md`).
+- Masas: la pinza EBG-20 es de ABS, pero el CAD le asignó acero (7.85 g/cm³); su masa e inercia se
+  escalan a ABS con `gripper_mass_scale` (1.07 → 0.14 kg). Los 6 motores paso a paso del EB300
+  (NEMA23 82 mm en joint_1 y 2, NEMA23 76 mm en joint_3, NEMA17 60 mm en joint_4 a 6) y el servo de
+  la pinza van como links fijos `motor_joint_N` / `gripper_servo_link` en el eslabón anterior a su
+  articulación (propiedades `nema*_mass`). Brazo: 4.42 → 8.05 kg; robot completo: 30.4 → 34.0 kg
+  (los números de vuelco de "Masa y estabilidad" son con la masa anterior). Reductores EBA en 0
+  hasta tener sus STL. Fuentes en `andesrobot_arm/docs/hardware/README.md`.
+- Cámara (con `gripper_camera:=true`): Orbbec Gemini Plus sobre la cara superior de `link_6_1`,
+  inclinada 20° (`gripper_camera_tilt`). Topics y frames en `andesrobot_arm/docs/BRAZO.md`.
 
 ## Pendiente antes del robot real
 - Los límites del brazo son provisorios (±π): medir los topes físicos y los motores y cambiar `arm_lower`/`arm_upper`/`arm_effort`/`arm_velocity`.

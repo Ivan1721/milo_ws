@@ -106,6 +106,19 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   `/arm_target_pose` can drive the arm (params: `use_lift`, `position_only`, `lift_weight`, ...).
 - Uses mesh collisions by default (`simple_collision:=false`) because the simple boxes leave the arm
   without collision.
+- `gripper_camera:=true` (on by default in `arm_sim`, arg `camara`) adds the Orbbec Gemini Plus on
+  top of the gripper (`andesrobot.gripper_camera.xacro`, mesh `orbbec_gemini_plus.stl`): Gazebo
+  color, depth (+points) and IR sensors publishing `/gripper_camera/{color,depth,ir}/image_raw`,
+  `/gripper_camera/depth/points`, same names as the real `OrbbecSDK_ROS2` driver. Plugin topics are
+  renamed with `<remapping>`. `ros2 run andesrobot_arm capturar_camara` saves one image per channel to
+  `ros2_ws/capturas/` (gitignored). `arm_sim` also spawns `worlds/mesa_prueba.sdf` (arg `mesa`); its
+  objects are links of one model, so it needs `<self_collide>true` or they fall through the table.
+- Arm masses: gripper scaled from the CAD's steel to ABS (`gripper_mass_scale`); stepper motors and
+  the gripper servo are fixed `motor_joint_N`/`gripper_servo_link` inertial-only links on the link
+  before each joint. Sources in `andesrobot_arm/docs/hardware/README.md` (the docs there are
+  gitignored third-party files).
+- Gazebo tests leave orphan nodes (old `robot_state_publisher`s publishing another
+  `robot_description`) that make the next `arm_sim` crash: kill every ROS process before relaunching.
 - There is no arm driver for the real robot yet: arm control is sim-only.
 
 **Arm kinematics** (`andesrobot_arm/kinematics.py`, pure numpy, details in `docs/BRAZO.md`):

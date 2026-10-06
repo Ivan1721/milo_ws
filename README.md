@@ -144,7 +144,17 @@ Si no se mueve, esa pose no se alcanza: clic derecho en la esfera,
 
 Apagar:   Ctrl+C en la terminal 1 y despues   ./sim.sh stop
 
-Mandar poses a mano, abrir/cerrar la pinza, medidas y ecuaciones:
+Sobre la pinza va la camara Orbbec, y frente a Milo una mesa con 3 objetos.
+En RViz se ven sus imagenes (color, profundidad, infrarrojo) y la nube de puntos.
+Para guardar una imagen de cada canal, en otra terminal:
+
+cd ~/milo_ws
+./sim.sh shell
+ros2 run andesrobot_arm capturar_camara
+
+Quedan en ~/milo_ws/ros2_ws/capturas/
+
+Mandar poses a mano, abrir/cerrar la pinza, la camara, medidas y ecuaciones:
   ros2_ws/src/andesrobot_arm/docs/BRAZO.md
 
 OJO: los limites de las articulaciones del brazo son provisorios.

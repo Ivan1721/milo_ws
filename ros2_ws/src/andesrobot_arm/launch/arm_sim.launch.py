@@ -2,12 +2,17 @@
 
 Orden de lo que pasa:
  1. Se procesa el xacro de Milo con lock_arm:=false y arm_control:=true (brazo, lift y pinza
-    con ros2_control) y se publica en /robot_description.
- 2. Gazebo abre el mundo y spawn_entity.py pone a Milo.
+    con ros2_control) y gripper_camera:=true (cámara Orbbec sobre la pinza), y se publica en
+    /robot_description.
+ 2. Gazebo abre el mundo y spawn_entity.py pone a Milo y la mesa de prueba frente a él.
  3. Si Milo apareció bien, el spawner arranca los controladores del brazo.
  4. arm_ik_node espera poses en /arm_target_pose; arm_marker_node las publica desde RViz.
 
 Uso:  ros2 launch andesrobot_arm arm_sim.launch.py   [gui:=false] [rviz:=false]
+                                                    [camara:=false] [mesa:=false]
+Cámara: topics /gripper_camera/{color,depth,ir}/image_raw y /gripper_camera/depth/points
+(ver andesrobot_description/urdf/andesrobot.gripper_camera.xacro). Guardar una imagen de cada
+canal:  ros2 run andesrobot_arm capturar_camara
 """
 import os
 
@@ -33,7 +38,7 @@ def _strip_comments(node):
             _strip_comments(child)
 
 
-def robot_description_urdf(simple_collision):
+def robot_description_urdf(simple_collision, camara):
     xacro_file = os.path.join(get_package_share_directory('andesrobot_description'),
                               'urdf', 'andesrobot.urdf.xacro')
     controllers = os.path.join(get_package_share_directory('andesrobot_arm'),
@@ -43,6 +48,7 @@ def robot_description_urdf(simple_collision):
         'arm_control': 'true',
         'arm_controllers_file': controllers,
         'simple_collision': simple_collision,
+        'gripper_camera': camara,
     })
     # gazebo_ros2_control (Humble) le vuelve a pasar robot_description al controller_manager
     # como argumento de línea de comandos, y si el URDF tiene comentarios no lo puede leer
@@ -52,7 +58,8 @@ def robot_description_urdf(simple_collision):
 
 
 def launch_setup(context):
-    urdf = robot_description_urdf(LaunchConfiguration('simple_collision').perform(context))
+    urdf = robot_description_urdf(LaunchConfiguration('simple_collision').perform(context),
+                                  LaunchConfiguration('camara').perform(context))
 
     # robot_state_publisher: publica /robot_description y las TF, con el reloj de Gazebo.
     rsp = Node(
@@ -103,7 +110,19 @@ def launch_setup(context):
         parameters=sim_time,
         condition=IfCondition(LaunchConfiguration('rviz')),
     )
-    return [rsp, spawn, controllers, ik, marker, rviz]
+    # Mesa con tres objetos frente a Milo (worlds/mesa_prueba.sdf): algo que la cámara vea a
+    # 0.6-1 m (en la arena no hay nada a menos de 2.5 m, el alcance de la profundidad) y que el
+    # brazo alcance.
+    mesa = Node(
+        package='gazebo_ros',
+        executable='spawn_entity.py',
+        arguments=['-file', os.path.join(get_package_share_directory('andesrobot_arm'),
+                                         'worlds', 'mesa_prueba.sdf'),
+                   '-entity', 'mesa_prueba'],
+        output='screen',
+        condition=IfCondition(LaunchConfiguration('mesa')),
+    )
+    return [rsp, spawn, controllers, ik, marker, rviz, mesa]
 
 
 def generate_launch_description():
@@ -129,6 +148,10 @@ def generate_launch_description():
         # el brazo bloqueado): por eso aquí las mallas CAD son el default.
         DeclareLaunchArgument('simple_collision', default_value='false',
                               description='true = colisiones con cajas en vez de mallas CAD'),
+        DeclareLaunchArgument('camara', default_value='true',
+                              description='Cámara Orbbec Gemini Plus sobre la pinza'),
+        DeclareLaunchArgument('mesa', default_value='true',
+                              description='Mesa con objetos de prueba frente a Milo'),
         gazebo,
         OpaqueFunction(function=launch_setup),
     ])
