@@ -18,6 +18,11 @@ xacro, yaml and script explains each concept). Match that: Spanish comments and 
 comment density. `README.md` is step-by-step for non-experts; per-package details live in
 `docs/*.md` (`andesrobot_description/docs/ROBOT.md`, `andesrobot_arm/docs/BRAZO.md`).
 
+Repo-root `docs/` holds non-code material: `docs/informe/` (offline copy of the technical report,
+versioned) and `docs/hardware/` (vendor manuals, datasheets, CAD for the EB300 arm, EBG-20 gripper,
+motors and Orbbec camera; third-party, so only its `README.md` index is versioned). Keep
+`ros2_ws/src/` for ROS packages only.
+
 ## Commands
 
 All from `~/milo_ws` on the host:
@@ -36,6 +41,10 @@ All from `~/milo_ws` on the host:
 ```
 
 Docker plumbing shared by both scripts lives in `docker/lib.sh` (`milo_init`, `milo_up`, ...).
+External drivers (today `sllidar_ros2`) are pinned in `docker/milo.repos` and fetched at image build
+time with `vcs import` into `/opt/milo_drivers` (outside the workspace). To add or bump one, edit that
+file; it lives in `docker/` because that is the image build context. Own drivers (hoverboard) stay
+in `ros2_ws/src/drivers/`.
 
 `build`, `shell` and `teleop` need the container already up (started by `./sim.sh` or
 `./sim.sh brazo` in another terminal). `--symlink-install`: edits to existing `.py`/`.xacro`/`.yaml`
@@ -115,7 +124,7 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   objects are links of one model, so it needs `<self_collide>true` or they fall through the table.
 - Arm masses: gripper scaled from the CAD's steel to ABS (`gripper_mass_scale`); stepper motors and
   the gripper servo are fixed `motor_joint_N`/`gripper_servo_link` inertial-only links on the link
-  before each joint. Sources in `andesrobot_arm/docs/hardware/README.md` (the docs there are
+  before each joint. Sources in `docs/hardware/README.md` at the repo root (the docs there are
   gitignored third-party files).
 - Gazebo tests leave orphan nodes (old `robot_state_publisher`s publishing another
   `robot_description`) that make the next `arm_sim` crash: kill every ROS process before relaunching.

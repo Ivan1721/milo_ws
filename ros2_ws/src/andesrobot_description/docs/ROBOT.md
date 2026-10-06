@@ -51,7 +51,7 @@ El plano de escaneo (+30 mm sobre la base del sensor) es estimado: confirmar con
   la pinza van como links fijos `motor_joint_N` / `gripper_servo_link` en el eslabón anterior a su
   articulación (propiedades `nema*_mass`). Brazo: 4.42 → 8.05 kg; robot completo: 30.4 → 34.0 kg
   (los números de vuelco de "Masa y estabilidad" son con la masa anterior). Reductores EBA en 0
-  hasta tener sus STL. Fuentes en `andesrobot_arm/docs/hardware/README.md`.
+  hasta tener sus STL. Fuentes en `docs/hardware/README.md` (raíz del repo).
 - Cámara (con `gripper_camera:=true`): Orbbec Gemini Plus sobre la cara superior de `link_6_1`,
   inclinada 20° (`gripper_camera_tilt`). Topics y frames en `andesrobot_arm/docs/BRAZO.md`.
 

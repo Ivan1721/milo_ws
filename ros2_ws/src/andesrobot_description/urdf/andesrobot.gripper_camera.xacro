@@ -5,7 +5,7 @@
   QUÉ ES
   Cámara 3D de luz estructurada binocular: un proyector infrarrojo dibuja un patrón y dos cámaras
   infrarrojas lo ven; un chip de la cámara (MX6000) calcula la profundidad. Trae además una cámara
-  a color. Ficha y plano en andesrobot_arm/docs/hardware/ (README.md).
+  a color. Ficha y plano en docs/hardware/ (README.md), en la raíz del repo.
     profundidad 0.25 - 2.5 m, 640x400, FOV 67.9° x 45.3°
     color       640x480 (hasta 1920x1080), FOV 71° x 56.7°
     cuerpo      76 x 31 x 16 mm + soporte metálico con bisagra, 0.122 kg

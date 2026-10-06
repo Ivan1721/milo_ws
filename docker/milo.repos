@@ -1,0 +1,30 @@
+# Dependencias externas de Milo: código de otros repositorios que se descarga al construir la
+# imagen de Docker (no se copia a este repo). Formato .repos de vcstool, el estándar de ROS:
+#   repositories:
+#     <carpeta>:            dónde queda dentro de /opt/milo_drivers/src
+#       type: git
+#       url: <repositorio>
+#       version: <commit, tag o rama>   -> conviene un commit fijo: todos compilan lo mismo
+#
+# El Dockerfile hace "vcs import src < milo.repos" y compila todo en /opt/milo_drivers.
+# Para agregar un driver: sumar su entrada aquí y reconstruir la imagen (./sim.sh stop y
+# ./sim.sh, o ./robot.sh): milo_up usa --build y Docker solo rehace los pasos que cambiaron.
+# Sin Docker se usa igual:  vcs import ros2_ws/src < docker/milo.repos
+# (los drivers propios, como el del hoverboard, NO van aquí: viven en ros2_ws/src/drivers/).
+repositories:
+  # Driver del RPLIDAR C1 (Slamtec). Commit del 17-06-2024 "bugfix: set the minimum distance
+  # to 5cm", la versión revisada para Milo.
+  sllidar_ros2:
+    type: git
+    url: https://github.com/Slamtec/sllidar_ros2.git
+    version: 34300099fadfc772965962dec837bf436706188f
+
+  # Driver de la cámara Orbbec Gemini Plus (pendiente: se activa al conectar la cámara real).
+  # Antes de descomentarlo, fijar una versión que traiga launch/gemini.launch.xml (la del ZIP de
+  # Hiwonder en docs/hardware/camara_gemini_plus/ la trae; las versiones nuevas del repo pueden
+  # no soportar este modelo) y probar que compile, porque necesita librerías del sistema
+  # (libusb, libudev...) y reglas udev propias.
+  # OrbbecSDK_ROS2:
+  #   type: git
+  #   url: https://github.com/orbbec/OrbbecSDK_ROS2.git
+  #   version: <commit o tag probado con la Gemini Plus>

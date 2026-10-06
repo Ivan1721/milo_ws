@@ -253,11 +253,12 @@
       <tr><td class="mono">13cab44</td><td>Documentación del brazo: CLAUDE.md, figuras y medidas generadas del URDF</td></tr>
       <tr><td class="mono">acce081</td><td>Figura de la cadena con el lift: desplazamiento de cada tramo y rango del elevador</td></tr>
       <tr><td class="mono">653215a</td><td>Índice del hardware real (EB300, EBG-20, motores, Gemini Plus); los documentos de terceros quedan fuera de git</td></tr>
-      <tr><td class="mono">92805c5 · 5a79704</td><td>Copia local de este informe (<span class="mono">informe/</span>) y vista de RViz del brazo</td></tr>
-      <tr><td>Sin commit</td><td>Masas reales del brazo (sección 6) y cámara de la pinza (sección 14)</td></tr>
+      <tr><td class="mono">92805c5 · 5a79704</td><td>Copia local de este informe (hoy en <span class="mono">docs/informe/</span>) y vista de RViz del brazo</td></tr>
+      <tr><td class="mono">6e52d7d</td><td>Masas reales del brazo (sección 6) y cámara de la pinza (sección 14)</td></tr>
+      <tr><td>Sin commit</td><td>Estructura del repo: <span class="mono">docs/</span> en la raíz (informe y documentación del hardware) y drivers externos en <span class="mono">docker/milo.repos</span></td></tr>
     </tbody>
   </table></div>
-  <div class="prose"><p>La rama está en GitHub: <span class="mono">github.com/Ivan1721/milo_ws</span>, rama <span class="mono">brazo</span> (repositorio público; el remoto usa SSH).</p></div>
+  <div class="prose"><p>La rama está en GitHub: <span class="mono">github.com/Ivan1721/milo_ws</span>, rama <span class="mono">brazo</span> (repositorio público; el remoto usa SSH). En la raíz, <span class="mono">docs/</span> guarda lo que no es código: <span class="mono">docs/informe/</span>, la copia local de este informe, y <span class="mono">docs/hardware/</span>, los manuales y modelos de las piezas (de terceros: solo su índice va a git). <span class="mono">ros2_ws/src/</span> queda solo para paquetes de ROS.</p></div>
 </section>
 
 <section id="docker">
@@ -269,7 +270,7 @@
   <div class="prose">
     <ul>
       <li>Base <span class="mono">osrf/ros:humble-desktop</span> + Gazebo ROS, xacro, RViz, slam_toolbox, nav2_map_server, laser_filters, teleop_twist_keyboard, ros2_control, ros2_controllers y gazebo_ros2_control.</li>
-      <li>Driver del lidar <span class="mono">sllidar_ros2</span> de Slamtec, compilado en <span class="mono">/opt/milo_drivers</span> y fijado al commit <span class="mono">3430009</span>.</li>
+      <li>Driver del lidar <span class="mono">sllidar_ros2</span> de Slamtec, compilado en <span class="mono">/opt/milo_drivers</span>. Su versión (commit <span class="mono">3430009</span>) está fijada en <span class="mono">docker/milo.repos</span>, el archivo donde se listan los drivers externos que se descargan al construir la imagen.</li>
       <li>Usuario <span class="mono">ros</span> con el mismo UID/GID que el usuario del PC, para que los archivos compilados no queden a nombre de root. Pertenece a <span class="mono">video</span> y <span class="mono">dialout</span> (GPU y puertos serie).</li>
     </ul>
   </div>
@@ -488,7 +489,7 @@
 <section id="hardware">
   <h2><span class="n">6</span>Hardware real y masas del brazo</h2>
   <div class="prose">
-    <p>El CAD de Fusion describe la forma del brazo, pero no su hardware: los motores no están, y cada masa es la pieza maciza con el material que tenía asignado en el CAD. Esta sección reúne el hardware real (brazo EB300, pinza EBG-20) y cómo se corrigieron las masas del URDF. Los documentos de cada pieza están en <span class="mono">andesrobot_arm/docs/hardware/</span>.</p>
+    <p>El CAD de Fusion describe la forma del brazo, pero no su hardware: los motores no están, y cada masa es la pieza maciza con el material que tenía asignado en el CAD. Esta sección reúne el hardware real (brazo EB300, pinza EBG-20) y cómo se corrigieron las masas del URDF. Los documentos de cada pieza están en <span class="mono">docs/hardware/</span> (en la raíz del repo).</p>
   </div>
   <h3>Brazo real: EB300 de Toolbox Robotics</h3>
   <div class="prose">
@@ -506,7 +507,7 @@
   </table></div>
   <div class="prose">
     <p>El motor de cada articulación sale de la guía eléctrica del fabricante (págs. 22–27); torque y corriente, de su documento de ensamblaje (pág. 4). Control: Arduino MEGA 2560 + 6 drivers TB6600 + fuente 24 V 15 A, que van en la base, no en el brazo.</p>
-    <p>Masas: el datasheet del NEMA23 de 82 mm (23HS32-4004S, que coincide en 2.4 N·m y 4.0 A) no trae la masa, así que se extrapoló. Las otras dos salen de las tablas de los datasheets CUI/LIN del proyecto para el largo de cuerpo más cercano (3.10" → 2.35 lb; 2.34" → 0.90 lb). Los documentos del fabricante no traen modelo Denavit-Hartenberg ni medidas de los eslabones. Todo está guardado en <span class="mono">andesrobot_arm/docs/hardware/</span>.</p>
+    <p>Masas: el datasheet del NEMA23 de 82 mm (23HS32-4004S, que coincide en 2.4 N·m y 4.0 A) no trae la masa, así que se extrapoló. Las otras dos salen de las tablas de los datasheets CUI/LIN del proyecto para el largo de cuerpo más cercano (3.10" → 2.35 lb; 2.34" → 0.90 lb). Los documentos del fabricante no traen modelo Denavit-Hartenberg ni medidas de los eslabones. Todo está guardado en <span class="mono">docs/hardware/</span> (en la raíz del repo).</p>
   </div>
   <div class="note"><p><b>Solo los motores pesan más que todo el brazo del URDF (4.42 kg),</b> y faltan los reductores EBA. Los NEMA23 van en las tres primeras articulaciones, las que más cargan.</p></div>
 

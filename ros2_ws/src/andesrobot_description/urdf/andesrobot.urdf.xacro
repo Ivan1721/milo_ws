@@ -68,7 +68,7 @@
      (link_6_1 y los dos dedos) quedó en acero (7.85 g/cm3, el material por defecto de Fusion):
      pesaba 1.07 kg. La pinza real es de ABS impreso, así que su masa e inercia se multiplican por
      1.06 / 7.85 (misma forma, otro material: la inercia escala igual que la masa).
-     Ver andesrobot_arm/docs/hardware/README.md. -->
+     Ver docs/hardware/README.md en la raíz del repo. -->
 <xacro:property name="gripper_cad_density" value="7.85"/>  <!-- [g/cm3] acero, lo que usó el CAD -->
 <xacro:property name="gripper_density" value="1.06"/>      <!-- [g/cm3] ABS, el material real -->
 <xacro:property name="gripper_mass_scale" value="${gripper_density / gripper_cad_density}"/>
@@ -559,7 +559,7 @@
 <!-- ================= MOTORES DEL BRAZO (EB300 de Toolbox Robotics) =================
   El CAD solo tiene las piezas impresas: los motores paso a paso no estaban en las masas.
   Qué motor va en cada articulación sale de la guía eléctrica del EB300 (págs. 22-27); la masa,
-  de los datasheets de andesrobot_arm/docs/hardware/ (README.md):
+  de los datasheets de docs/hardware/ (README.md, en la raíz del repo):
     joint_1, joint_2  NEMA23 82 mm  (23HS32-4004S, 2.4 N·m)  ~1.10 kg (el datasheet no la trae:
                                                               extrapolada del de 3.10" = 1.07 kg)
     joint_3           NEMA23 76 mm  (1.85 N·m)               ~1.07 kg
