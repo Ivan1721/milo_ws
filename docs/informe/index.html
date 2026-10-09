@@ -255,7 +255,8 @@
       <tr><td class="mono">653215a</td><td>Índice del hardware real (EB300, EBG-20, motores, Gemini Plus); los documentos de terceros quedan fuera de git</td></tr>
       <tr><td class="mono">92805c5 · 5a79704</td><td>Copia local de este informe (hoy en <span class="mono">docs/informe/</span>) y vista de RViz del brazo</td></tr>
       <tr><td class="mono">6e52d7d</td><td>Masas reales del brazo (sección 6) y cámara de la pinza (sección 14)</td></tr>
-      <tr><td>Sin commit</td><td>Estructura del repo: <span class="mono">docs/</span> en la raíz (informe y documentación del hardware) y drivers externos en <span class="mono">docker/milo.repos</span></td></tr>
+      <tr><td class="mono">e578acc</td><td>Estructura del repo: <span class="mono">docs/</span> en la raíz (informe y documentación del hardware) y drivers externos en <span class="mono">docker/milo.repos</span></td></tr>
+      <tr><td>Sin commit</td><td>Escena web (<span class="mono">docs/escena_web/</span>), tolerancias de meta del brazo y correcciones de la auditoría</td></tr>
     </tbody>
   </table></div>
   <div class="prose"><p>La rama está en GitHub: <span class="mono">github.com/Ivan1721/milo_ws</span>, rama <span class="mono">brazo</span> (repositorio público; el remoto usa SSH). En la raíz, <span class="mono">docs/</span> guarda lo que no es código: <span class="mono">docs/informe/</span>, la copia local de este informe, y <span class="mono">docs/hardware/</span>, los manuales y modelos de las piezas (de terceros: solo su índice va a git). <span class="mono">ros2_ws/src/</span> queda solo para paquetes de ROS.</p></div>
@@ -765,7 +766,7 @@ flowchart LR
     <ul>
       <li><span class="mono">andesrobot.arm_control.xacro</span>: hardware <span class="mono">GazeboSystem</span> con mando de <b>posición</b> para el lift, joint_1…6 y <span class="mono">right_finger_joint</span>. El dedo izquierdo es <em>mimic</em> y aparece como <span class="mono">left_finger_joint_mimic</span>.</li>
       <li>Con <span class="mono">arm_control:=true</span>, el plugin de joint states de Gazebo publica solo las ruedas; el brazo lo publica únicamente <span class="mono">joint_state_broadcaster</span>.</li>
-      <li><span class="mono">arm_controllers.yaml</span> (100 Hz): <span class="mono">arm_controller</span> con el lift + joint_1…6 (acepta metas parciales) y <span class="mono">gripper_controller</span>.</li>
+      <li><span class="mono">arm_controllers.yaml</span> (100 Hz): <span class="mono">arm_controller</span> con el lift + joint_1…6 (acepta metas parciales) y <span class="mono">gripper_controller</span>. El <span class="mono">arm_controller</span> tiene <b>tolerancias de meta</b>: si al terminar la trayectoria (con 1 s de margen) una articulación quedó a más de 0.02 rad de su objetivo, o el lift a más de 5 mm, aborta, y <span class="mono">arm_ik_node</span> avisa «el brazo no llegó… ¿chocó con algo?». La pinza no tiene tolerancia a propósito: al agarrar un objeto, los dedos quedan frenados antes de llegar.</li>
       <li>El launch quita los comentarios XML del URDF: <span class="mono">gazebo_ros2_control</span> en Humble no logra leerlo si los tiene, y el controller_manager nunca arranca.</li>
     </ul>
   </div>
@@ -1157,6 +1158,7 @@ flowchart LR
       <tr><td>Paneles de la cámara en RViz</td><td>no se pudo comprobar sin pantalla</td><td><span class="tag warn">pendiente</span></td></tr>
       <tr><td>Simulación de mapeo (<span class="mono">lock_arm:=true</span>)</td><td>Milo aparece, <span class="mono">/scan</span> a 10 Hz, <span class="mono">/odom</span> a 50 Hz, base nivelada</td><td><span class="tag ok">bien</span></td></tr>
       <tr><td>Objetivo bajo justo delante de la base (en <span class="mono">preparacion_ws</span>)</td><td>la trayectoria atraviesa la base: Gazebo bloqueó el brazo a 5.9 cm del objetivo y el controlador igual reportó éxito</td><td><span class="tag bad">falla conocida</span></td></tr>
+      <tr><td>Tolerancias de meta (9 de octubre): pinza mandada dentro del tablero de la mesa</td><td>la mesa frena la pinza a 6 mm del objetivo y el controlador <b>aborta</b> (GOAL_TOLERANCE_VIOLATED) en vez de reportar éxito; las tres poses normales siguen terminando bien</td><td><span class="tag ok">bien</span></td></tr>
     </tbody>
   </table></div>
   <div class="prose"><p>El robot físico (hoverboard, lidar y mapeo real) no se probó como parte de este informe; la calibración del driver viene documentada como "ya probada en el robot".</p></div>
@@ -1179,6 +1181,7 @@ flowchart LR
       <tr><td>Soluciones de IK pegadas en ±π</td><td>recortar en ±π impide dar la vuelta</td><td>envolver en vez de recortar si el rango cubre 2π</td></tr>
       <tr><td>Los objetos de la mesa de prueba caían al suelo</td><td>Gazebo no hace chocar los links de un mismo modelo</td><td><span class="mono">&lt;self_collide&gt;true</span> en <span class="mono">mesa_prueba.sdf</span></td></tr>
       <tr><td><span class="mono">arm_sim</span> se caía (segfault) al arrancar</td><td>nodos de pruebas anteriores seguían vivos y publicaban otro <span class="mono">robot_description</span></td><td>cerrar todos los procesos de ROS antes de relanzar (<span class="mono">./sim.sh stop</span>)</td></tr>
+      <tr><td>El controlador reportaba éxito con el brazo bloqueado</td><td><span class="mono">arm_controller</span> no tenía tolerancias de meta</td><td>tolerancias en <span class="mono">arm_controllers.yaml</span> (0.02 rad, lift 5 mm, 1 s de margen)</td></tr>
       <tr><td>Ventanas de Gazebo o RViz negras</td><td>OpenGL sin aceleración utilizable en el contenedor</td><td><span class="mono">./sim.sh software</span> (render por CPU)</td></tr>
     </tbody>
   </table></div>
@@ -1199,7 +1202,7 @@ flowchart LR
     <li><b>Confirmar los desplazamientos a lo largo de los ejes</b> (orígenes en los acoplamientos, sección 5) midiendo el brazo real.</li>
     <li><b>Sin driver del brazo real</b>: el control existe solo en Gazebo. El EB300 se controla con un Arduino MEGA 2560 y 6 drivers TB6600; el camino natural es un plugin de ros2_control que hable por serie con el Arduino, como el del hoverboard.</li>
     <li><b>Sin revisión de choques</b>: el brazo puede atravesar la base o la columna. Mejora directa: descartar soluciones que entren en cajas que aproximen la base y la columna (medidas de la sección 4).</li>
-    <li><b>Éxito sin verificar</b>: <span class="mono">arm_controller</span> no tiene tolerancias de meta.</li>
+    <li><b>Giros largos cerca de ±π</b>: con los límites provisorios una articulación no puede pasar de ±π, así que un objetivo «al otro lado» obliga a casi una vuelta completa (medido: <span class="mono">joint_1</span> recorre 6.08 rad en 12.2 s en vez de 0.2 rad). Se arregla con los topes reales.</li>
     <li><b>Mando por posición</b>: Gazebo coloca las articulaciones sin fuerzas; agarrar objetos no será realista.</li>
   </ul></div>
   <h3>Robot físico (según <span class="mono">ROBOT.md</span>)</h3>

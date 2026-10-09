@@ -131,10 +131,23 @@ class ArmIkNode(Node):
     def on_result(self, future):
         result = future.result().result
         if result.error_code == FollowJointTrajectory.Result.SUCCESSFUL:
+            # Con las tolerancias de arm_controllers.yaml esto significa que el brazo llegó de
+            # verdad (cada articulación a menos de 0.02 rad de su objetivo, el lift a 5 mm).
             self.get_logger().info('Objetivo alcanzado.')
-        else:
-            self.get_logger().warn(
-                f'La trayectoria terminó con error {result.error_code}: {result.error_string}')
+            return
+        # Códigos de FollowJointTrajectory.Result, explicados.
+        motivos = {
+            FollowJointTrajectory.Result.GOAL_TOLERANCE_VIOLATED:
+                'el brazo no llegó: quedó lejos del objetivo al terminar (¿chocó con algo?)',
+            FollowJointTrajectory.Result.PATH_TOLERANCE_VIOLATED:
+                'el brazo se desvió demasiado durante el movimiento (¿chocó con algo?)',
+            FollowJointTrajectory.Result.INVALID_GOAL: 'trayectoria inválida',
+            FollowJointTrajectory.Result.INVALID_JOINTS: 'articulaciones que no son suyas',
+            FollowJointTrajectory.Result.OLD_HEADER_TIMESTAMP: 'la trayectoria llegó tarde',
+        }
+        self.get_logger().warn('La trayectoria terminó con error %d: %s. %s' % (
+            result.error_code, motivos.get(result.error_code, 'error desconocido'),
+            result.error_string))
 
 
 def main(args=None):

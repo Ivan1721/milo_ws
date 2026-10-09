@@ -107,7 +107,11 @@ WORKDIR /ros2_ws
 #   cb      = compilar el workspace y recargarlo
 #   teleop  = teclado que publica en /cmd_vel_teleop (pasa por el filtro de seguridad)
 # ~/.gazebo se crea vacía para que el volumen gazebo_cache quede con dueño "ros".
-RUN mkdir -p ~/.gazebo \
+# ~/.sudo_as_admin_successful apaga el aviso "To run a command as administrator..." que Ubuntu
+# muestra en cada terminal: para decidir si mostrarlo corre "groups", que además se quejaba
+# ("groups: cannot find name for group ID 110") por el grupo de la GPU del PC, que el contenedor
+# recibe solo por número (group_add de compose.yaml).
+RUN mkdir -p ~/.gazebo && touch ~/.sudo_as_admin_successful \
  && echo 'source /opt/ros/humble/setup.bash' >> ~/.bashrc \
  && echo 'source /usr/share/gazebo/setup.sh' >> ~/.bashrc \
  && echo 'source /opt/milo_drivers/install/setup.bash' >> ~/.bashrc \

@@ -7,13 +7,15 @@ guarda este README** y las carpetas de abajo están en `.gitignore` (existen sol
 descargaron). En otro PC hay que volver a bajarlas desde las fuentes de la tabla.
 
 Descargado el 4 de octubre de 2026. Los datos clave están resumidos abajo y en el informe del
-proyecto (sección 5, masas; sección 18, cámara).
+proyecto (sección 6, hardware y masas; sección 5, comparación con el DH oficial; sección 14,
+cámara).
 
 ## Qué hay en cada carpeta
 
 | Carpeta | Contenido | Fuente |
 |---|---|---|
 | `brazo_eb300/` | Documento de ensamblaje (58 págs.), guía eléctrica (27 págs.), imagen de la página y actualización de STL (dic. 2023) | <https://toolboxrobotics.com/robotic-arm-eb300> |
+| `brazo_eb300/carrusel/` | Las 14 imágenes del carrusel de la página: vistas del brazo, **parámetros Denavit-Hartenberg** y 5 vistas explosionadas con dónde va cada motor | página del EB300 (las carga con JavaScript) |
 | `brazo_eb300/extractos/` | Páginas recortadas de los PDF: qué motor va en cada articulación y la ficha de los motores | los dos PDF de arriba |
 | `gripper_ebg20/` | ZIP original del gripper EBG-20: planos de ensamblaje con lista de materiales, STL, STEP, SolidWorks, DWB y `punta brazo.f3d` (modelo propio en Fusion) | Toolbox Robotics |
 | `motores/` | Datasheets y modelos 3D de los motores (ver tabla abajo) | archivos propios del proyecto |
@@ -33,8 +35,12 @@ y Milo usa ROS 2. Queda en `~/Downloads/Depth Camera-20261004T121024Z-1-001.zip`
 - 6 ejes, impreso en 3D (PLA+, ABS o PA-CF) con tubos de ABS de 2" y 3" (220 mm).
 - Reductores planetarios impresos EBA-17 (para NEMA17) y EBA-23 (para NEMA23).
 - Control: Arduino MEGA 2560 + 6 drivers TB6600 (señales STEP/DIR) + fuente 24 V 15 A 360 W.
-- Los documentos del fabricante **no traen un modelo Denavit-Hartenberg** ni medidas de los
-  eslabones: la cinemática de Milo sale del URDF (ver `docs/BRAZO.md`).
+- **Parámetros Denavit-Hartenberg** (imagen `carrusel/Robot Arm EB300 - DH Parameters.jpg`), en mm:
+  d₁ = 95, a₂ = 348, a₃ = 318, d₄ = 122, d₅ = 99, d₆ = 57 (α₁ = −π/2, α₄ = −π/2, α₅ = π/2).
+  La cinemática de Milo sale del URDF (ver `docs/BRAZO.md`), que coincide en a₂, a₃ y d₁ pero tiene
+  la muñeca más compacta: d₄ 89.6, d₅ 89.5 y d₆ 41 mm. Pendiente medir el brazo real.
+- Las vistas explosionadas rotulan los NEMA23 como de 53 y 65 mm; la guía eléctrica y la lista de
+  materiales dicen 82, 82 y 76 mm (los de la tabla de abajo). Las vistas parecen de otra versión.
 
 Motor de cada articulación (guía eléctrica, págs. 22-27) y ficha del fabricante (ensamblaje, pág. 4):
 

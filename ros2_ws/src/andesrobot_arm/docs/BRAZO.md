@@ -78,12 +78,19 @@ Diferencias con la cámara real: la profundidad real llega en mm (`16UC1`) con r
 real muestra el patrón de puntos del proyector; en Gazebo la profundidad es perfecta y el IR es una
 imagen gris. Gazebo publica además `/gripper_camera/depth/color_sim/*`, que no existe en la real.
 
+## Verlo en el navegador
+
+`docs/escena_web/README.md` (en la raíz del repo) explica cómo dibujar a Milo y la arena con three.js
+y mover el brazo con la misma cinemática inversa, con un ejemplo de Vite que funciona. El paquete de
+datos lo genera `python3 /ros2_ws/src/andesrobot_arm/scripts/exportar_escena_web.py` (dentro de
+`./sim.sh shell`) en `~/milo_ws/ros2_ws/escena_web/`.
+
 ## Qué corre
 
 | Pieza | Qué hace |
 |---|---|
 | `arm_sim.launch.py` | xacro con `lock_arm:=false arm_control:=true gripper_camera:=true` → Gazebo, spawn de Milo y la mesa, controladores, nodos, RViz |
-| `arm_controller` | `JointTrajectoryController`: `vertical_lift_joint` + `joint_1..6` en una sola trayectoria |
+| `arm_controller` | `JointTrajectoryController`: `vertical_lift_joint` + `joint_1..6` en una sola trayectoria, con tolerancias de meta (aborta si el brazo no llega) |
 | `gripper_controller` | `JointTrajectoryController`: `right_finger_joint` (el izquierdo lo copia Gazebo, `mimic`) |
 | `arm_ik_node` | escucha `/arm_target_pose` (cualquier frame de TF), resuelve la IK y manda la trayectoria |
 | `arm_marker_node` | marcador en RViz sobre `gripper_tcp`; al soltar publica en `/arm_target_pose` (frame `base_footprint`) |
@@ -162,8 +169,21 @@ python3 scripts/figuras.py docs/figuras
 
 - **Límites provisorios** (±π, 20 N·m, 1 rad/s): la IK puede devolver posturas que el brazo real no hace.
   Cambiar `arm_lower`/`arm_upper`/`arm_effort`/`arm_velocity` en `andesrobot.urdf.xacro`.
-- **Sin revisión de choques**: el brazo va directo a la solución y puede pasar por el chasis o la
-  columna. Gazebo lo bloquea, pero `arm_controller` igual reporta éxito (no tiene tolerancias de meta).
+- **Giros largos cerca de ±π**: una articulación no puede pasar de ±π, así que si el objetivo queda
+  "al otro lado" da casi una vuelta completa. Ejemplo medido: `joint_1` de 3.05 a −3.03 rad recorre
+  6.08 rad en 12.2 s en vez de 0.2 rad. Se arregla con los topes reales.
+- **Sin revisión de choques**: la IK no sabe dónde están el chasis, la columna ni la mesa, y el brazo
+  va directo a la solución. Desde que `arm_controller` tiene **tolerancias de meta**
+  (`config/arm_controllers.yaml`: 0.02 rad por articulación, 5 mm el lift, 1 s de margen), si queda
+  bloqueado el controlador aborta y `arm_ik_node` avisa *"el brazo no llegó… ¿chocó con algo?"*, en
+  vez de reportar éxito. La pinza no tiene tolerancia a propósito: al agarrar, los dedos quedan frenados.
+- **Muñeca distinta al EB300**: el DH oficial del fabricante tiene d₄ = 122, d₅ = 99 y d₆ = 57 mm; el
+  URDF (del CAD del equipo), 89.6, 89.5 y 41 mm. El brazo y el antebrazo sí coinciden. Hay que medir
+  el brazo real antes de confiar en la posición de la pinza al centímetro.
+- **Masas aproximadas**: los motores están (links `motor_joint_N`), pero los reductores EBA valen 0 y
+  las piezas impresas se calcularon como ABS macizo.
+- **Cámara ideal**: Gazebo da una profundidad perfecta (sin ruido, sombras ni huecos) y un IR sin el
+  patrón del proyector. Ver «Cómo hacer realista la profundidad» en el informe (sección 14).
 - **Mando por posición**: Gazebo pone las articulaciones en el ángulo pedido sin fuerzas; para
   agarrar objetos de verdad habría que pasar a esfuerzo con PID.
 - `simple_collision:=true` deja al brazo sin colisión propia (y una caja fija donde estaría el brazo

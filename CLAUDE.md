@@ -21,7 +21,12 @@ comment density. `README.md` is step-by-step for non-experts; per-package detail
 Repo-root `docs/` holds non-code material: `docs/informe/` (offline copy of the technical report,
 versioned) and `docs/hardware/` (vendor manuals, datasheets, CAD for the EB300 arm, EBG-20 gripper,
 motors and Orbbec camera; third-party, so only its `README.md` index is versioned). Keep
-`ros2_ws/src/` for ROS packages only.
+`ros2_ws/src/` for ROS packages only. `docs/escena_web/` documents the robot and scene for a web viewer (Vite + three.js +
+urdf-loader) and has a working example (`ejemplo_vite/`, with `src/cinematica.js`, a line-by-line JS
+port of `kinematics.py` tested by `npm test`). Its data pack (`milo.urdf`, meshes, `robot.json`,
+`escena.json`) is generated into `ros2_ws/escena_web/` (gitignored) by
+`andesrobot_arm/scripts/exportar_escena_web.py`; rerun it after geometry or world changes, and keep
+`cinematica.js` in sync with `kinematics.py`. The host has no Node.js: run npm with `node:20-slim` in Docker.
 
 ## Commands
 
@@ -144,8 +149,12 @@ marker's frame. `andesrobot_arm/scripts/figuras.py` regenerates `docs/figuras/` 
 drawings, workspace and `medidas.json`) from the URDF + STL meshes; rerun it after geometry changes. Arm limits are **provisional** (`arm_lower/arm_upper/arm_effort/arm_velocity`
 properties: ±π, 20 N·m, 1 rad/s); don't use them for real hardware.
 
-Known sim behaviors: IK has no collision checking, so poses that pass through the chassis/column get
-physically blocked in Gazebo while `arm_controller` still reports success (no goal tolerances).
+Known sim behaviors: IK has no collision checking, so poses that pass through the chassis/column/table
+get physically blocked in Gazebo; `arm_controller` has goal tolerances (`arm_controllers.yaml`:
+0.02 rad, lift 5 mm, `goal_time` 1 s, path tolerance off) so a blocked move aborts with
+GOAL_TOLERANCE_VIOLATED and `arm_ik_node` logs it. `gripper_controller` has no tolerances on purpose
+(fingers stall on a grasped object). With the provisional ±π limits a joint can't cross ±π, so a
+target "on the other side" makes a near-full turn (measured: 6.08 rad / 12.2 s for a 0.2 rad change).
 A Ctrl+C can leave an orphan `gzserver` holding port 11345 (next launch dies with exit 255):
 `killall gzserver gzclient` or `./sim.sh stop`.
 

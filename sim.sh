@@ -13,7 +13,7 @@
 #   ./sim.sh gpu             muestra con qué tarjeta está dibujando el contenedor
 #   ./sim.sh brazo           brazo de Milo: Gazebo + IK + marcador en RViz (ver andesrobot_arm)
 set -e
-# (Las líneas 2-16 de arriba son la ayuda: el "sed -n '2,16p'" de más abajo las imprime
+# (Las líneas 2-14 de arriba son la ayuda: el "sed -n '2,14p'" de más abajo las imprime
 #  cuando escribes una opción que no existe. Por eso los comentarios explicativos van aquí.)
 #
 # Línea 1 "#!/bin/bash": le dice al sistema que este archivo se ejecuta con bash.
@@ -56,7 +56,7 @@ case "$1" in
   # Estas opciones no hacen nada aquí: siguen hacia abajo a levantar la simulación.
   ""|cpu|sin-gazebo|software) ;;
   # Cualquier otra cosa: mostrar la ayuda (líneas 2 a 16 de este archivo) y salir con error.
-  *) sed -n '2,16p' "$0"; exit 1 ;;
+  *) sed -n '2,14p' "$0"; exit 1 ;;
 esac
 
 # Por defecto se abre la ventana de Gazebo; con "sin-gazebo" no (ahorra GPU, la física igual corre).
