@@ -21,12 +21,11 @@ comment density. `README.md` is step-by-step for non-experts; per-package detail
 Repo-root `docs/` holds non-code material: `docs/informe/` (offline copy of the technical report,
 versioned) and `docs/hardware/` (vendor manuals, datasheets, CAD for the EB300 arm, EBG-20 gripper,
 motors and Orbbec camera; third-party, so only its `README.md` index is versioned). Keep
-`ros2_ws/src/` for ROS packages only. `docs/escena_web/` documents the robot and scene for a web viewer (Vite + three.js +
-urdf-loader) and has a working example (`ejemplo_vite/`, with `src/cinematica.js`, a line-by-line JS
-port of `kinematics.py` tested by `npm test`). Its data pack (`milo.urdf`, meshes, `robot.json`,
+`ros2_ws/src/` for ROS packages only. `docs/escena_web/README.md` is a guide (documentation only, on purpose: the user builds the Vite +
+three.js app themselves, so don't add app code there) describing the robot, scene, conventions and
+how IK/camera work, with reference values. Its data pack (`milo.urdf`, meshes, `robot.json`,
 `escena.json`) is generated into `ros2_ws/escena_web/` (gitignored) by
-`andesrobot_arm/scripts/exportar_escena_web.py`; rerun it after geometry or world changes, and keep
-`cinematica.js` in sync with `kinematics.py`. The host has no Node.js: run npm with `node:20-slim` in Docker.
+`andesrobot_arm/scripts/exportar_escena_web.py`; rerun it after geometry or world changes.
 
 ## Commands
 
