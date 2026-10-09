@@ -15,3 +15,8 @@ docs/hardware/*
 # Capturas de la cámara de la pinza (ros2 run andesrobot_arm capturar_camara): datos de prueba,
 # cada una pesa varios MB (la nube .ply), no van al repo.
 ros2_ws/capturas/
+# Paquete para la web que genera exportar_escena_web.py (se regenera desde el URDF) y lo que
+# instala/compila el ejemplo de Vite.
+ros2_ws/escena_web/
+docs/escena_web/ejemplo_vite/node_modules/
+docs/escena_web/ejemplo_vite/dist/
