@@ -142,7 +142,9 @@ The wrist isn't spherical (joint_4 ∥ joint_6), so there's no closed-form IK.
 
 `gripper_tcp` (0.102 m along −X of `link_6_1`, between the finger pads) is the IK tip and the
 marker's frame. `andesrobot_arm/scripts/figuras.py` regenerates `docs/figuras/` (renders, dimension
-drawings, workspace and `medidas.json`) from the URDF + STL meshes; rerun it after geometry changes. Arm limits are **provisional** (`arm_lower/arm_upper/arm_effort/arm_velocity`
+drawings, workspace and `medidas.json`) from the URDF + STL meshes; rerun it after geometry changes. `scripts/fig_articulaciones.py` (imports figuras.py, so needs the container) draws the
+report's notation figure A (joint_2 and the lift over translucent URDF meshes, with every formula
+symbol) into `docs/figuras/`; copy it to `docs/informe/img/`. Arm limits are **provisional** (`arm_lower/arm_upper/arm_effort/arm_velocity`
 properties: ±π, 20 N·m, 1 rad/s); don't use them for real hardware.
 
 Known sim behaviors: IK has no collision checking, so poses that pass through the chassis/column/table

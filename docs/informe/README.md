@@ -82,11 +82,39 @@ Para que un brazo robótico tome un objeto, alguien tiene que decirle cuánto gi
 ### Cómo leer este informe
 
 - Cada sección empieza con un recuadro **«En palabras simples»** que dice qué es y para qué sirve. Si solo se lee eso, se entiende el proyecto.
+- La [figura A](#fig-articulaciones), un poco más abajo, dibuja una articulación de cada tipo con todos los símbolos de las fórmulas.
 - Cada fórmula viene seguida de **«Se lee así»**: qué significa cada símbolo, en palabras, y un ejemplo con números de Milo.
 - Los términos técnicos están en el [glosario](#glosario), justo abajo.
 - Las tablas y el texto en letra de código (por ejemplo `joint_2`) son nombres exactos en los archivos del proyecto; sirven para buscarlos, no hace falta entenderlos para seguir la idea.
 
 ### Notación de las fórmulas
+
+<a id="fig-articulaciones"></a>
+
+![Dos paneles con el robot real visto desde una esquina, con las mallas 3D casi transparentes y encima el esqueleto de eslabones (líneas) y articulaciones (círculos). Izquierda, joint_2: la base del brazo en gris, el brazo que gira en azul, el eje z_i naranja saliendo del hombro, el ángulo q_i entre el esqueleto punteado con q_i = 0 y el actual, la palanca punteada de p_i a la pinza p_e y la flecha negra J_v,i. Derecha, el lift: base y columna en gris, carro y brazo en azul subidos una distancia q_i = d respecto al esqueleto punteado, el eje z_i vertical y la flecha negra J_v,i hacia arriba en la pinza.](img/fig_articulaciones.png)
+
+**Figura A.** Las dos clases de articulación de Milo y los símbolos que usan las fórmulas. Izquierda: rotativa (R), joint_2 (el hombro). Derecha: prismática (P), el lift. Las piezas son las mallas reales del URDF, casi transparentes y vistas desde una esquina; encima va el esqueleto que usan las cuentas: una línea por eslabón y un círculo por articulación. Gris: lo que no se mueve con esa articulación; azul: lo que mueve. Postura de ejemplo: joint_2 = 0.6, joint_3 = 1.1 y joint_5 = 0.6 rad; en el panel P, el lift subió 0.30 m.
+
+**Cómo leer la figura**, de abajo hacia arriba, como se recorre la cadena:
+
+| Símbolo | En la figura | Qué es | Rotativa (R) | Prismática (P) |
+| --- | --- | --- | --- | --- |
+| $`\{i-1\}`$ | ejes x, y, z en link_1 (R) o al pie de la columna (P) | frame de la pieza anterior: desde ahí se mide todo lo de esta articulación | igual en las dos |  |
+| $`T_{o,i}`$ | flecha morada punteada | dónde está montado el motor sobre la pieza anterior: traslación + giro **fijos**, del `<origin xyz rpy>` del URDF | igual en las dos; no cambia nunca |  |
+| $`\mathbf p_i`$ | punto negro | posición del motor $`i`$ | igual en las dos |  |
+| $`\mathbf z_i`$ (y $`\mathbf k_i`$) | flecha naranja gruesa | el eje de la articulación. $`\mathbf k_i`$ es ese eje escrito en el frame de la pieza (el `<axis>` del URDF); $`\mathbf z_i`$ es el mismo eje visto desde la base | eje **de giro** (en joint_2, horizontal) | eje **de avance** (en el lift, vertical) |
+| $`q_i`$ | arco o cota naranja | la variable de la articulación: lo único que el motor cambia | **ángulo**, en rad | **distancia** $`d`$, en m |
+| $`q_i = 0`$ | esqueleto punteado azul | posición de referencia, la del URDF sin mover esa articulación | el mismo brazo con joint_2 en 0 | el brazo entero 0.30 m más abajo, con el carro en su posición media |
+| $`M_i(q_i)`$ | recuadro de abajo | el movimiento que agrega la articulación según $`q_i`$ | girar $`q_i`$ alrededor de $`\mathbf z_i`$ | avanzar $`q_i`$ a lo largo de $`\mathbf z_i`$ |
+| $`\{i\}`$ | (no se dibuja: sale de $`\mathbf p_i`$ y se mueve con la pieza azul) | frame de la pieza siguiente, después del movimiento: el $`\{i-1\}`$ de la próxima articulación | girado $`q_i`$ | trasladado $`q_i`$, mismos ejes |
+| $`\mathbf p_e`$ | punto naranja | la pinza (el TCP, *e* de efector) | igual en las dos |  |
+| $`\mathbf p_e - \mathbf p_i`$ | línea negra punteada (panel R) | la «palanca»: flecha del motor a la pinza | importa: más larga, más se mueve la pinza | no importa |
+| $`J_{v,i}`$ | flecha negra en la pinza | velocidad de la pinza si solo esta articulación se mueve a 1 rad/s o 1 m/s: la columna $`i`$ del jacobiano (sección 9) | $`\mathbf z_i \times (\mathbf p_e - \mathbf p_i)`$: de lado, tangente al círculo | $`\mathbf z_i`$: paralela al eje |
+| $`J_{\omega,i}`$ | (no se dibuja) | cuánto gira la pinza por esta articulación | $`\mathbf z_i`$: gira igual que el motor | $`\mathbf 0`$: no gira |
+
+Toda la cadena de Milo es esto repetido: 7 veces una de estas dos figuras (el lift es P, joint_1 a joint_6 son R), cada una montada sobre la anterior, más las uniones fijas, que solo tienen $`T_{o,i}`$. La lista de las 7 variables es $`\mathbf q = (q_1, \ldots, q_7)`$, en el orden lift, joint_1, …, joint_6. La cinemática directa (sección 7) multiplica los $`T_{o,i}\,M_i(q_i)`$ de la base a la pinza; el jacobiano (sección 9) junta las 7 columnas $`J_{v,i}`$, $`J_{\omega,i}`$.
+
+Más símbolos que aparecen en las fórmulas:
 
 | Se escribe | Significa | Ejemplo |
 | --- | --- | --- |
@@ -494,7 +522,7 @@ Con las masas nuevas la cadena de la IK no cambia, las 6 pruebas pasan, y en Gaz
 
 ## 7. Cinemática directa
 
-> **En palabras simples:** La [cinemática directa](#g-cinematica-directa) responde: *«si cada motor está en tal ángulo, ¿dónde queda la pinza?»*. Se calcula encadenando, desde el suelo hasta la pinza, el desplazamiento y el giro que aporta cada pieza. Es como seguir instrucciones: «sube 0.75 m, avanza 9 cm, gira 20°, sube 35 cm…».
+> **En palabras simples:** La [cinemática directa](#g-cinematica-directa) responde: *«si cada motor está en tal ángulo, ¿dónde queda la pinza?»*. Se calcula encadenando, desde el suelo hasta la pinza, el desplazamiento y el giro que aporta cada pieza. Es como seguir instrucciones: «sube 0.75 m, avanza 9 cm, gira 20°, sube 35 cm…». Los símbolos están dibujados en la [figura A](#fig-articulaciones).
 
 **Para qué:** calcular dónde queda la pinza dados los ángulos. La usan la inversa, el Jacobiano, las mediciones y las figuras.
 
@@ -578,7 +606,7 @@ En el xacro, `gripper_tcp` es un eslabón sin masa unido a `link_6_1` por una ar
 
 ## 9. Jacobiano
 
-> **En palabras simples:** El [jacobiano](#g-jacobiano) responde: *«si muevo un poquito este motor, ¿cuánto y hacia dónde se mueve la pinza?»*. Es una tabla con una columna por motor. Es la herramienta que usa la cinemática inversa para saber qué motor conviene mover en cada paso.
+> **En palabras simples:** El [jacobiano](#g-jacobiano) responde: *«si muevo un poquito este motor, ¿cuánto y hacia dónde se mueve la pinza?»*. Es una tabla con una columna por motor. Es la herramienta que usa la cinemática inversa para saber qué motor conviene mover en cada paso. Los símbolos están dibujados en la [figura A](#fig-articulaciones).
 
 Relaciona velocidades articulares con la velocidad del TCP; la cinemática inversa lo usa en cada iteración. Es el Jacobiano geométrico, calculado a partir de los marcos de cada articulación.
 
@@ -1350,4 +1378,4 @@ cd /ros2_ws/src/andesrobot_arm && python3 scripts/figuras.py docs/figuras   # tr
 
 ---
 
-*Figuras 1–5 generadas con `andesrobot_arm/scripts/figuras.py` a partir del URDF procesado y las mallas STL; la figura 6 y las distancias de la sección 5 se calcularon con `ArmKinematics` sobre el mismo URDF; la figura 7 son capturas de la cámara simulada (`capturar_camara`); la figura 8 es `andesrobot_gazebo/worlds/andesrobot_arena.png`. Masas leídas del URDF procesado. Medidas en metros y radianes salvo que se indique otra unidad.*
+*La figura A se dibuja con `andesrobot_arm/scripts/fig_articulaciones.py` a partir del URDF y las mallas STL. Figuras 1–5 generadas con `andesrobot_arm/scripts/figuras.py` a partir del URDF procesado y las mallas STL; la figura 6 y las distancias de la sección 5 se calcularon con `ArmKinematics` sobre el mismo URDF; la figura 7 son capturas de la cámara simulada (`capturar_camara`); la figura 8 es `andesrobot_gazebo/worlds/andesrobot_arena.png`. Masas leídas del URDF procesado. Medidas en metros y radianes salvo que se indique otra unidad.*
