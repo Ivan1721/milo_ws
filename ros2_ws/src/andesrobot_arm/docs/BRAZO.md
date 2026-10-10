@@ -78,13 +78,6 @@ Diferencias con la cámara real: la profundidad real llega en mm (`16UC1`) con r
 real muestra el patrón de puntos del proyector; en Gazebo la profundidad es perfecta y el IR es una
 imagen gris. Gazebo publica además `/gripper_camera/depth/color_sim/*`, que no existe en la real.
 
-## Verlo en el navegador
-
-`docs/escena_web/README.md` (en la raíz del repo) es la guía para armar una escena web de Milo y la
-arena (three.js + Vite): piezas, colores, convenciones, escenario y cómo funcionan la cinemática
-inversa y la cámara, con valores de referencia. El paquete de datos lo genera `python3 /ros2_ws/src/andesrobot_arm/scripts/exportar_escena_web.py` (dentro de
-`./sim.sh shell`) en `~/milo_ws/ros2_ws/escena_web/`.
-
 ## Qué corre
 
 | Pieza | Qué hace |
