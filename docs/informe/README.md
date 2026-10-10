@@ -15,6 +15,11 @@ Informe técnico de `milo_ws` centrado en el brazo de Milo: su modelo, su hardwa
 
 ## Contenido
 
+**Para empezar**
+
+- [Antes de empezar: qué es y cómo leerlo](#intro)
+- [Glosario](#glosario)
+
 **I · El proyecto**
 
 1. [Qué es Milo y qué hay aquí](#alcance)
@@ -54,6 +59,115 @@ Informe técnico de `milo_ws` centrado en el brazo de Milo: su modelo, su hardwa
 23. [Pendientes](#pendientes)
 24. [Cómo usarlo](#uso)
 
+<a id="intro"></a>
+
+## Antes de empezar: qué es y cómo leerlo
+
+> **En palabras simples:** Milo es un robot con ruedas que lleva un brazo mecánico. Este informe trata sobre todo del **brazo**: cómo se describe en el computador, cómo se calcula hacia dónde mover cada motor para que la pinza llegue a un punto, y cómo se prueba todo en un simulador antes de usar el robot real.
+
+### Qué se está haciendo
+
+Para que un brazo robótico tome un objeto, alguien tiene que decirle cuánto girar cada uno de sus motores. Una persona piensa «quiero la mano ahí» y su cerebro resuelve el resto; el robot necesita hacer esa cuenta. Este equipo construyó tres cosas:
+
+1. **Un modelo digital del robot** (el «gemelo virtual»): las medidas, masas y uniones de cada pieza, sacadas del diseño 3D y corregidas con los datos del fabricante. Secciones 4 a 6.
+2. **Las matemáticas del movimiento** (la cinemática): pasar de ángulos de motores a la posición de la pinza, y al revés. Secciones 7 a 12.
+3. **La simulación**: el robot completo en un mundo virtual con física, donde se le puede pedir «lleva la pinza aquí» y se mueve, con una cámara en la pinza que ve igual que la real. Secciones 13 y 14.
+
+### Por qué así
+
+- **Simular primero:** el brazo real todavía no tiene software de control, y un error en el robot real puede romper piezas o golpear a alguien. En el simulador los errores son gratis.
+- **Un solo modelo para todo:** las cuentas, la simulación y las figuras leen el mismo archivo de descripción del robot (el URDF). Si se corrige una medida, todo se actualiza solo.
+- **Mismos nombres que el robot real:** los programas usan los mismos canales de datos en la simulación y en el robot, así lo probado en el simulador sirve después sin reescribirlo.
+
+### Cómo leer este informe
+
+- Cada sección empieza con un recuadro **«En palabras simples»** que dice qué es y para qué sirve. Si solo se lee eso, se entiende el proyecto.
+- Cada fórmula viene seguida de **«Se lee así»**: qué significa cada símbolo, en palabras, y un ejemplo con números de Milo.
+- Los términos técnicos están en el [glosario](#glosario), justo abajo.
+- Las tablas y el texto en letra de código (por ejemplo `joint_2`) son nombres exactos en los archivos del proyecto; sirven para buscarlos, no hace falta entenderlos para seguir la idea.
+
+### Notación de las fórmulas
+
+| Se escribe | Significa | Ejemplo |
+| --- | --- | --- |
+| $`\mathbf q`$ | lista con la posición de cada motor (7 números) | $`\mathbf q = (0,\ 0,\ 0.35,\ 0.9,\ 0,\ 0.6,\ 0)`$: lift en 0 y ángulos en radianes |
+| $`q_i`$ | el número $`i`$ de esa lista | $`q_3 = 0.9`$ rad ≈ 52° |
+| letra en negrita: $`\mathbf p`$, $`\mathbf e`$ | un vector: una flecha o una lista de números | posición $`\mathbf p = (x, y, z)`$ en metros |
+| letra mayúscula: $`T`$, $`R`$, $`J`$ | una matriz: tabla de números que transforma vectores | $`R`$: 3×3, una orientación |
+| $`{}^{b}T_{e}`$ | pose de $`e`$ (la pinza) vista desde $`b`$ (la base) | dónde está y hacia dónde apunta la pinza, medido desde el suelo bajo el robot |
+| $`\Delta`$ | «un cambio pequeño de» | $`\Delta\mathbf q`$: cuánto mover cada motor en un paso |
+| $`\lVert\mathbf v\rVert`$ | largo de un vector | $`\lVert(3, 4, 0)\rVert = 5`$ |
+| $`\mathbf a \times \mathbf b`$ | producto cruz: vector perpendicular a los dos | girar alrededor de Z un punto que está en X lo mueve en Y |
+| $`R^\top`$ | transpuesta: la matriz «dada vuelta»; en rotaciones, el giro contrario |  |
+| $`\prod`$, $`\sum`$ | multiplicar (o sumar) todos los términos de una lista | $`\prod_{i=1}^{3} a_i = a_1 a_2 a_3`$ |
+| $`\pi`$, rad | ángulos en radianes: $`\pi`$ rad = 180° | 0.5 rad ≈ 28.6° |
+
+<a id="glosario"></a>
+
+## Glosario
+
+Ordenado de lo general a lo específico. La última columna dice dónde aparece en Milo.
+
+| Término | Qué significa | En Milo |
+| --- | --- | --- |
+| <a id="g-robot-manipulador-movil"></a>Robot manipulador móvil | Robot que combina una base con ruedas (se desplaza) y un brazo (manipula objetos). | Milo: base de hoverboard + columna con lift + brazo de 6 ejes + pinza. |
+| <a id="g-brazo-robotico"></a>Brazo robótico | Cadena de piezas rígidas unidas por motores, como un brazo humano: hombro, codo, muñeca. | EB300 de Toolbox Robotics, 6 motores paso a paso. |
+| <a id="g-articulacion"></a>Articulación | Unión entre dos piezas que permite movimiento; en inglés *joint*. Cada una tiene un motor. | `joint_1` … `joint_6` y `vertical_lift_joint`. |
+| <a id="g-eslabon"></a>Eslabón | Pieza rígida entre dos articulaciones; en inglés *link*. | `link_2_1` es el «brazo superior». |
+| <a id="g-rotativa"></a>Rotativa | Articulación que gira, como una bisagra o el codo. Se mide en radianes. | joint_1 … joint_6. |
+| <a id="g-prismatica"></a>Prismática | Articulación que desliza en línea recta, como un cajón. Se mide en metros. | El lift: sube y baja 1 m por la columna. |
+| <a id="g-grado-de-libertad"></a>Grado de libertad | Cada movimiento independiente que el robot puede hacer. También «eje» o DOF (*degree of freedom*). | 6 del brazo + 1 del lift = 7. |
+| <a id="g-lift"></a>Lift | Elevador: carro que sube y baja por la columna llevando el brazo. | De −0.4 a +0.6 m respecto a su posición media. |
+| <a id="g-pinza"></a>Pinza | Herramienta de dos dedos al final del brazo; en inglés *gripper*. | EBG-20, abre de 3 a 49 mm. |
+| <a id="g-tcp"></a>TCP | *Tool Center Point*: el punto de la herramienta que se quiere llevar a un lugar. Es «la punta» que controla el robot. | Entre los dedos de la pinza, 10.2 cm delante de la muñeca. |
+| <a id="g-frame"></a>Frame | Sistema de coordenadas (origen + ejes X, Y, Z) pegado a una pieza; también «marco de referencia». Las posiciones siempre se dan respecto a un frame. | `base_footprint`: en el suelo bajo las ruedas, X adelante, Y a la izquierda, Z arriba. |
+| <a id="g-pose"></a>Pose | Posición (dónde está, x, y, z) + orientación (hacia dónde apunta) de algo. | «Pinza en (0.7, 0, 0.6) m apuntando hacia abajo». |
+| <a id="g-roll-pitch-yaw"></a>Roll, pitch, yaw | Tres giros que describen una orientación: alrededor de X (alabeo), de Y (cabeceo) y de Z (guiñada), como en un avión. | yaw = 90° es mirar hacia la izquierda. |
+| <a id="g-radian"></a>Radián | Unidad de ángulo: 1 rad ≈ 57.3°, π rad = 180°, 2π rad = una vuelta. | Límites provisorios de ±π = ±180°. |
+| <a id="g-matriz-de-rotacion"></a>Matriz de rotación | Tabla de 3×3 números que describe una orientación. Multiplicada por un vector, lo gira. | La orientación del TCP. |
+| <a id="g-transformacion-homogenea"></a>Transformación homogénea | Tabla de 4×4 que junta una rotación (3×3) y una traslación (3 números). Encadenar dos transformaciones es multiplicar sus matrices. | Cada articulación aporta una; su producto da la pose de la pinza. |
+| <a id="g-cuaternion"></a>Cuaternión | Otra forma de escribir una orientación con 4 números (x, y, z, w). ROS la usa en sus mensajes porque no tiene casos raros. | Pinza sin girar = (0, 0, 0, 1). |
+| <a id="g-cinematica"></a>Cinemática | Estudio del movimiento sin mirar las fuerzas: solo geometría (ángulos, posiciones, velocidades). |  |
+| <a id="g-cinematica-directa"></a>Cinemática directa | Dados los ángulos de los motores, calcular dónde queda la pinza. Siempre tiene una única respuesta. En inglés FK (*forward kinematics*). | Sección 7. |
+| <a id="g-cinematica-inversa"></a>Cinemática inversa | Lo contrario: dada la pose a la que se quiere llevar la pinza, encontrar los ángulos. Puede tener varias soluciones o ninguna. En inglés IK. | Sección 10; la usa el robot cada vez que se le pide ir a un punto. |
+| <a id="g-jacobiano"></a>Jacobiano | Tabla que dice cuánto y hacia dónde se mueve la pinza cuando cada motor se mueve un poquito. Es la «sensibilidad» de la pinza a cada motor. | Matriz de 6×7 (sección 9). |
+| <a id="g-singularidad"></a>Singularidad | Postura en que el brazo pierde la capacidad de moverse en alguna dirección (por ejemplo, totalmente estirado). Cerca de ella, pedir ese movimiento exige giros enormes. | La IK usa amortiguamiento (λ) para no descontrolarse ahí. |
+| <a id="g-iteracion"></a>Iteración | Repetir un cálculo pequeño muchas veces, acercándose un poco cada vez a la respuesta. «Converger» es llegar lo bastante cerca. | La IK hace hasta 200 iteraciones por intento. |
+| <a id="g-minimo-local"></a>Mínimo local | Situación en que un método iterativo se queda atascado: ningún paso pequeño mejora, pero la respuesta no es buena. | Por eso la IK reintenta desde posturas al azar. |
+| <a id="g-redundancia"></a>Redundancia | Tener más articulaciones de las necesarias: hay infinitas formas de llegar al mismo punto y hay que elegir una. | 7 ejes para 6 números de una pose. |
+| <a id="g-espacio-de-trabajo"></a>Espacio de trabajo | Conjunto de todos los puntos a los que puede llegar la pinza. | Del suelo a 2.46 m de alto, 0.97 m al frente (sección 12). |
+| <a id="g-denavit-hartenberg"></a>Denavit-Hartenberg | Convención clásica para describir un brazo con 4 números por articulación (DH). Aquí no se usa: se lee el URDF directo. | El fabricante publica una tabla DH del EB300 (sección 5). |
+| <a id="g-urdf"></a>URDF | *Unified Robot Description Format*: archivo de texto (XML) que describe las piezas del robot, cómo se unen, sus masas y sus mallas 3D. | `andesrobot.urdf.xacro`. |
+| <a id="g-xacro"></a>xacro | URDF con variables y macros, para no repetir código. Se «procesa» para obtener el URDF final. | `lock_arm:=false` es un argumento del xacro. |
+| <a id="g-malla"></a>Malla | Modelo 3D de una pieza (archivo STL), exportado del CAD. Se usa para dibujar y para choques. | Exportadas de Fusion 360. |
+| <a id="g-cad"></a>CAD | Programa de diseño 3D (aquí Fusion 360) donde se dibujó el robot. |  |
+| <a id="g-centro-de-masa"></a>Centro de masa | Punto donde se puede considerar concentrado todo el peso de una pieza. La inercia dice cuánto le cuesta empezar a girar. | Los da el CAD para cada pieza. |
+| <a id="g-torque"></a>Torque | Fuerza de giro (fuerza × distancia al eje), en N·m. Lo que tiene que dar un motor para mover el brazo. | NEMA23: 2.4 N·m. |
+| <a id="g-motor-paso-a-paso"></a>Motor paso a paso | Motor que gira en pasos fijos, muy preciso sin sensor; en inglés *stepper*. El reductor es un engranaje que lo hace más lento y con más fuerza. | Los 6 del EB300 (NEMA23 y NEMA17). |
+| <a id="g-ros-2"></a>ROS 2 | *Robot Operating System*: conjunto de programas y reglas para que las partes de un robot se comuniquen. Versión usada: Humble. | Todo el software de Milo. |
+| <a id="g-nodo"></a>Nodo | Un programa de ROS que hace una tarea. | `arm_ik_node` calcula la cinemática inversa. |
+| <a id="g-topic"></a>Topic | Canal con nombre por donde los nodos se mandan mensajes (como un grupo de chat). | `/arm_target_pose`: «lleva la pinza aquí». |
+| <a id="g-tf"></a>TF | Sistema de ROS que guarda dónde está cada frame respecto a los demás, en cada instante. | De `base_footprint` a `gripper_tcp`. |
+| <a id="g-launch"></a>Launch | Archivo que arranca varios nodos a la vez con su configuración. | `arm_sim.launch.py`. |
+| <a id="g-controlador"></a>Controlador | Programa que lleva los motores a los valores pedidos y avisa si lo logró. | `arm_controller`: lift + joint_1…6. |
+| <a id="g-ros2-control"></a>ros2_control | Parte de ROS que separa el controlador del hardware: el mismo controlador sirve para el robot real o el simulado. |  |
+| <a id="g-trayectoria"></a>Trayectoria | Lista de posiciones de los motores en el tiempo, de la postura actual a la nueva. | La genera el nodo de IK. |
+| <a id="g-tolerancia-de-meta"></a>Tolerancia de meta | Cuánto puede quedar lejos del objetivo una articulación para dar el movimiento por bueno. | 0.02 rad (≈ 1.1°) y 5 mm en el lift. |
+| <a id="g-gazebo"></a>Gazebo | Simulador de robots: reproduce física, gravedad, choques y sensores. Permite probar sin el robot real. | Gazebo Classic 11. |
+| <a id="g-rviz"></a>RViz | Visualizador de ROS: muestra el robot, sus frames, sensores y marcadores. No simula física. | Ahí se arrastra la esfera para mover el brazo. |
+| <a id="g-marcador-interactivo"></a>Marcador interactivo | Objeto que se arrastra con el mouse en RViz; al soltarlo publica una pose. | La esfera naranja de la pinza. |
+| <a id="g-docker"></a>Docker | Herramienta que empaqueta un sistema completo (Ubuntu + ROS + programas) en una «imagen». Un contenedor es esa imagen corriendo. Así todos los PCs tienen el mismo entorno. | Imagen `milo:humble`, contenedor `milo`. |
+| <a id="g-git"></a>Git | Programa que guarda el historial de cambios del código. Un commit es un cambio guardado; una rama, una línea de trabajo paralela. | Rama `brazo` en GitHub. |
+| <a id="g-camara-de-profundidad"></a>Cámara de profundidad | Cámara que además de la imagen mide la distancia a cada punto. Esta lo hace con luz estructurada: proyecta puntos infrarrojos y mira cómo se deforman. | Orbbec Gemini Plus, en la pinza. |
+| <a id="g-nube-de-puntos"></a>Nube de puntos | Conjunto de puntos 3D (x, y, z, a veces color) que la cámara de profundidad mide en la escena. | `/gripper_camera/depth/points`. |
+| <a id="g-infrarrojo"></a>Infrarrojo | Luz invisible al ojo humano (IR). La cámara la usa para medir profundidad incluso a oscuras. |  |
+| <a id="g-fov"></a>FOV | *Field of view*: ángulo que abarca una cámara. | Profundidad: 67.9° × 45.3°. |
+| <a id="g-disparidad"></a>Disparidad | Cuánto se corre un mismo punto entre dos imágenes tomadas desde lugares distintos. Mientras más cerca está el objeto, más se corre (como al mirar un dedo con un ojo y luego con el otro). |  |
+| <a id="g-lidar"></a>Lidar | Sensor que gira y mide distancias con un láser en todas direcciones (un «radar de luz»). | RPLIDAR C1 de la base. |
+| <a id="g-slam"></a>SLAM | *Simultaneous Localization and Mapping*: el robot arma un mapa mientras se ubica en él. | slam_toolbox (base, otro equipo). |
+| <a id="g-odometria"></a>Odometría | Estimar cuánto se movió el robot contando las vueltas de las ruedas. | `/odom`. |
+| <a id="g-monte-carlo"></a>Monte Carlo | Método que prueba miles de casos al azar y mira los resultados, en vez de calcular la respuesta exacta. | Así se dibujó el espacio de trabajo. |
+
 # Parte I · El proyecto
 
 *Qué es Milo, cómo está organizado el workspace y cómo se ejecuta.*
@@ -61,6 +175,8 @@ Informe técnico de `milo_ws` centrado en el brazo de Milo: su modelo, su hardwa
 <a id="alcance"></a>
 
 ## 1. Qué es Milo y qué hay aquí
+
+> **En palabras simples:** Qué es Milo, qué partes tiene y qué ya funciona. Hoy todo el brazo funciona en simulación; en el robot real solo se mueve la base.
 
 Milo (`andesrobot`) es un manipulador móvil: una base diferencial con ruedas y electrónica de hoverboard, un RPLIDAR C1, una IMU, una columna vertical con un carro que sube y baja (el *lift*), un brazo de 6 articulaciones rotativas y una pinza de dos dedos.
 
@@ -91,6 +207,8 @@ La rama está en GitHub: `github.com/Ivan1721/milo_ws`, rama `brazo` (repositori
 <a id="docker"></a>
 
 ## 2. Docker y scripts
+
+> **En palabras simples:** Para que el software funcione igual en cualquier computador, todo se instala dentro de una «caja» llamada contenedor ([Docker](#g-docker)). Dos programas cortos, `sim.sh` y `robot.sh`, la abren y arrancan todo con un solo comando. Esta sección es para quien vaya a ejecutar el proyecto.
 
 Todo corre dentro de un contenedor para que cualquier PC con Docker tenga el mismo entorno. La carpeta `ros2_ws/` del PC se monta en el contenedor como `/ros2_ws`: el código se edita en el PC y se compila y ejecuta adentro. Lo compilado (`install/`) y los mapas quedan en el PC aunque el contenedor se borre.
 
@@ -132,6 +250,8 @@ Con `--symlink-install`, los `.py`, `.xacro` y `.yaml` editados se toman al rela
 
 ## 3. Paquetes y flujo de datos
 
+> **En palabras simples:** El software está dividido en paquetes, cada uno con una tarea (describir el robot, mover el brazo, frenar ante obstáculos…). Los programas se hablan mandándose mensajes por canales con nombre ([topic](#g-topic)s).
+
 | Paquete | Función |
 | --- | --- |
 | `andesrobot_description` | URDF/xacro, mallas STL, `rsp.launch.py`, `display.launch.py` (RViz con sliders). Única fuente de la geometría. |
@@ -151,6 +271,8 @@ Este informe sigue ese orden de prioridad: la **Parte II** es el brazo (el traba
 <a id="modelo"></a>
 
 ## 4. Modelo del robot y medidas
+
+> **En palabras simples:** Antes de calcular nada, el computador necesita un modelo del robot: qué piezas tiene, dónde está cada una y cómo se unen. Eso está en un archivo de texto llamado [URDF](#g-urdf). De ahí se sacan también las medidas reales del robot (alto, ancho, largo).
 
 El modelo es `andesrobot.urdf.xacro`, que incluye otros archivos: colores y fricción (`materials`, `gazebo`), plugins de simulación (`sim`), el ros2_control de las ruedas reales (`ros2_control`) y el del brazo en Gazebo (`arm_control`). Sigue REP-103/105: +X adelante, +Y izquierda, +Z arriba.
 
@@ -199,6 +321,14 @@ En Fusion el robot se modeló girado 180° en Z. Por eso las uniones a nivel de 
 
 $`{}^{w}T_{L}`$ es la pose del eslabón (cinemática directa, sección 7) y $`T_{\text{vis}}`$ el `<visual><origin>` del URDF. Las dimensiones son $`\max_i p_{w,i} - \min_i p_{w,i}`$ en cada eje.
 
+**Se lee así:** para saber dónde queda en el mundo un punto de la malla 3D de una pieza, se pasa de milímetros a metros (×0.001), se aplica la posición de la malla dentro de su pieza y después la posición de la pieza en el robot.
+
+- $`\mathbf v`$: un vértice (esquina) de la malla, en mm, tal como sale del CAD.
+- $`s`$: factor de mm a m.
+- $`T_{\text{vis}}`$, $`{}^{w}T_{L}`$: dónde va la malla en su pieza, y dónde está la pieza.
+
+**Ejemplo:** haciendo esto con todos los vértices del robot y tomando el más alto y el más bajo se obtiene la altura total de 1.816 m.
+
 ### Medidas
 
 | Medida | Valor | Nota |
@@ -216,6 +346,8 @@ $`{}^{w}T_{L}`$ es la pose del eslabón (cinemática directa, sección 7) y $`T_
 <a id="cadena"></a>
 
 ## 5. Cadena cinemática
+
+> **En palabras simples:** El brazo es una cadena: base → motor → pieza → motor → pieza … → pinza. Esta sección lista cada eslabón de la cadena, cuánto mide y alrededor de qué eje gira, y lo compara con lo que dice el fabricante.
 
 El trabajo del brazo empezó en un workspace aparte (`preparacion_ws`) y se migró a `milo_ws`, cuya descripción tiene exactamente la misma cadena del brazo. No se duplicó el URDF: se agregó lo necesario a `andesrobot_description` y el resto va en `andesrobot_arm`.
 
@@ -299,6 +431,8 @@ El brazo y el antebrazo coinciden con el EB300 a pocos milímetros, pero la muñ
 
 ## 6. Hardware real y masas del brazo
 
+> **En palabras simples:** Qué brazo, pinza y motores son en la realidad, y cuánto pesan. El peso importa porque los motores tienen que levantarlo: si el modelo pesa distinto que el robot, la simulación engaña. Se corrigió el modelo para que pese lo que el robot real (8.05 kg el brazo).
+
 El CAD de Fusion describe la forma del brazo, pero no su hardware: los motores no están, y cada masa es la pieza maciza con el material que tenía asignado en el CAD. Esta sección reúne el hardware real (brazo EB300, pinza EBG-20) y cómo se corrigieron las masas del URDF. Los documentos de cada pieza están en `docs/hardware/` (en la raíz del repo).
 
 ### Brazo real: EB300 de Toolbox Robotics
@@ -360,6 +494,8 @@ Con las masas nuevas la cadena de la IK no cambia, las 6 pruebas pasan, y en Gaz
 
 ## 7. Cinemática directa
 
+> **En palabras simples:** La [cinemática directa](#g-cinematica-directa) responde: *«si cada motor está en tal ángulo, ¿dónde queda la pinza?»*. Se calcula encadenando, desde el suelo hasta la pinza, el desplazamiento y el giro que aporta cada pieza. Es como seguir instrucciones: «sube 0.75 m, avanza 9 cm, gira 20°, sube 35 cm…».
+
 **Para qué:** calcular dónde queda la pinza dados los ángulos. La usan la inversa, el Jacobiano, las mediciones y las figuras.
 
 **Método:** producto de transformaciones homogéneas leídas del URDF procesado (`ArmKinematics` en `kinematics.py`, solo numpy). No hay tabla Denavit-Hartenberg: el código recorre el URDF desde la punta hasta la base, así que un cambio en el xacro se refleja solo. Lee el xacro **instalado** con `lock_arm:=false`.
@@ -370,11 +506,27 @@ Con las masas nuevas la cadena de la IK no cambia, las 6 pruebas pasan, y en Gaz
 
 $`T_{o,i}`$ es el `origin` fijo de la articulación $`i`$ y $`M_i(q_i)`$ su movimiento. Las articulaciones fijas aportan solo $`T_{o,i}`$.
 
+**Se lee así:** la pose de la pinza vista desde la base es el producto, en orden, de lo que aporta cada articulación: primero su posición fija en la pieza anterior ($`T_{o,i}`$, «dónde está montado el motor») y después su movimiento ($`M_i(q_i)`$, «cuánto giró o se deslizó»).
+
+- $`\mathbf q`$: la posición de los 7 motores.
+- $`n`$: cantidad de uniones de la cadena (11, contando las fijas).
+- $`\prod`$: multiplicar todas las matrices, de la base a la pinza.
+
+**Ejemplo:** con todos los motores en cero, el producto da la pinza en (0.355, 0, 1.776) m: 35.5 cm delante y 1.78 m sobre el suelo. Si solo el lift sube 0.1 m, la pinza sube exactamente 0.1 m: (0.355, 0, 1.876).
+
 ```math
 T_{o} = \begin{bmatrix} R_{\text{rpy}} & \mathbf t \\ \mathbf 0^\top & 1 \end{bmatrix}, \qquad R_{\text{rpy}}(\phi,\theta,\psi) = R_z(\psi)\,R_y(\theta)\,R_x(\phi)
 ```
 
 Convención URDF: *roll* $`\phi`$, *pitch* $`\theta`$, *yaw* $`\psi`$, en ejes fijos.
+
+**Se lee así:** la transformación fija de cada unión se arma con dos datos del URDF: una traslación $`\mathbf t`$ («moverse x, y, z metros») y una rotación $`R`$ dada por tres ángulos (roll, pitch, yaw). La matriz de 4×4 junta las dos cosas para poder encadenarlas multiplicando.
+
+- $`\phi, \theta, \psi`$: giro alrededor de X, de Y y de Z (ver «roll, pitch, yaw» en el glosario).
+- $`R_z(\psi)\,R_y(\theta)\,R_x(\phi)`$: se gira primero en X, luego en Y, luego en Z.
+- La última fila $`(0, 0, 0, 1)`$ es un truco para que traslación y rotación quepan en una sola multiplicación.
+
+**Ejemplo:** la columna está montada con yaw = π (180°): por eso su X apunta hacia atrás del robot.
 
 ```math
 M_i^{\text{rot}}(q) = \begin{bmatrix} I + \sin q\,[\mathbf k]_\times + (1-\cos q)\,[\mathbf k]_\times^2 & \mathbf 0 \\ \mathbf 0^\top & 1 \end{bmatrix}, \qquad M_i^{\text{pris}}(d) = \begin{bmatrix} I & d\,\mathbf k \\ \mathbf 0^\top & 1 \end{bmatrix}
@@ -382,11 +534,21 @@ M_i^{\text{rot}}(q) = \begin{bmatrix} I + \sin q\,[\mathbf k]_\times + (1-\cos q
 
 Fórmula de Rodrigues para articulaciones rotativas con eje unitario $`\mathbf k`$; traslación a lo largo de $`\mathbf k`$ para las prismáticas (el lift). $`[\mathbf k]_\times`$ es la matriz antisimétrica del producto cruz.
 
+**Se lee así:** el movimiento de un motor. Si es rotativo, gira un ángulo $`q`$ alrededor de su eje $`\mathbf k`$ (fórmula de Rodrigues, la receta estándar para girar alrededor de un eje cualquiera). Si es prismático (el lift), se desliza una distancia $`d`$ a lo largo de $`\mathbf k`$.
+
+- $`\mathbf k`$: dirección del eje del motor (por ejemplo, Z = vertical).
+- $`I`$: la matriz identidad, «no girar nada».
+- $`[\mathbf k]_\times`$: una forma de escribir el producto cruz con $`\mathbf k`$ como matriz.
+
+**Ejemplo:** joint_1 gira alrededor de Z vertical. Con $`q`$ = 90° (1.571 rad), un punto que estaba 0.3 m adelante del eje queda 0.3 m a la izquierda.
+
 Con todo en cero, el TCP queda en $`(-0.2326,\ 0,\ 0.8561)`$ m respecto a `arm_base_link_1` (lo comprueba una prueba) y en $`(0.3551,\ 0,\ 1.7764)`$ m respecto a `base_footprint` con el lift en 0.
 
 <a id="tcp"></a>
 
 ## 8. Punto de agarre (TCP)
+
+> **En palabras simples:** Cuando se le pide al robot «lleva la pinza aquí», hay que decidir qué punto exacto de la pinza es el que va «aquí». Ese punto es el [TCP](#g-tcp): se eligió el centro entre los dedos, donde queda el objeto al agarrarlo.
 
 Cuando se manda una pose, lo que llega a ella es el TCP. El origen de `link_6_1` está 10 cm detrás de los dedos; el TCP es el centro de la zona de agarre. Se midió colocando las mallas de los dedos en el marco de `link_6_1` y analizándolas por cortes a lo largo de X.
 
@@ -406,11 +568,17 @@ g(q_f) = 0.017 + 2\,q_f \quad\Rightarrow\quad g \in [0.003,\ 0.049]\ \text{m par
 
 Apertura entre las caras internas en función de `right_finger_joint`; el izquierdo lo imita con multiplicador −1 (*mimic*). Con $`q_f = 0`$ quedan 17 mm.
 
+**Se lee así:** la abertura de la pinza ($`g`$, distancia entre las caras de los dedos) depende de cuánto se desliza el dedo derecho ($`q_f`$). Es «2 ×» porque el dedo izquierdo copia al derecho en espejo: cada milímetro que se abre uno, se abre también el otro.
+
+**Ejemplo:** $`q_f`$ = 0.010 m → $`g`$ = 0.017 + 0.020 = 0.037 m: la pinza abre 37 mm. Cerrada al máximo ($`q_f`$ = −0.007) quedan 3 mm.
+
 En el xacro, `gripper_tcp` es un eslabón sin masa unido a `link_6_1` por una articulación fija. Para poner el TCP en la punta de los dedos basta cambiar su `origin` a −0.1224.
 
 <a id="jacobiano"></a>
 
 ## 9. Jacobiano
+
+> **En palabras simples:** El [jacobiano](#g-jacobiano) responde: *«si muevo un poquito este motor, ¿cuánto y hacia dónde se mueve la pinza?»*. Es una tabla con una columna por motor. Es la herramienta que usa la cinemática inversa para saber qué motor conviene mover en cada paso.
 
 Relaciona velocidades articulares con la velocidad del TCP; la cinemática inversa lo usa en cada iteración. Es el Jacobiano geométrico, calculado a partir de los marcos de cada articulación.
 
@@ -421,15 +589,29 @@ J = \begin{bmatrix} J_v \\ J_\omega \end{bmatrix} \in \mathbb R^{6\times n}, \qq
 
 $`\mathbf z_i = R_i\,\mathbf k_i`$ es el eje de la articulación $`i`$ en el marco base, $`\mathbf p_i`$ su posición y $`\mathbf p_e`$ la del TCP.
 
+**Se lee así:** el jacobiano $`J`$ tiene 6 filas (3 de velocidad lineal de la pinza, $`J_v`$, y 3 de velocidad de giro, $`J_\omega`$) y una columna por motor. La columna $`i`$ es la velocidad de la pinza si solo el motor $`i`$ se mueve a 1 rad/s (o 1 m/s el lift).
+
+- Motor que gira: la pinza se mueve en círculo alrededor de su eje, como la punta de un minutero. Su velocidad es $`\mathbf z_i \times (\mathbf p_e - \mathbf p_i)`$: perpendicular al eje y a la línea que va del motor a la pinza, y mayor mientras más lejos esté la pinza.
+- Motor que desliza (el lift): toda la pinza se mueve en la dirección del eje, sin girar.
+- $`\mathbf z_i`$: eje del motor $`i`$; $`\mathbf p_i`$: dónde está el motor; $`\mathbf p_e`$: dónde está la pinza.
+
+**Ejemplo:** un brazo estirado de 0.8 m que gira a 0.5 rad/s mueve la punta a 0.8 × 0.5 = 0.4 m/s. En Milo, en la postura de la figura 1, girar joint_2 5° (0.087 rad) mueve la pinza unos 5.8 cm.
+
 ```math
 J_{v,i} \approx \frac{\mathbf p_e(\mathbf q + h\,\mathbf e_i) - \mathbf p_e(\mathbf q - h\,\mathbf e_i)}{2h}, \qquad h = 10^{-6}
 ```
 
 Verificación: la parte lineal coincide con diferencias finitas centradas con tolerancia $`10^{-8}`$. La parte angular se valida de forma indirecta con las pruebas de cinemática inversa.
 
+**Se lee así:** forma de comprobar el jacobiano «a lo bruto»: mover el motor $`i`$ un poquito hacia adelante y hacia atrás ($`h`$ = una millonésima), ver cuánto se movió la pinza con la cinemática directa y dividir por lo que se movió el motor. Si coincide con la fórmula de arriba, la fórmula está bien programada.
+
+**Ejemplo:** si al mover un motor 0.000002 rad la pinza se corre 0.0000013 m, su columna vale 0.65 m/rad.
+
 <a id="ik"></a>
 
 ## 10. Cinemática inversa
+
+> **En palabras simples:** La [cinemática inversa](#g-cinematica-inversa) es el problema que de verdad importa: *«quiero la pinza aquí, apuntando así: ¿qué ángulo pongo en cada motor?»*. Como no hay una fórmula directa para este brazo, se resuelve por aproximaciones: se mide cuánto falta, se calcula con el jacobiano un pequeño movimiento que acerca, se aplica y se repite, hasta quedar a menos de 0.1 mm. Es como afinar una radio girando la perilla de a poco.
 
 Dada una pose deseada $`T_d = (R_d, \mathbf p_d)`$, encontrar $`\mathbf q`$. Como la muñeca no es esférica, se usa mínimos cuadrados amortiguados (*damped least squares*, DLS), un método iterativo que se comporta bien cerca de singularidades.
 
@@ -441,12 +623,24 @@ Dada una pose deseada $`T_d = (R_d, \mathbf p_d)`$, encontrar $`\mathbf q`$. Com
 
 El error de orientación es el vector de rotación (eje × ángulo) que lleva la orientación actual a la deseada.
 
+**Se lee así:** el error $`\mathbf e`$ dice cuánto falta para llegar. Tiene dos partes: cuánto falta en posición ($`\mathbf e_p`$, una flecha de donde está la pinza a donde debe estar) y cuánto falta en orientación ($`\mathbf e_R`$, el giro que habría que darle a la pinza para que apunte bien).
+
+- $`\mathbf p_d`$, $`R_d`$: posición y orientación deseadas (la «d» es de deseada).
+- $`\mathbf p(\mathbf q)`$, $`R(\mathbf q)`$: las actuales, de la cinemática directa.
+- $`\log(\cdot)^\vee`$: convierte un giro en una flecha cuya dirección es el eje de giro y cuyo largo es el ángulo.
+
+**Ejemplo:** si el objetivo está 10 cm más arriba y la pinza tiene que girar 30° alrededor de Z, $`\mathbf e_p`$ = (0, 0, 0.10) m y $`\mathbf e_R`$ = (0, 0, 0.524) rad.
+
 ```math
 \theta = \arccos\!\left(\frac{\operatorname{tr} R - 1}{2}\right), \qquad
        \log(R)^\vee = \frac{\theta}{2\sin\theta}\begin{bmatrix} R_{32}-R_{23} \\ R_{13}-R_{31} \\ R_{21}-R_{12} \end{bmatrix}
 ```
 
 Si $`\theta \approx 0`$ el resultado es cero; si $`\theta \approx \pi`$ el eje se obtiene de la parte simétrica de $`R`$, porque la fórmula se indefine.
+
+**Se lee así:** receta para sacar de una matriz de rotación el ángulo girado ($`\theta`$) y el eje. La traza ($`\operatorname{tr}`$, suma de la diagonal) da el ángulo; las diferencias entre elementos opuestos de la matriz dan el eje.
+
+**Ejemplo:** un giro de 90° alrededor de Z tiene diagonal (0, 0, 1): traza 1, $`(1-1)/2 = 0`$, $`\arccos 0`$ = 90°. Los casos 0° y 180° se tratan aparte porque la fórmula divide por $`\sin\theta`$, que ahí vale 0.
 
 ### Paso de actualización (DLS ponderado)
 
@@ -456,15 +650,31 @@ Si $`\theta \approx 0`$ el resultado es cero; si $`\theta \approx \pi`$ el eje s
 
 Solución de $`\min_{\Delta\mathbf q}\ \lVert J\Delta\mathbf q - \mathbf e\rVert^2 + \lambda^2\,\Delta\mathbf q^\top W \Delta\mathbf q`$. $`\lambda`$ evita pasos enormes cerca de singularidades. $`W = \operatorname{diag}(w_i)`$ da un costo a cada articulación: una con más peso se mueve menos.
 
+**Se lee así:** el corazón de la cinemática inversa. Dado lo que falta ($`\mathbf e`$) y la sensibilidad de la pinza a cada motor ($`J`$), calcula cuánto mover cada motor ($`\Delta\mathbf q`$) para acercarse. Busca el movimiento que mejor reduce el error *sin* mover demasiado los motores.
+
+- $`\lambda`$ (amortiguamiento, 0.01): un «freno». Sin él, cerca de una singularidad la fórmula pediría giros gigantes; con él, los pasos quedan razonables a cambio de converger un poco más lento.
+- $`W`$ (pesos): el «costo» de mover cada motor. El lift tiene peso 10 y los demás 1, así que la fórmula prefiere mover el brazo.
+- $`(\cdot)^{-1}`$: resolver un sistema de ecuaciones (6 ecuaciones, una por número del error).
+
+**Ejemplo:** para subir la pinza 1 cm con el brazo en una postura cómoda, el paso sale casi todo en los motores del brazo; si el brazo ya está estirado hacia arriba y no puede subir más, solo el lift sirve y la fórmula lo usa.
+
 ```math
 \Delta\mathbf q \leftarrow \Delta\mathbf q \cdot \min\!\left(1,\ \frac{\Delta_{\max}}{\lVert \Delta\mathbf q \rVert}\right), \qquad \mathbf q \leftarrow \operatorname{lim}(\mathbf q + \Delta\mathbf q)
 ```
+
+**Se lee así:** si el paso calculado es muy grande (más de $`\Delta_{\max}`$ = 0.5 rad en total), se achica manteniendo su dirección. Después se suma a la postura actual y se respetan los límites de cada motor ($`\operatorname{lim}`$).
+
+**Ejemplo:** un paso de largo 1.2 rad se multiplica por 0.5/1.2 = 0.42 y queda de 0.5 rad.
 
 ```math
 \operatorname{lim}(q_i) = \begin{cases} \big((q_i - q_i^{\min}) \bmod 2\pi\big) + q_i^{\min} & \text{rotativa con } q_i^{\max} - q_i^{\min} \ge 2\pi \\ \operatorname{clip}(q_i,\ q_i^{\min},\ q_i^{\max}) & \text{otra con límites} \end{cases}
 ```
 
 Con rangos de vuelta completa (los ±π provisorios) el ángulo da la vuelta en vez de recortarse; si no, una solución cerca de −π se quedaba pegada al límite.
+
+**Se lee así:** cómo se respetan los límites. Si un motor puede dar la vuelta completa, un ángulo que se pasa de 180° se escribe como el mismo ángulo «por el otro lado» (como 270° = −90°). Si no, se recorta al límite.
+
+**Ejemplo:** $`q`$ = 3.30 rad (189°) pasa a 3.30 − 2π = −2.98 rad (−171°): la misma posición física. El lift pedido en 0.7 m se recorta a 0.6 m, su tope.
 
 ### Convergencia y reinicios
 
@@ -488,9 +698,15 @@ w = \tfrac12\sqrt{1+R_{11}+R_{22}+R_{33}},\quad x = \operatorname{sgn}(R_{32}-R_
 
 Conversión entre cuaterniones de ROS y matrices. El cuaternión se normaliza antes. Se verifica con 50 rotaciones aleatorias (ida y vuelta, error < $`10^{-9}`$).
 
+**Se lee así:** ROS describe orientaciones con cuaterniones (4 números) y las cuentas usan matrices (9 números). Estas fórmulas convierten de uno a otro.
+
+**Ejemplo:** el cuaternión (0, 0, 0, 1) es «sin girar» y da la matriz identidad. Un giro de 90° alrededor de Z es (0, 0, 0.7071, 0.7071).
+
 <a id="lift"></a>
 
 ## 11. Inclusión del lift (7 ejes)
+
+> **En palabras simples:** El lift (elevador) le da al brazo un séptimo movimiento: subir y bajar. Con eso llega del suelo a 2.4 m. Pero con 7 motores hay infinitas formas de llegar al mismo punto ([redundancia](#g-redundancia)), así que hay que decir cuál se prefiere: se eligió mover el brazo y usar el lift solo cuando hace falta.
 
 Con el lift fijo el brazo cubre unos 1.66 m de altura; con él, la pinza va del suelo a 2.4 m. La cadena empieza en `base_footprint` (supone la base quieta) y contiene `vertical_lift_joint` + joint_1…6. Con 7 articulaciones para 6 restricciones hay infinitas soluciones; los pesos $`W`$ eligen. Al lift se le da $`w = 10`$ y a las demás $`w = 1`$.
 
@@ -507,6 +723,8 @@ Las diferencias son modestas: el peso afecta sobre todo al primer intento. Con r
 <a id="workspace"></a>
 
 ## 12. Espacio de trabajo y rango con el lift
+
+> **En palabras simples:** Hasta dónde llega la pinza: el [espacio de trabajo](#g-espacio-de-trabajo). Se calculó probando cientos de miles de posturas al azar y marcando dónde quedó la pinza en cada una.
 
 **Método (Monte Carlo):** se muestrean configuraciones uniformes dentro de los límites, se calcula $`\mathbf p = \text{FK}(\mathbf q)`$ y se toman los extremos. 60 000 muestras para el alcance al frente y 12 000 por panel en la figura. Se descartan puntos bajo el suelo.
 
@@ -557,6 +775,8 @@ Como la distancia hombro–TCP llega a 0.843 m en cualquier dirección, el espac
 
 ## 13. El brazo en simulación
 
+> **En palabras simples:** Cómo se mueve el brazo en el simulador ([Gazebo](#g-gazebo)): se arrastra una esfera con el mouse (o un programa manda un punto), un programa calcula la cinemática inversa y otro ([controlador](#g-controlador)) mueve los motores virtuales hasta ahí. Si el brazo no llega (porque choca), avisa.
+
 `./sim.sh brazo` corre `arm_sim.launch.py`. Este launch procesa el xacro con `lock_arm:=false arm_control:=true` y mallas como colisión, abre la misma arena, pone a Milo, arranca los controladores solo si el spawn terminó bien y lanza los dos nodos y RViz.
 
 ```mermaid
@@ -590,6 +810,10 @@ Recibe `geometry_msgs/PoseStamped` en `/arm_target_pose`, en cualquier marco de 
 T = \max\!\left(T_{\min},\ \max_i \frac{\lvert q_i^{\text{nuevo}} - q_i^{\text{actual}} \rvert}{v_i}\right), \qquad v_{\text{brazo}} = 0.5\ \text{rad/s},\ \ v_{\text{lift}} = 0.1\ \text{m/s},\ \ T_{\min} = 1\ \text{s}
 ```
 
+**Se lee así:** cuánto dura un movimiento. Se calcula cuánto tardaría cada motor yendo a su velocidad máxima (distancia ÷ velocidad) y se toma el más lento, con un mínimo de 1 s. Así todos los motores llegan al mismo tiempo y nadie supera su velocidad.
+
+**Ejemplo:** si joint_1 debe girar 1.0 rad (a 0.5 rad/s tarda 2 s) y el lift subir 5 cm (a 0.1 m/s tarda 0.5 s), el movimiento dura 2 s y el lift va más lento de lo que podría.
+
 | Parámetro | Por defecto | Qué hace |
 | --- | ---: | --- |
 | `use_lift` | true | false = IK de 6 ejes en `arm_base_link_1`, el lift no se mueve |
@@ -605,6 +829,8 @@ Crea un marcador interactivo sobre `gripper_tcp`, con flechas para mover y anill
 <a id="camara"></a>
 
 ## 14. Cámara de profundidad en la pinza
+
+> **En palabras simples:** La pinza lleva una [cámara de profundidad](#g-camara-de-profundidad), que además de la foto mide la distancia a cada punto. Sirve para encontrar el objeto a tomar. En el simulador se agregó una cámara virtual con las mismas características y los mismos nombres de canales que la real.
 
 La pinza lleva una **Orbbec Gemini Plus**, una cámara 3D de luz estructurada binocular: un proyector infrarrojo dibuja un patrón de puntos, dos cámaras infrarrojas lo ven desde posiciones distintas y un chip de la cámara (MX6000) calcula la profundidad. Trae además una cámara a color. Está **implementada en la simulación del brazo** y probada en Gazebo; la cámara real todavía no se conecta.
 
@@ -656,6 +882,23 @@ Cada uno trae su `camera_info`. Los cuatro van a 15 Hz (`gripper_camera_rate`; l
 
 > **La cámara no ve el agarre final.** Mide desde 0.25 m y los dedos quedan a unos 9 cm. El uso correcto es en dos fases: desde una pose previa (0.3 m o más del objeto) se mide su posición, y después el brazo se acerca y cierra sin ver. `arm_ik_node` acepta poses en cualquier frame, pero usa la TF más reciente: conviene transformar la pose del objeto a `base_footprint` con la TF del instante de la imagen antes de mandarla.
 
+### Limitación: rango mínimo de la profundidad
+
+La profundidad de la Gemini Plus solo mide entre **0.25 y 2.5 m** desde el lente. En Gazebo el plugin del sensor corta en el mismo rango (`min_depth` 0.25 y `max_depth` 2.5 en `andesrobot.gripper_camera.xacro`), así que se comporta igual que la cámara real:
+
+| Distancia al lente | Imagen de profundidad | Nube de puntos |
+| --- | --- | --- |
+| menos de 0.25 m | sin dato (0 en la real; NaN o inf en la simulación, negro en RViz) | sin puntos |
+| 0.25 – 2.5 m | distancia medida (precisión 5 mm a 1 m en la real) | puntos con color |
+| más de 2.5 m | sin dato | sin puntos |
+
+Consecuencias para el brazo:
+
+- **Los dedos nunca aparecen en la profundidad:** quedan a unos 9 cm del lente. Tampoco un objeto ya dentro de la pinza.
+- **Hay que medir desde lejos:** el objeto debe quedar a 0.25 m o más del lente (en la práctica 0.3–0.6 m, donde el error es menor). Luego el brazo se acerca y cierra sin ver (las dos fases de arriba).
+- **El color y el infrarrojo sí ven de cerca:** sirven para confirmar que el objeto sigue entre los dedos, pero no dan distancia.
+- **Un hueco no es un objeto lejano:** el código que use la nube debe descartar los píxeles sin dato (0 o NaN), no tratarlos como «nada adelante».
+
 ### Cómo hacer realista la profundidad
 
 Gazebo calcula la profundidad como una imagen renderizada: **perfecta**, sin ruido, sin huecos y con el mismo error a 0.3 que a 2.5 m. La cámara real se equivoca de formas que dependen de su principio de medida, y un detector probado solo con datos perfectos puede fallar con los reales. Estos son los efectos más importantes, en orden de impacto, y cómo reproducir cada uno.
@@ -667,6 +910,13 @@ Z = \frac{f\,B}{d}, \qquad \sigma_Z = \frac{Z^2}{f\,B}\,\sigma_d, \qquad f = \fr
 ```
 
 La cámara mide la disparidad $`d`$ entre las dos imágenes IR, separadas $`B`$ = 41 mm (medido en el plano), y de ahí calcula $`Z`$. Con la precisión de la ficha (5 mm a 1 m) el error de disparidad es $`\sigma_d = 0.005 \cdot f B = 0.0975`$ px. Ese error fijo en píxeles es lo que hace crecer el error en metros con $`Z^2`$.
+
+**Se lee así:** la cámara tiene dos «ojos» infrarrojos separados $`B`$ = 4.1 cm. Un mismo punto se ve corrido $`d`$ píxeles entre los dos (la [disparidad](#g-disparidad)); mientras más cerca está, más se corre. La distancia es $`Z = f B / d`$. El error al medir $`d`$ es siempre parecido (una décima de píxel), pero su efecto en metros crece con la distancia al cuadrado.
+
+- $`f`$: «distancia focal» en píxeles, sale del ancho de la imagen y del ángulo de visión.
+- $`\sigma`$: el error típico (desviación estándar).
+
+**Ejemplo:** $`f B`$ = 475.6 × 0.041 = 19.5. Un objeto a 1 m se ve corrido 19.5 px; a 2 m, 9.75 px. Medido a 2 m, el error esperado es 2² / 19.5 × 0.0975 ≈ 0.02 m = 2 cm; a 1 m, 5 mm.
 
 | Distancia | 0.25 m | 0.5 m | 1.0 m | 1.5 m | 2.5 m |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -681,6 +931,10 @@ w \approx f\,b_p \left( \frac{1}{Z_{\text{cerca}}} - \frac{1}{Z_{\text{lejos}}} 
 ```
 
 El proyector (al centro de la cámara) y la cámara IR de profundidad (a $`b_p`$ ≈ 21 mm) ven la escena desde lugares distintos. Al lado de cada objeto queda una franja que la cámara ve pero el proyector no ilumina: ahí no hay profundidad. Ejemplo: un objeto a 0.6 m delante del suelo a 1.4 m deja una franja sin dato de unos 9.5 píxeles de ancho, siempre del mismo lado.
+
+**Se lee así:** ancho, en píxeles, de la «sombra» sin datos que deja un objeto cercano delante de uno lejano. Aparece porque el proyector de puntos y la cámara están en lugares un poco distintos, como la sombra de una mano bajo una lámpara que no está justo encima.
+
+**Ejemplo:** objeto a 0.6 m sobre el suelo a 1.4 m: 475.6 × 0.021 × (1/0.6 − 1/1.4) ≈ 9.5 píxeles sin dato junto al borde del objeto.
 
 **Cómo:** por cada fila de la imagen, proyectar cada píxel al punto de vista del proyector (correrlo $`f\,b_p/Z`$ píxeles) y marcar como inválidos los que quedan tapados por un píxel más cercano. Es un z-buffer de una dimensión, rápido con numpy.
 
@@ -733,6 +987,8 @@ Deja `color.png`, `ir.png`, `profundidad_mm.png` (16 bits en mm, como la real), 
 
 ## 15. Dónde se usan estos métodos hoy
 
+> **En palabras simples:** Para qué sirven en la industria y la investigación las técnicas usadas aquí, con ejemplos reales.
+
 Nada de lo que usa el brazo de Milo es exclusivo de un proyecto de curso: son las mismas técnicas con que se programan hoy los manipuladores móviles, los brazos colaborativos y las celdas de picking. La diferencia está en la escala y en las herramientas ya hechas que las implementan.
 
 | Método en Milo | Para qué se usa hoy | Ejemplos |
@@ -755,6 +1011,8 @@ Nada de lo que usa el brazo de Milo es exclusivo de un proyecto de curso: son la
 <a id="gazebo"></a>
 
 ## 16. Simulación en Gazebo
+
+> **En palabras simples:** Resumen de la simulación de la base móvil (la desarrolla otro equipo): el mundo virtual, los sensores simulados y cómo los mismos programas sirven para el robot real.
 
 `./sim.sh` corre `sim_mapping.launch.py`, que junta tres launches: `sim.launch.py` (Gazebo, robot_state_publisher con `lock_arm:=true` y `simple_collision:=true`, y el spawn de Milo 2 cm sobre el suelo), el filtro de seguridad y el mapeo, más RViz. Todos usan el reloj de Gazebo (`use_sim_time`).
 
@@ -795,6 +1053,8 @@ Fricción de las ruedas μ = 1.2 con contacto rígido (kp = 10⁶, kd = 100); la
 
 ## 17. Masas y estabilidad de la base
 
+> **En palabras simples:** Cuánto pesa la base y por qué hubo que agregarle peso (lastre) para que el robot no se volcara en la simulación.
+
 Cada link tiene en su `<inertial>` la masa, el centro de masa y la inercia exportados de Fusion. El xacro **no tiene una lista de componentes** (motores, tornillería, electrónica): cada masa es la pieza sólida completa del CAD, con el material que tenía asignado allí.
 
 | Brazo y lift | kg |
@@ -833,6 +1093,8 @@ Estas son las masas originales del CAD de todo el robot. Las del brazo ya están
 
 ## 18. Milo físico
 
+> **En palabras simples:** Cómo se conecta el software con las ruedas y el lidar del robot real.
+
 `./robot.sh` corre `robot_mapping.launch.py` = `robot.launch.py` + el mismo mapeo que en simulación (con reloj real) + RViz opcional. Antes de arrancar revisa que existan los dos puertos serie.
 
 ### ros2_control en tres piezas
@@ -846,6 +1108,12 @@ Estas son las masas originales del CAD de todo el robot. Las del brazo ya están
 ```
 
 Lo que hace el `diff_drive_controller` con el comando $`(v, \omega)`$ del robot. Al revés, integra la velocidad de las ruedas para la odometría (`/odom` y TF `odom→base_footprint`, igual que el plugin de Gazebo). Límites: 0.4 m/s y 1.0 rad/s; 0.8 m/s² y 1.5 rad/s². Si no recibe comandos en 0.5 s, se detiene.
+
+**Se lee así:** para que el robot avance a $`v`$ m/s y gire a $`\omega`$ rad/s, cuánto debe girar cada rueda. Al girar, la rueda de afuera va más rápido que la de adentro.
+
+- $`b`$: distancia entre ruedas; $`r`$: radio de la rueda.
+
+**Ejemplo:** avanzar recto a 0.2 m/s: ambas ruedas a 0.2 / 0.08255 = 2.4 rad/s. Girar en el lugar a 1 rad/s: una rueda a −2.2 y la otra a +2.2 rad/s.
 
 ### Driver del hoverboard
 
@@ -869,6 +1137,8 @@ El filtro de seguridad envía su salida a `/diff_drive_controller/cmd_vel_unstam
 
 ## 19. Filtro de seguridad
 
+> **En palabras simples:** Un programa que frena el robot antes de chocar: mira el [lidar](#g-lidar) y, si hay algo delante, baja la velocidad y luego para.
+
 `safety_filter` se interpone entre el teclado y las ruedas: recibe `/cmd_vel_teleop` y `/scan`, y a 20 Hz publica la velocidad segura. Es igual en simulación y en el robot. La parte ROS está en `safety_filter.py`; la matemática, en `logic.py`, que se prueba sin ROS.
 
 Cada scan se pasa a puntos $`(x, y)`$ en `base_footprint` con la TF del lidar (se lee una vez). Se descartan los puntos dentro de la caja del robot + 2 cm, que son lecturas del propio Milo (la columna).
@@ -883,11 +1153,19 @@ s(d) = \begin{cases} 0 & d \le d_{\text{stop}} \\ \dfrac{d - d_{\text{stop}}}{d_
 
 $`d`$ es la distancia libre desde el borde del robot (frente en x = 0.44 m, cola en x = −0.12 m) hasta el punto más cercano del corredor. Con $`d_{\text{stop}} = 0.30`$ m y $`d_{\text{slow}} = 0.70`$ m, a 0.5 m va a la mitad de la velocidad pedida.
 
+**Se lee así:** el filtro de seguridad multiplica la velocidad pedida por un factor $`s`$ entre 0 y 1 que depende de la distancia $`d`$ al obstáculo más cercano: lejos (más de 0.70 m) no cambia nada, cerca (menos de 0.30 m) frena del todo, y en medio frena en proporción.
+
+**Ejemplo:** obstáculo a 0.5 m: $`s`$ = (0.5 − 0.3)/(0.7 − 0.3) = 0.5, el robot va a la mitad de la velocidad pedida.
+
 ```math
 r_{\text{giro}} = \max\big(\lVert(x_{\max}, w/2)\rVert,\ \lVert(x_{\min}, w/2)\rVert\big) = \lVert(0.44,\ 0.25)\rVert = 0.506\ \text{m}
 ```
 
 Radio que barre la esquina más lejana al girar en el lugar. Si hay un punto a menos de $`r_{\text{giro}} + 0.15 = 0.656`$ m del centro, se bloquea el giro ($`\omega = 0`$).
+
+**Se lee así:** al girar en el lugar, la esquina más lejana del robot dibuja un círculo; su radio es la distancia del centro a esa esquina (Pitágoras con el largo y el medio ancho).
+
+**Ejemplo:** $`\sqrt{0.44^2 + 0.25^2}`$ = 0.506 m. Con 15 cm de margen, si hay algo a menos de 0.656 m del centro no se permite girar.
 
 | Parámetro (`safety.yaml`) | Valor | Efecto |
 | --- | ---: | --- |
@@ -904,6 +1182,8 @@ Publica siempre, aunque sea velocidad 0: si el nodo se cae, el `diff_drive_contr
 <a id="slam"></a>
 
 ## 20. Mapeo (SLAM)
+
+> **En palabras simples:** Cómo el robot arma un mapa del lugar mientras se mueve ([SLAM](#g-slam)).
 
 `mapping.launch.py` se usa igual en simulación y en el robot (solo cambia `use_sim_time`).
 
@@ -928,6 +1208,8 @@ El mapa se guarda con `./sim.sh mapa nombre` (o `./robot.sh mapa`), que llama a 
 <a id="validacion"></a>
 
 ## 21. Validación
+
+> **En palabras simples:** Qué se probó y con qué resultado. Hay pruebas automáticas (programas que revisan las cuentas) y pruebas en el simulador.
 
 ### Pruebas automáticas (pytest, sin ROS corriendo)
 
@@ -959,7 +1241,8 @@ Corridas dentro del contenedor (la última vez el 6 de octubre de 2026, con las 
 | Pinza a 0.016 m | meta alcanzada | ✅ bien |
 | Tres poses con las masas reales (brazo de 8.05 kg), incluida una con el brazo estirado hacia el lado | error del TCP ≤ 0.1 mm en las tres | ✅ bien |
 | Cámara de la pinza: 4 canales, con la mesa de prueba | 14.9 Hz cada uno, frames correctos, objetos visibles en color, profundidad e IR (sección 14) | ✅ bien |
-| Paneles de la cámara en RViz | no se pudo comprobar sin pantalla | ⚠️ pendiente |
+| Paneles de la cámara en RViz (10 de octubre) | color, infrarrojo y profundidad se ven en los paneles de `arm.rviz` | ✅ bien |
+| Profundidad a menos de 0.25 m | los dedos y todo lo que queda a menos de 0.25 m del lente sale sin dato (negro en la imagen, sin puntos en la nube) | ⚠️ limitación del sensor (sección 14) |
 | Simulación de mapeo (`lock_arm:=true`) | Milo aparece, `/scan` a 10 Hz, `/odom` a 50 Hz, base nivelada | ✅ bien |
 | Objetivo bajo justo delante de la base (en `preparacion_ws`) | la trayectoria atraviesa la base: Gazebo bloqueó el brazo a 5.9 cm del objetivo y el controlador igual reportó éxito | ❌ falla conocida |
 | Tolerancias de meta (9 de octubre): pinza mandada dentro del tablero de la mesa | la mesa frena la pinza a 6 mm del objetivo y el controlador **aborta** (GOAL_TOLERANCE_VIOLATED) en vez de reportar éxito; las tres poses normales siguen terminando bien | ✅ bien |
@@ -969,6 +1252,8 @@ El robot físico (hoverboard, lidar y mapeo real) no se probó como parte de est
 <a id="problemas"></a>
 
 ## 22. Problemas y soluciones
+
+> **En palabras simples:** Problemas que aparecieron durante el trabajo, por qué pasaban y cómo se resolvieron. Útil para no repetirlos.
 
 | Problema | Causa | Solución |
 | --- | --- | --- |
@@ -991,6 +1276,8 @@ El robot físico (hoverboard, lidar y mapeo real) no se probó como parte de est
 
 ## 23. Pendientes
 
+> **En palabras simples:** Lo que falta. Lo más importante: medir el brazo real (topes, piezas) y escribir el programa que mueva los motores reales.
+
 ### Repositorio
 
 - Hacer commit de las masas reales y la cámara, y subirlos.
@@ -1000,7 +1287,7 @@ El robot físico (hoverboard, lidar y mapeo real) no se probó como parte de est
 - **Límites provisorios** (±π, 20 N·m, 1 rad/s): medir los topes físicos y los motores. La IK puede devolver posturas que el brazo real no hace.
 - **Masas**: ya están los motores y la pinza en ABS (sección 6). Faltan los reductores EBA y pesar las piezas impresas reales; con eso, recalcular los torques.
 - **Muñeca del CAD vs. EB300**: d₄, d₅ y d₆ difieren 10–32 mm del DH oficial (sección 5). Decidir cuál es la buena midiendo el brazo.
-- **Cámara**: hacer realista la profundidad (nodo `gemini_realista`, sección 14), conectar la cámara real con `OrbbecSDK_ROS2` y comprobar los paneles de RViz.
+- **Cámara**: hacer realista la profundidad (nodo `gemini_realista`, sección 14), conectar la cámara real con `OrbbecSDK_ROS2`.
 - **Confirmar los desplazamientos a lo largo de los ejes** (orígenes en los acoplamientos, sección 5) midiendo el brazo real.
 - **Sin driver del brazo real**: el control existe solo en Gazebo. El EB300 se controla con un Arduino MEGA 2560 y 6 drivers TB6600; el camino natural es un plugin de ros2_control que hable por serie con el Arduino, como el del hoverboard.
 - **Sin revisión de choques**: el brazo puede atravesar la base o la columna. Mejora directa: descartar soluciones que entren en cajas que aproximen la base y la columna (medidas de la sección 4).
@@ -1017,6 +1304,8 @@ El robot físico (hoverboard, lidar y mapeo real) no se probó como parte de est
 <a id="uso"></a>
 
 ## 24. Cómo usarlo
+
+> **En palabras simples:** Los comandos para ejecutar todo. Para quien vaya a usar el proyecto en su computador.
 
 Desde `~/milo_ws`. El código se edita en el PC; Docker ejecuta. Al terminar: Ctrl+C en la terminal 1 y `./sim.sh stop`.
 
