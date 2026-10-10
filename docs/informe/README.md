@@ -797,9 +797,29 @@ Fricción de las ruedas μ = 1.2 con contacto rígido (kp = 10⁶, kd = 100); la
 
 Cada link tiene en su `<inertial>` la masa, el centro de masa y la inercia exportados de Fusion. El xacro **no tiene una lista de componentes** (motores, tornillería, electrónica): cada masa es la pieza sólida completa del CAD, con el material que tenía asignado allí.
 
-<p>
+| Brazo y lift | kg |
+| --- | ---: |
+| `arm_base_link_1` | 0.377 |
+| `link_1_1` | 0.434 |
+| `link_2_1` | 1.338 |
+| `link_3_1` | 0.756 |
+| `link_4_1` | 0.223 |
+| `link_5_1` | 0.225 |
+| `link_6_1` | 0.739 |
+| dedos (2) | 0.331 |
+| **Brazo + pinza** | **4.422** |
+| `lift_carriage_link_1` | 0.434 |
+| **Carga del lift** | **4.856** |
 
-</p>
+| Base y columna | kg |
+| --- | ---: |
+| `base_link` | 5.535 |
+| `vertical_column_link_1` | 5.724 |
+| ruedas (2) | 2.042 |
+| lidar, IMU, rueda loca | 0.231 |
+| **Total del CAD (con brazo y carro)** | **18.390** |
+| `ballast_link` | 12.000 |
+| **Total del modelo** | **30.389** |
 
 **Lastre:** con solo las masas del CAD, el centro de masa quedaba a 0.69 m y el robot se volcaba con unos 1.3 m/s². `ballast_link` representa baterías y electrónica: 12 kg en el piso del chasis (propiedad `ballast_mass`). Con él, el centro de masa baja a 0.45 m y el vuelco ocurre a unos 2.2 m/s² laterales y 2.7 m/s² al frenar, muy por encima de los 0.8 m/s² de aceleración del diff drive.
 
