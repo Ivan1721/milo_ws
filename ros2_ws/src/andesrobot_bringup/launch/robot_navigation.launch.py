@@ -5,8 +5,8 @@ Mandar:    ./robot.sh ir <lugar>         (o RViz desde el PC: ./robot.sh rviz-na
 
 Pose inicial: por defecto (0, 0, 0) = donde partió Milo cuando se hizo el mapa. Si lo dejas en
 otro lado: x:=1.0 y:=0.5 yaw:=1.57 (con punto decimal) o "2D Pose Estimate" en RViz.
-Ubicaciones: hay que medirlas en el mapa REAL (la casa del simulador es solo para la sim):
-  copia config/ubicaciones_robocup_casa.yaml, corrige x/y/yaw y pásalo con ubicaciones:=<ruta>.
+Ubicaciones: hay que medirlas en el mapa REAL (con tf2_echo, igual que en la sim) y anotarlas en
+  un archivo como maps/casa_lugares.yaml; se pasa con ubicaciones:=<ruta>.
 
 SIN PROBAR en el robot real todavía: la primera vez con Milo en un espacio abierto y alguien
 con la mano en el apagado.
@@ -70,9 +70,7 @@ def generate_launch_description():
             DeclareLaunchArgument('lidar_port', default_value='/dev/rplidar'),
             DeclareLaunchArgument(
                 'ubicaciones',
-                default_value=PathJoinSubstitution(
-                    [pkg_nav, 'config', 'ubicaciones_robocup_casa.yaml']
-                ),
+                default_value='/ros2_ws/src/andesrobot_slam/maps/casa_lugares.yaml',
             ),
             DeclareLaunchArgument('x', default_value='0.0'),
             DeclareLaunchArgument('y', default_value='0.0'),

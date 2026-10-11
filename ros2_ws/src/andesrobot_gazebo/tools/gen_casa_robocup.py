@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Genera la casa RoboCup@Home (Laundry / Bedroom / Living room / Kitchen) para Gazebo Classic.
 
-UNA sola fuente de verdad: aquí están los muros, las puertas, los muebles y las ubicaciones con
-nombre. Desde esto se generan 3 archivos (no los edites a mano, edita este script y córrelo):
+UNA sola fuente de verdad: aquí están los muros, las puertas y los muebles. Desde esto se generan
+2 archivos (no los edites a mano, edita este script y córrelo):
 
-  andesrobot_gazebo/worlds/robocup_casa.world            el mundo SDF para Gazebo
-  andesrobot_gazebo/worlds/robocup_casa.png              vista de arriba (para revisar / el paper)
-  andesrobot_navigation/config/ubicaciones_robocup_casa.yaml   poses objetivo para Nav2 (ir_a)
+  andesrobot_gazebo/worlds/robocup_casa.world   el mundo SDF para Gazebo
+  andesrobot_gazebo/worlds/robocup_casa.png     vista de arriba con los números del rulebook
+
+Además revisa que Milo quepa por todas las puertas y pueda acercarse a cada mueble del rulebook
+(sin chocar, sin que el filtro de seguridad lo frene y pudiendo girar en el lugar).
 
 Uso (en tu PC o dentro del contenedor, solo necesita python3 + numpy + pillow):
   python3 ros2_ws/src/andesrobot_gazebo/tools/gen_casa_robocup.py
@@ -18,9 +20,10 @@ mida 9 x 9 m y la cama ~2 m. Puertas de 0.90 m (como una puerta real de casa).
 SISTEMAS DE COORDENADAS
   "casa" (u, v): origen en la esquina exterior abajo-izquierda del plano,
                 u -> derecha, v -> arriba.
-  "mundo" (x, y): el de Gazebo. Su origen (0, 0) es el PUNTO DE PARTIDA de Milo: afuera de la
-  puerta del living, mirando hacia adentro (+x). Así, si mapeas partiendo desde ahí, el frame
-  "map" de slam_toolbox queda casi igual al mundo y las ubicaciones del .yaml sirven directo.
+  "mundo" (x, y): el de Gazebo, con el (0, 0) en el CENTRO de la casa. Milo parte afuera de la
+  puerta del living mirando hacia adentro (+x); esa pose la pasa sim.sh (CASA_SPAWN). En la sim
+  la odometría sale de la pose real en Gazebo, así que el frame "map" del SLAM queda igual al
+  mundo: las poses que anotas con tf2_echo son coordenadas de Gazebo.
 """
 
 import math
@@ -35,15 +38,22 @@ PKG_GAZEBO = os.path.dirname(HERE)
 SRC = os.path.dirname(PKG_GAZEBO)
 OUT_WORLD = os.path.join(PKG_GAZEBO, 'worlds', 'robocup_casa.world')
 OUT_PNG = os.path.join(PKG_GAZEBO, 'worlds', 'robocup_casa.png')
-OUT_LOC = os.path.join(SRC, 'andesrobot_navigation', 'config', 'ubicaciones_robocup_casa.yaml')
 
 # ------------------------------------------------------------------------------------------
 # Parámetros generales
 # ------------------------------------------------------------------------------------------
-L = 9.0  # la casa es de L x L m (medida exterior)
+# ESCALA agranda la casa (distancias entre muros y muebles) pero NO los muebles ni el grosor de
+# los muros: una cama sigue midiendo 2 m. Todas las medidas de más abajo son las del PLANO del
+# rulebook (escala 1, casa de 9 x 9 m); escalar() las convierte al final de esta sección.
+# Con 1.4 la casa queda de 12.6 x 12.6 m: Milo pasa con holgura y puede girar entre los muebles.
+ESCALA = 1.4
+L = 9.0  # la casa es de L x L m (medida exterior, en el plano)
 T = 0.15  # grosor de muro
 WALL_H = 1.2  # alto de muro (el lidar escanea a ~0.33 m)
-DOOR = 0.90  # ancho de puerta
+# Ancho de puerta. Con 1.40 Milo puede GIRAR dentro de la puerta: el filtro de seguridad (modo
+# teleop) bloquea el giro si hay algo a menos de 0.51 (radio de giro) + 0.15 = 0.66 m del centro,
+# y en una puerta de 1.40 los marcos quedan a 0.70 m. Una puerta real de casa mide ~0.90.
+DOOR = 1.40
 SPAWN_UV = (-0.9, 3.17)  # punto de partida (afuera de la puerta del living), en coordenadas casa
 LIDAR_Z = 0.333  # altura del lidar de Milo (base_footprint -> laser)
 APPROACH = 0.80  # distancia base_footprint -> cara del mueble en las poses objetivo
@@ -61,7 +71,8 @@ YH = 5.155  # muro horizontal del medio (separa arriba / abajo)
 
 
 def to_world(u, v):
-    return (round(u - SPAWN_UV[0], 3), round(v - SPAWN_UV[1], 3))
+    # El centro de la casa es el (0, 0) del mundo de Gazebo.
+    return (round(u - L / 2, 3), round(v - L / 2, 3))
 
 
 # ------------------------------------------------------------------------------------------
@@ -168,6 +179,67 @@ ROOMS = {
     'salida': (-0.9, 7.50, math.pi),
 }
 
+
+
+# ------------------------------------------------------------------------------------------
+# Escalar el plano. Los muebles pegados a un muro (a menos de 13 cm) se quedan pegados a ese
+# muro; los demás se mueven proporcionalmente. Los tamaños no cambian.
+# ------------------------------------------------------------------------------------------
+def escalar(e):
+    global L, XV, YH, SPAWN_UV, DINNER, WALL_LINES, DOORS, FURN, ROOMS
+    if e == 1.0:
+        return
+    caras = [T, XV - T / 2, XV + T / 2, L - T]  # mismas caras de muro en u y en v (ver abajo)
+    caras_v = [T, YH - T / 2, YH + T / 2, L - T]
+    nL, nXV, nYH = L * e, XV * e, YH * e
+    nuevas_u = [T, nXV - T / 2, nXV + T / 2, nL - T]
+    nuevas_v = [T, nYH - T / 2, nYH + T / 2, nL - T]
+
+    def eje(c, h, viejas, nuevas):
+        for f, nf in zip(viejas, nuevas):
+            if abs((c - h) - f) <= 0.13:  # cara de abajo/izquierda pegada a este muro
+                return nf + ((c - h) - f) + h
+            if abs(f - (c + h)) <= 0.13:  # cara de arriba/derecha pegada a este muro
+                return nf - (f - (c + h)) - h
+        return c * e
+
+    nfurn = []
+    for f in FURN:
+        name, kind, (u, v), size = f[:4]
+        if kind == 'chair':
+            continue  # las sillas se rehacen alrededor de la mesa
+        hu, hv = (size, size) if kind in ('cyl', 'round') else (size[0] / 2, size[1] / 2)
+        if kind == 'round':
+            nu, nv = u * e, v * e
+        else:
+            nu, nv = eje(u, hu, caras, nuevas_u), eje(v, hv, caras_v, nuevas_v)
+        nfurn.append((name, kind, (round(nu, 3), round(nv, 3))) + tuple(f[3:]))
+    DINNER = next(f[2] for f in nfurn if f[0] == 'dinner_table')
+    dc = next(f for f in FURN if f[0] == 'silla_n')[3:6]  # lado, alto, color
+    for name, du, dv, yaw in (('silla_n', 0, 1, -math.pi / 2), ('silla_s', 0, -1, math.pi / 2),
+                              ('silla_o', -1, 0, 0.0), ('silla_e', 1, 0, math.pi)):
+        pos = (DINNER[0] + du * CHAIR_D, DINNER[1] + dv * CHAIR_D)
+        nfurn.append((name, 'chair', pos) + tuple(dc) + (yaw,))
+    FURN = nfurn
+
+    def puerta(d):
+        return d * e
+
+    WALL_LINES = [
+        ('h', T / 2, 0.0, nL, []),
+        ('h', nL - T / 2, 0.0, nL, []),
+        ('v', nL - T / 2, T, nL - T, []),
+        ('v', T / 2, T, nL - T, [puerta(3.17), puerta(7.50)]),
+        ('v', nXV, T, nL - T, [puerta(2.73), puerta(8.06)]),
+        ('h', nYH, T, nL - T, [puerta(3.02), puerta(7.75)]),
+    ]
+    DOORS = {k: (u if u == T / 2 else u * e, v * e) for k, (u, v) in DOORS.items()}
+    ROOMS = {k: (u * e if u > 0 else u, v * e, y) for k, (u, v, y) in ROOMS.items()}
+    SPAWN_UV = (SPAWN_UV[0], SPAWN_UV[1] * e)
+    L, XV, YH = nL, nXV, nYH
+
+
+escalar(ESCALA)
 
 # ------------------------------------------------------------------------------------------
 # Geometría -> lista de primitivas (para SDF y para el raster de verificación)
@@ -310,7 +382,7 @@ def floor_xml():
 
 
 def write_world(walls, furn):
-    cam_x, cam_y = to_world(L / 2, -6.0)
+    cam_x, cam_y = to_world(L / 2, -0.62 * L)
     body = [model_xml('muros', walls), floor_xml()]
     body += [model_xml(name, prims) for name, prims in furn]
     xml = f'''<?xml version="1.0"?>
@@ -329,7 +401,7 @@ def write_world(walls, furn):
     </physics>
     <scene><shadows>false</shadows></scene>
     <gui><camera name="user_camera">
-      <pose>{cam_x:.2f} {cam_y:.2f} 13 0 0.95 1.5708</pose></camera></gui>
+      <pose>{cam_x:.2f} {cam_y:.2f} {1.45 * L:.1f} 0 0.95 1.5708</pose></camera></gui>
 {chr(10).join(body)}
   </world>
 </sdf>
@@ -491,31 +563,6 @@ def main():
     for dn, (du_, dv_) in DOORS.items():
         print(f'  puerta {dn:24s} libre a cada lado del centro: {d_phys[idx(du_, dv_)]:.2f} m')
 
-    # --- YAML de ubicaciones (frame map = mundo)
-    lines = [
-        '# GENERADO por andesrobot_gazebo/tools/gen_casa_robocup.py — NO editar a mano.',
-        '# Ubicaciones de la casa RoboCup@Home en el frame "map" (= mundo de Gazebo si el mapa',
-        '# se hizo partiendo desde el spawn por defecto). Pose = dónde se para Milo',
-        '# (base_footprint) mirando al mueble, a ~0.80 m de su cara. yaw en radianes.',
-        '# id = número del rulebook; place = se pueden dejar objetos ahí (*).',
-        'frame_id: map',
-        'ubicaciones:',
-    ]
-    for g in goals:
-        x, y = to_world(g['u'], g['v'])
-        rid = 'null' if g['id'] is None else g['id']
-        lines.append(
-            f'  {g["name"]}: {{x: {x:.3f}, y: {y:.3f}, yaw: {g["yaw"]:.4f}, '
-            f'room: {g["room"]}, id: {rid}, place: {str(g["place"]).lower()}}}'
-        )
-    lines.append('puertas:')
-    for dn, (du_, dv_) in DOORS.items():
-        x, y = to_world(du_, dv_)
-        lines.append(f'  {dn}: {{x: {x:.3f}, y: {y:.3f}}}')
-    os.makedirs(os.path.dirname(OUT_LOC), exist_ok=True)
-    with open(OUT_LOC, 'w') as fh:
-        fh.write('\n'.join(lines) + '\n')
-
     # --- PNG
     try:
         from PIL import Image, ImageDraw
@@ -534,21 +581,22 @@ def main():
         def px(u, v):
             return ((u - U0) * k, (V0 + NV * RES - v) * k)
 
-        for g in goals:
-            x0, y0 = px(g['u'], g['v'])
-            # footprint
-            c, s = math.cos(g['yaw']), math.sin(g['yaw'])
-            poly = [px(g['u'] + a * c - b * s, g['v'] + a * s + b * c) for a, b in FP]
-            col = (40, 90, 220) if g['id'] else (200, 60, 40)
-            dr.polygon(poly, outline=col)
-            dr.line([(x0, y0), px(g['u'] + 0.35 * c, g['v'] + 0.35 * s)], fill=col, width=3)
-            dr.text((x0 + 6, y0 - 6), str(g['id'] or g['name']), fill=col)
+        # número del rulebook sobre cada mueble (como en el plano)
+        for rid, fname, *_ in LOCATIONS:
+            (fu, fv) = next(f[2] for f in FURN if f[0] == fname)
+            x0, y0 = px(fu, fv)
+            dr.ellipse([x0 - 11, y0 - 9, x0 + 11, y0 + 9], fill=(70, 120, 230))
+            dr.text((x0 - 6, y0 - 6), str(rid), fill=(255, 255, 255))
+        for rname, (ru, rv, _) in ROOMS.items():
+            if rname not in ('entrada', 'salida'):
+                rx, ry = px(ru, rv)
+                dr.text((rx - 20, ry), rname, fill=(120, 60, 20))
         ex, ey = px(*SPAWN_UV)
         dr.ellipse([ex - 8, ey - 8, ex + 8, ey + 8], outline=(200, 0, 0), width=3)
         dr.text(
             (8, 8),
             'gris = choque fisico | negro = lo que ve el lidar (0.33 m) | '
-            'verde = alcanzable | azul = ubicaciones rulebook | rojo = salas',
+            'verde = donde cabe Milo | azul = numero del rulebook | o rojo = partida',
             fill=(0, 0, 0),
         )
         im.save(OUT_PNG)
@@ -556,8 +604,10 @@ def main():
         print('  (sin pillow: no se generó el PNG)')
 
     print(f'Mundo:       {OUT_WORLD}')
-    print(f'Ubicaciones: {OUT_LOC}  ({len(goals)} poses)')
     print(f'Vista:       {OUT_PNG}')
+    sx, sy = to_world(*SPAWN_UV)
+    print(f'Partida de Milo (afuera de la puerta del living): x:={sx} y:={sy} yaw:=0.0'
+          '   <- tiene que coincidir con CASA_SPAWN en sim.sh')
     print('Verificación:', 'OK' if ok else 'HAY PROBLEMAS (ver arriba)')
     return 0 if ok else 1
 

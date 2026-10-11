@@ -79,48 +79,58 @@ Si Gazebo o RViz se ven NEGROS:
  3b. CASA ROBOCUP@HOME + NAVEGACION AUTONOMA (simulacion)
 --------------------------------------------------------------
 
-La casa del rulebook (Laundry, Bedroom, Living room, Kitchen, 9 x 9 m,
-puertas de 0.90 m, con los 18 muebles/ubicaciones) ya esta en Gazebo.
+La casa del rulebook (Laundry, Bedroom, Living room, Kitchen; 12.6 x 12.6 m,
+puertas de 1.4 m, los 18 muebles), centrada en el (0,0) de Gazebo.
 Milo parte AFUERA de la puerta del living mirando hacia adentro.
-Vista de arriba: ros2_ws/src/andesrobot_gazebo/worlds/robocup_casa.png
+Plano de arriba: ros2_ws/src/andesrobot_gazebo/worlds/robocup_casa.png
 
-PASO 1 - mapear la casa (una vez):
+PASO 1 - mapear la casa:
 
 Terminal 1:   ./sim.sh casa
 Terminal 2:   ./sim.sh teleop        (recorre TODAS las piezas, despacio)
-Terminal 3:   ./sim.sh mapa casa
+Terminal 3:   ./sim.sh mapa casa     (ANTES de cerrar la terminal 1)
 
-  OJO: empieza a mapear desde donde aparece Milo (no lo muevas antes de
-  lanzar). Asi el mapa queda alineado con las ubicaciones con nombre.
-  Cuando termines: Ctrl+C en la terminal 1.
+PASO 2 - anotar los lugares (con la terminal 1 todavia abierta):
 
-PASO 2 - navegar solo:
+Terminal 3:   ./sim.sh shell
+              ros2 run tf2_ros tf2_echo map base_footprint
+  Lleva a Milo con el teleop frente a cada lugar, mirandolo, y anota:
+    x, y = los 2 primeros numeros de "Translation"
+    yaw  = el ultimo numero de "RPY (radian)"
+  en ros2_ws/src/andesrobot_slam/maps/casa_lugares.yaml, una linea por lugar:
+    sofa: {x: -3.15, y: -4.03, yaw: -1.55}
+  (en la sim el mapa coincide con el mundo de Gazebo)
 
-Terminal 1:   ./sim.sh nav casa      (Gazebo + AMCL + Nav2 + RViz)
-Terminal 2:   ./sim.sh ir --lista    ver las ubicaciones
-              ./sim.sh ir kitchen    ir a la cocina
-              ./sim.sh ir 16         ir al dinner table (numero del rulebook)
-              ./sim.sh ir sofa bed entrada     varias seguidas
+PASO 3 - mandarlo a un lugar:
 
-  Tambien sirve "2D Goal Pose" en RViz (clic y arrastrar).
-  Si tocas el teleop (./sim.sh teleop) le quitas el control a Nav2
-  mientras aprietes teclas; al soltar, Nav2 sigue.
+a) A mano, sobre el SLAM que sigue abierto (para practicar):
+   ./sim.sh shell
+   ros2 launch /ros2_ws/src/andesrobot_navigation/launch/nav_sobre_slam.launch.py
+   y en otra terminal (z = sin(yaw/2), w = cos(yaw/2)):
+   ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose \
+     "{pose: {header: {frame_id: map}, pose: {position: {x: 1.572, y: -2.738}, orientation: {z: 0.1977, w: 0.9803}}}}" --feedback
+   (mientras Nav2 maneja, no toques el teleop)
 
-PASO 3 - experimentos (para el paper):
+b) La forma completa (mapa guardado + AMCL, sin SLAM):
+   Terminal 1:   ./sim.sh nav casa
+   Terminal 2:   ./sim.sh ir --lista         ver tus lugares
+                 ./sim.sh ir sofa            ir al sofa
+                 ./sim.sh ir sofa base       varios seguidos
+   Tambien sirve "2D Goal Pose" en RViz. Si tocas el teleop le quitas
+   el control a Nav2 mientras aprietes teclas.
 
-./sim.sh tour        visita las 18 ubicaciones en orden aleatorio
+PASO 4 - experimentos:
+
+./sim.sh tour        visita todos tus lugares en orden aleatorio
 ./sim.sh tour 3      lo mismo 3 veces
   Guarda un CSV en ros2_ws/resultados/ con: exito, tiempo, metros
   recorridos, largo del plan, error final (m y grados), recuperaciones.
 
-Cambiar la casa (mover muebles, puertas, ubicaciones):
-  editar  ros2_ws/src/andesrobot_gazebo/tools/gen_casa_robocup.py
-  correr  ./sim.sh shell  y adentro:
-          python3 /ros2_ws/src/andesrobot_gazebo/tools/gen_casa_robocup.py
-  (revisa solo que Milo quepa, llegue y pueda girar en cada ubicacion)
-  y despues rehacer el mapa (paso 1).
+Cambiar la casa: editar ros2_ws/src/andesrobot_gazebo/tools/gen_casa_robocup.py
+(ESCALA, DOOR, muebles), correrlo dentro de ./sim.sh shell con python3, copiar
+la "Partida de Milo" que imprime a CASA_SPAWN en sim.sh, y rehacer el mapa.
 
-Como fluyen las velocidades en modo navegacion:
+Como fluyen las velocidades en modo navegacion (b):
   Nav2 -> /nav/cmd_vel --+
   teclado -> /cmd_vel_teleop --> twist_mux -> filtro de seguridad -> Milo
   El filtro sigue activo (config: andesrobot_safety/config/safety_nav.yaml).

@@ -10,8 +10,9 @@ Flujo de datos:
   teclado -> /cmd_vel_teleop --> twist_mux -> /safety/cmd_vel_in -> safety_filter
                                                   -> /cmd_vel -> Gazebo
 
-OJO: el mapa debe haberse hecho en el MISMO mundo y partiendo del MISMO punto (el spawn por
-defecto), así el frame "map" coincide con las ubicaciones del .yaml.
+OJO: en Gazebo la odometría sale de la pose REAL del robot en el mundo (diff drive con
+odometry_source = world), así que el frame "map" del SLAM queda igual al mundo de Gazebo.
+Por eso AMCL parte en la misma pose donde aparece Milo (x/y/yaw, los pasa ./sim.sh).
 """
 
 from launch import LaunchDescription
@@ -37,6 +38,9 @@ def generate_launch_description():
         launch_arguments={
             'world': LaunchConfiguration('world'),
             'gui': LaunchConfiguration('gazebo_gui'),
+            'x': LaunchConfiguration('x'),
+            'y': LaunchConfiguration('y'),
+            'yaw': LaunchConfiguration('yaw'),
         }.items(),
     )
     # 2) Solo el filtro del lidar (slam:=false: aquí localiza AMCL sobre el mapa guardado)
@@ -67,6 +71,10 @@ def generate_launch_description():
             'map': LaunchConfiguration('map'),
             'use_sim_time': 'true',
             'ubicaciones': LaunchConfiguration('ubicaciones'),
+            # AMCL parte donde aparece Milo (map = mundo en la sim)
+            'x': LaunchConfiguration('x'),
+            'y': LaunchConfiguration('y'),
+            'yaw': LaunchConfiguration('yaw'),
         }.items(),
     )
     # 5) RViz de navegación
@@ -91,10 +99,12 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'ubicaciones',
-                default_value=PathJoinSubstitution(
-                    [pkg_nav, 'config', 'ubicaciones_robocup_casa.yaml']
-                ),
+                default_value='/ros2_ws/src/andesrobot_slam/maps/casa_lugares.yaml',
             ),
+            # Dónde aparece Milo en el mundo (y dónde parte AMCL). ./sim.sh nav pasa los de la casa.
+            DeclareLaunchArgument('x', default_value='0.0'),
+            DeclareLaunchArgument('y', default_value='0.0'),
+            DeclareLaunchArgument('yaw', default_value='0.0'),
             DeclareLaunchArgument('gazebo_gui', default_value='true'),
             DeclareLaunchArgument('rviz', default_value='true'),
             sim,

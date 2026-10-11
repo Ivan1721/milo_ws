@@ -66,7 +66,7 @@ case "$1" in
           CSV="/ros2_ws/resultados/tour_$(date +%Y%m%d_%H%M).csv"
           exec $DC exec ros bash -ic "ros2 run andesrobot_navigation ir_a --tour --repeticiones ${2:-1} --csv $CSV" ;;
   # Navegación: necesita el nombre de un mapa guardado con ./sim.sh mapa <nombre>.
-  nav)    [ -n "$2" ] || { echo "[milo] Uso: ./sim.sh nav <mapa> [arena]   (mapas en ros2_ws/src/andesrobot_slam/maps/)"; ls ros2_ws/src/andesrobot_slam/maps/*.yaml 2>/dev/null | xargs -n1 basename 2>/dev/null | sed 's/.yaml$//; s/^/  /'; exit 1; }
+  nav)    [ -n "$2" ] || { echo "[milo] Uso: ./sim.sh nav <mapa> [arena]   (mapas en ros2_ws/src/andesrobot_slam/maps/)"; ls ros2_ws/src/andesrobot_slam/maps/*.pgm 2>/dev/null | xargs -n1 basename 2>/dev/null | sed 's/.pgm$//; s/^/  /'; exit 1; }
           [ -f "ros2_ws/src/andesrobot_slam/maps/$2.yaml" ] || { echo "[milo] No existe el mapa ros2_ws/src/andesrobot_slam/maps/$2.yaml"; exit 1; } ;;
   # Estas opciones no hacen nada aquí: siguen hacia abajo a levantar la simulación.
   ""|cpu|sin-gazebo|software|casa) ;;
@@ -81,26 +81,34 @@ GAZEBO_GUI=true
 # Levantar el contenedor y compilar si es la primera vez.
 milo_up
 
+# En la casa, Milo parte afuera de la puerta del living mirando hacia adentro. Estos números los
+# imprime andesrobot_gazebo/tools/gen_casa_robocup.py ("Partida de Milo"): si cambias la casa,
+# cópialos aquí. En la sim el mapa queda igual al mundo de Gazebo, así que AMCL parte en esta
+# misma pose.
+CASA_SPAWN="x:=-7.2 y:=-1.862 yaw:=0.0"
+
 # Navegación autónoma: otro launch (AMCL sobre el mapa guardado en vez de SLAM).
 if [ "$1" = "nav" ]; then
   MUNDO=robocup_casa
-  [ "$3" = "arena" ] && MUNDO=andesrobot_arena
+  SPAWN="$CASA_SPAWN"
+  [ "$3" = "arena" ] && MUNDO=andesrobot_arena && SPAWN=""
   echo
   echo "[milo] Navegación en $MUNDO con el mapa $2. En otra terminal:"
   echo "[milo]   ./sim.sh ir --lista        ver ubicaciones"
   echo "[milo]   ./sim.sh ir kitchen        mandar a Milo (o '2D Goal Pose' en RViz)"
   echo "[milo]   ./sim.sh tour              visitar todas y guardar CSV"
   echo
-  exec $DC exec ros bash -ic "ros2 launch andesrobot_bringup sim_navigation.launch.py map:=/ros2_ws/src/andesrobot_slam/maps/$2.yaml mundo:=$MUNDO"
+  exec $DC exec ros bash -ic "ros2 launch andesrobot_bringup sim_navigation.launch.py map:=/ros2_ws/src/andesrobot_slam/maps/$2.yaml mundo:=$MUNDO $SPAWN"
 fi
 
 # Mundo para mapear: la arena SAR (default) o la casa RoboCup@Home.
 MUNDO=andesrobot_arena
-[ "$1" = "casa" ] && MUNDO=robocup_casa
+SPAWN=""
+[ "$1" = "casa" ] && MUNDO=robocup_casa && SPAWN="$CASA_SPAWN"
 echo
 echo "[milo] Simulación arrancando. En otra terminal:  ./sim.sh teleop"
 echo "[milo] Para guardar el mapa:                     ./sim.sh mapa <nombre>"
 echo
 # Lanzar todo (ver andesrobot_bringup/launch/sim_mapping.launch.py). Queda en primer plano:
 # Ctrl+C lo detiene.
-exec $DC exec ros bash -ic "ros2 launch andesrobot_bringup sim_mapping.launch.py gazebo_gui:=$GAZEBO_GUI mundo:=$MUNDO"
+exec $DC exec ros bash -ic "ros2 launch andesrobot_bringup sim_mapping.launch.py gazebo_gui:=$GAZEBO_GUI mundo:=$MUNDO $SPAWN"

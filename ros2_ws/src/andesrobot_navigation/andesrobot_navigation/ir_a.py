@@ -151,6 +151,8 @@ def main():
 
     if args.tour:
         base = [d for d in locs.values() if d.get('id') is not None]
+        if not base:  # archivo simple, sin ids del rulebook: visitar todos los lugares
+            base = list(locs.values())
         rng = random.Random(args.semilla)
         plan = []
         for _ in range(args.repeticiones):

@@ -185,9 +185,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'ubicaciones',
-                default_value=PathJoinSubstitution(
-                    [pkg, 'config', 'ubicaciones_robocup_casa.yaml']
-                ),
+                default_value='/ros2_ws/src/andesrobot_slam/maps/casa_lugares.yaml',
             ),
             # Pose inicial del robot en el mapa (con punto decimal).
             DeclareLaunchArgument('x', default_value='0.0'),

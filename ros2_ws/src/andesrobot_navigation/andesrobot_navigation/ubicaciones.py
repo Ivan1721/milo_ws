@@ -1,32 +1,37 @@
 """Carga las ubicaciones con nombre (config/ubicaciones_*.yaml). Sin ROS: se prueba solo."""
 
 import math
-import os
 
 import yaml
 
 
-def default_path():
-    """El .yaml de la casa RoboCup instalado en el paquete."""
-    from ament_index_python.packages import get_package_share_directory
+# Archivo de lugares que anotas tú después de mapear (con tf2_echo), al lado del mapa.
+# Ruta dentro del contenedor (ros2_ws/ de tu PC = /ros2_ws).
+DEFAULT_PATH = '/ros2_ws/src/andesrobot_slam/maps/casa_lugares.yaml'
 
-    return os.path.join(
-        get_package_share_directory('andesrobot_navigation'),
-        'config',
-        'ubicaciones_robocup_casa.yaml',
-    )
+
+def default_path():
+    """El archivo de lugares de la casa (ver DEFAULT_PATH)."""
+    return DEFAULT_PATH
 
 
 def load(path=None):
-    """Devuelve (frame_id, {nombre: dict(x, y, yaw, room, id, place)}).
+    """Devuelve (frame_id, {nombre: dict(x, y, yaw, ...)}).
 
-    También acepta el número del rulebook como nombre ("16" -> dinner_table).
+    Acepta dos formatos:
+      - simple, una línea por lugar:   sofa: {x: -3.15, y: -4.03, yaw: -1.55}
+      - completo: frame_id: map  +  ubicaciones: {sofa: {...}, ...}  (room, id, place opcionales)
     """
     with open(path or default_path()) as fh:
-        data = yaml.safe_load(fh)
-    locs = data['ubicaciones']
+        data = yaml.safe_load(fh) or {}
+    if 'ubicaciones' in data:
+        locs = data['ubicaciones']
+    else:
+        locs = {k: v for k, v in data.items() if isinstance(v, dict)}
+        data = {}
     for name, d in locs.items():
         d.setdefault('yaw', 0.0)
+        d.setdefault('room', '-')
         d['name'] = name
     return data.get('frame_id', 'map'), locs
 
