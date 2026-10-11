@@ -29,6 +29,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 #   laser-filters          filtra el scan del C1 (saca la columna del robot)
 #   teleop-twist-keyboard  manejar con el teclado
 #   ros2-control / ros2-controllers  controller_manager + diff_drive_controller (Milo físico)
+#                          y joint_trajectory_controller (brazo en simulación)
+#   gazebo-ros2-control    ros2_control dentro de Gazebo: mueve el brazo simulado (andesrobot_arm)
 #   libboost-system-dev    librería que usa el driver del hoverboard para el puerto serie
 #   git                    para clonar el driver del lidar
 #   colcon                 la herramienta que compila el workspace
@@ -49,6 +51,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       ros-humble-teleop-twist-keyboard \
       ros-humble-ros2-control \
       ros-humble-ros2-controllers \
+      ros-humble-gazebo-ros2-control \
       libboost-system-dev \
       git \
       python3-colcon-common-extensions \
@@ -56,16 +59,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       sudo bash-completion nano \
     && rm -rf /var/lib/apt/lists/*
 
-# Driver del RPLIDAR C1 (Slamtec), fijado a una versión revisada.
-# El driver del hoverboard NO se clona: va en ros2_ws/src/drivers con la calibración de Milo.
-# Pasos: crear /opt/milo_drivers/src, clonar sllidar_ros2, fijarlo al commit 3430009 (así todos
-# los PCs compilan exactamente la misma versión), cargar ROS ("." = source en sh), compilar solo
-# ese paquete en modo Release (optimizado) y borrar los temporales de compilación.
+# vcstool: descarga varios repositorios a la vez a partir de un archivo .repos.
+# Va en un RUN aparte para no invalidar la caché del apt-get grande de arriba.
+RUN apt-get update && apt-get install -y --no-install-recommends python3-vcstool \
+    && rm -rf /var/lib/apt/lists/*
+
+# Drivers externos (por ahora el del RPLIDAR C1 de Slamtec), listados con su versión exacta en
+# milo.repos: así todos los PCs compilan exactamente lo mismo, y las versiones se cambian en un
+# solo archivo. El driver del hoverboard NO va ahí: vive en ros2_ws/src/drivers con la
+# calibración de Milo.
+# Pasos: copiar milo.repos a la imagen, descargar los repos en /opt/milo_drivers/src, cargar ROS
+# ("." = source en sh), compilarlos en modo Release (optimizado) y borrar los temporales.
 # Queda instalado en /opt/milo_drivers/install (entrypoint.sh y .bashrc lo cargan).
-RUN mkdir -p /opt/milo_drivers/src && cd /opt/milo_drivers/src \
- && git clone https://github.com/Slamtec/sllidar_ros2.git && git -C sllidar_ros2 checkout 3430009 \
- && cd /opt/milo_drivers && . /opt/ros/humble/setup.sh \
- && colcon build --packages-select sllidar_ros2 --cmake-args -DCMAKE_BUILD_TYPE=Release \
+COPY milo.repos /opt/milo_drivers/milo.repos
+RUN mkdir -p /opt/milo_drivers/src && cd /opt/milo_drivers \
+ && vcs import src < milo.repos \
+ && . /opt/ros/humble/setup.sh \
+ && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release \
  && rm -rf build log
 
 # Usuario con tu mismo UID/GID (los archivos de build no quedan de root en tu PC)
@@ -97,7 +107,11 @@ WORKDIR /ros2_ws
 #   cb      = compilar el workspace y recargarlo
 #   teleop  = teclado que publica en /cmd_vel_teleop (pasa por el filtro de seguridad)
 # ~/.gazebo se crea vacía para que el volumen gazebo_cache quede con dueño "ros".
-RUN mkdir -p ~/.gazebo \
+# ~/.sudo_as_admin_successful apaga el aviso "To run a command as administrator..." que Ubuntu
+# muestra en cada terminal: para decidir si mostrarlo corre "groups", que además se quejaba
+# ("groups: cannot find name for group ID 110") por el grupo de la GPU del PC, que el contenedor
+# recibe solo por número (group_add de compose.yaml).
+RUN mkdir -p ~/.gazebo && touch ~/.sudo_as_admin_successful \
  && echo 'source /opt/ros/humble/setup.bash' >> ~/.bashrc \
  && echo 'source /usr/share/gazebo/setup.sh' >> ~/.bashrc \
  && echo 'source /opt/milo_drivers/install/setup.bash' >> ~/.bashrc \

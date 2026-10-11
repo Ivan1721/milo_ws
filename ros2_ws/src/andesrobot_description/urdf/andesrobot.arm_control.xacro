@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<!-- Brazo de Milo en SIMULACIÓN: ros2_control con Gazebo Classic (gazebo_ros2_control).
+     Solo se incluye con arm_control:=true y lock_arm:=false (lo hace andesrobot_arm/arm_sim.launch.py).
+     El robot real todavía no tiene driver para el brazo: esto es solo para Gazebo. -->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Una articulación mandada en POSICIÓN: Gazebo la pone directamente en el ángulo pedido
+       (no hay PID que ajustar). Se lee posición y velocidad. initial_value = arranca en 0. -->
+  <xacro:macro name="arm_position_joint" params="name">
+    <joint name="${name}">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+  </xacro:macro>
+
+  <!-- type="system" = un solo "hardware" (Gazebo) que maneja todas estas articulaciones. -->
+  <ros2_control name="milo_arm_sim" type="system">
+    <hardware>
+      <plugin>gazebo_ros2_control/GazeboSystem</plugin>
+    </hardware>
+
+    <!-- Lift + 6 articulaciones del brazo: las mueve arm_controller en una sola trayectoria. -->
+    <xacro:arm_position_joint name="vertical_lift_joint"/>
+    <xacro:arm_position_joint name="joint_1"/>
+    <xacro:arm_position_joint name="joint_2"/>
+    <xacro:arm_position_joint name="joint_3"/>
+    <xacro:arm_position_joint name="joint_4"/>
+    <xacro:arm_position_joint name="joint_5"/>
+    <xacro:arm_position_joint name="joint_6"/>
+
+    <!-- Pinza: se manda solo el dedo derecho; Gazebo mueve el izquierdo copiándolo con signo
+         opuesto (mimic). En /joint_states el izquierdo aparece como "left_finger_joint_mimic". -->
+    <xacro:arm_position_joint name="right_finger_joint"/>
+    <joint name="left_finger_joint">
+      <param name="mimic">right_finger_joint</param>
+      <param name="multiplier">-1</param>
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+  </ros2_control>
+
+  <!-- Plugin que corre el controller_manager dentro de Gazebo. Lee el URDF desde
+       robot_state_publisher y los controladores desde arm_controllers_file. -->
+  <gazebo>
+    <plugin filename="libgazebo_ros2_control.so" name="gazebo_ros2_control">
+      <parameters>$(arg arm_controllers_file)</parameters>
+    </plugin>
+  </gazebo>
+
+</robot>

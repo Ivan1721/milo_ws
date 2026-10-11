@@ -13,7 +13,7 @@
 # Puertos (por defecto /dev/rplidar y /dev/hoverboard, ver docker/udev/README.md). Sin udev:
 #   LIDAR=/dev/ttyUSB0 HOVER=/dev/ttyUSB1 ./robot.sh
 set -e
-# (Las líneas 2-15 de arriba son la ayuda que imprime "sed -n '2,15p'" si escribes una opción
+# (Las líneas 2-14 de arriba son la ayuda que imprime "sed -n '2,14p'" si escribes una opción
 #  que no existe. Los comentarios explicativos van desde aquí.)
 #
 # "set -e": si un comando falla, el script se detiene.
@@ -72,7 +72,7 @@ case "$1" in
   # Sin palabra: sigue abajo a levantar a Milo.
   "") ;;
   # Opción desconocida: mostrar ayuda.
-  *) sed -n '2,15p' "$0"; exit 1 ;;
+  *) sed -n '2,14p' "$0"; exit 1 ;;
 esac
 
 # Antes de arrancar, revisar que el lidar y el hoverboard estén conectados.
