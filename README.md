@@ -313,7 +313,10 @@ El que dice `idVendor "10c4"` es el **lidar**; el otro es el **hoverboard**. Ano
 milo_ws/
 ├── sim.sh / robot.sh         todo se lanza desde aquí
 ├── docker/                   imagen de Docker (Ubuntu 22.04 + ROS 2 Humble + Gazebo + Nav2)
-├── docs/                     informe técnico y hardware
+├── docs/
+│   ├── informe/              informe del brazo
+│   ├── navegacion/           informe de mapeo y navegación
+│   └── hardware/             datasheets y manuales (solo el índice va al repo)
 └── ros2_ws/src/
     ├── andesrobot_description  URDF del robot (base, lift, brazo, pinza, sensores)
     ├── andesrobot_gazebo       mundos (arena, casa RoboCup) y spawn en Gazebo
@@ -330,6 +333,9 @@ vertical · brazo de 6 GDL · pinza de 2 dedos · cámara Orbbec en la pinza.
 
 **Filtro de seguridad:** Milo no se acerca a menos de **30 cm** de las cosas. Para cambiarlo:
 `ros2_ws/src/andesrobot_safety/config/safety.yaml` (teleop) y `safety_nav.yaml` (navegación).
+
+**Informes técnicos** (con la teoría, fórmulas y figuras):
+[brazo](docs/informe/README.md) · [mapeo y navegación](docs/navegacion/README.md)
 
 ---
 
