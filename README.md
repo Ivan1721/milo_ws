@@ -76,6 +76,57 @@ Si Gazebo o RViz se ven NEGROS:
 
 
 --------------------------------------------------------------
+ 3b. CASA ROBOCUP@HOME + NAVEGACION AUTONOMA (simulacion)
+--------------------------------------------------------------
+
+La casa del rulebook (Laundry, Bedroom, Living room, Kitchen, 9 x 9 m,
+puertas de 0.90 m, con los 18 muebles/ubicaciones) ya esta en Gazebo.
+Milo parte AFUERA de la puerta del living mirando hacia adentro.
+Vista de arriba: ros2_ws/src/andesrobot_gazebo/worlds/robocup_casa.png
+
+PASO 1 - mapear la casa (una vez):
+
+Terminal 1:   ./sim.sh casa
+Terminal 2:   ./sim.sh teleop        (recorre TODAS las piezas, despacio)
+Terminal 3:   ./sim.sh mapa casa
+
+  OJO: empieza a mapear desde donde aparece Milo (no lo muevas antes de
+  lanzar). Asi el mapa queda alineado con las ubicaciones con nombre.
+  Cuando termines: Ctrl+C en la terminal 1.
+
+PASO 2 - navegar solo:
+
+Terminal 1:   ./sim.sh nav casa      (Gazebo + AMCL + Nav2 + RViz)
+Terminal 2:   ./sim.sh ir --lista    ver las ubicaciones
+              ./sim.sh ir kitchen    ir a la cocina
+              ./sim.sh ir 16         ir al dinner table (numero del rulebook)
+              ./sim.sh ir sofa bed entrada     varias seguidas
+
+  Tambien sirve "2D Goal Pose" en RViz (clic y arrastrar).
+  Si tocas el teleop (./sim.sh teleop) le quitas el control a Nav2
+  mientras aprietes teclas; al soltar, Nav2 sigue.
+
+PASO 3 - experimentos (para el paper):
+
+./sim.sh tour        visita las 18 ubicaciones en orden aleatorio
+./sim.sh tour 3      lo mismo 3 veces
+  Guarda un CSV en ros2_ws/resultados/ con: exito, tiempo, metros
+  recorridos, largo del plan, error final (m y grados), recuperaciones.
+
+Cambiar la casa (mover muebles, puertas, ubicaciones):
+  editar  ros2_ws/src/andesrobot_gazebo/tools/gen_casa_robocup.py
+  correr  ./sim.sh shell  y adentro:
+          python3 /ros2_ws/src/andesrobot_gazebo/tools/gen_casa_robocup.py
+  (revisa solo que Milo quepa, llegue y pueda girar en cada ubicacion)
+  y despues rehacer el mapa (paso 1).
+
+Como fluyen las velocidades en modo navegacion:
+  Nav2 -> /nav/cmd_vel --+
+  teclado -> /cmd_vel_teleop --> twist_mux -> filtro de seguridad -> Milo
+  El filtro sigue activo (config: andesrobot_safety/config/safety_nav.yaml).
+
+
+--------------------------------------------------------------
  4. MILO FISICO (en el portatil que va arriba de Milo)
 --------------------------------------------------------------
 
@@ -110,6 +161,11 @@ cd ~/milo_ws
 ./robot.sh mapa nombre_del_mapa
 
 Apagar todo:   Ctrl+C en la terminal 1 y despues   ./robot.sh stop
+
+Navegacion autonoma con Milo real (SIN PROBAR todavia, ir con cuidado):
+  ./robot.sh nav <mapa>         con un mapa hecho con ./robot.sh mapa
+  ./robot.sh ir <lugar>         las ubicaciones hay que medirlas en el lugar real
+                                (ver robot_navigation.launch.py)
 
 
 --------------------------------------------------------------

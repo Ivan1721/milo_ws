@@ -38,6 +38,11 @@ class SafetyParams:
     # Límites
     max_linear: float = 0.4         # [m/s]
     max_angular: float = 1.0        # [rad/s]
+    # False (teleop): cualquier giro se bloquea si hay algo dentro del círculo de giro.
+    # True (Nav2): solo se bloquea el giro EN EL LUGAR (|v| < 0.02). Avanzando en curva no se
+    # bloquea: el corredor de adelante sigue frenando, y Nav2 ya revisa el footprint en cada arco.
+    # (Sin esto Milo no puede corregir el rumbo pasando por una puerta de 0.9 m.)
+    turn_check_only_in_place: bool = False
 
 
 def robot_radius(p: SafetyParams) -> float:
@@ -119,7 +124,9 @@ def filter_cmd(v: float, w: float, pts: np.ndarray, p: SafetyParams):
 
     # 4) Giro: si hay algo dentro del círculo que barre el robot al girar (+ holgura),
     #    no dejar girar (la esquina del robot lo golpearía).
-    if w != 0.0 and pts.size:
+    turning_in_place = abs(v) < 0.02
+    check_turn = turning_in_place or not p.turn_check_only_in_place
+    if w != 0.0 and pts.size and check_turn:
         # Distancia de cada punto al centro del robot, y la menor de todas.
         r_min = float(np.hypot(pts[:, 0], pts[:, 1]).min())
         if r_min < robot_radius(p) + p.rotation_clearance:

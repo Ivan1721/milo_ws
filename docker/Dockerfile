@@ -59,6 +59,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       sudo bash-completion nano \
     && rm -rf /var/lib/apt/lists/*
 
+# Navegación autónoma (Nav2) — capa aparte para no rehacer la de arriba (la más pesada).
+#   navigation2            AMCL, planner, controller (DWB), behaviors, bt_navigator, smoother...
+#   nav2-bringup           árboles de comportamiento por defecto y ejemplos
+#   nav2-simple-commander  API Python (BasicNavigator) que usa "ir_a"
+#   twist-mux              elige entre teclado y Nav2 antes del filtro de seguridad
+#   python3-scipy/pil      solo para regenerar la casa (tools/gen_casa_robocup.py)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ros-humble-navigation2 \
+      ros-humble-nav2-bringup \
+      ros-humble-nav2-simple-commander \
+      ros-humble-twist-mux \
+      python3-scipy python3-pil \
+    && rm -rf /var/lib/apt/lists/*
+
 # vcstool: descarga varios repositorios a la vez a partir de un archivo .repos.
 # Va en un RUN aparte para no invalidar la caché del apt-get grande de arriba.
 RUN apt-get update && apt-get install -y --no-install-recommends python3-vcstool \

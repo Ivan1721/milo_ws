@@ -76,3 +76,20 @@ def test_giro_permitido_con_espacio():
 def test_ignora_columna_propia():
     pts = np.array([[0.0, 0.0], [-0.03, 0.02]])      # puntos sobre la columna
     assert remove_self(pts, P).size == 0
+
+
+# Modo Nav2: avanzando en curva por una puerta (marcos a ±0.45 m) sí puede corregir el rumbo...
+def test_nav_curva_en_puerta_permitida():
+    pn = SafetyParams(turn_check_only_in_place=True)
+    xs = np.linspace(-0.3, 1.0, 30)
+    pts = np.vstack([np.column_stack((xs, np.full(30, 0.45))), np.column_stack((xs, np.full(30, -0.45)))])
+    v, w, _ = filter_cmd(0.2, 0.3, pts, pn)
+    assert v == 0.2 and w == 0.3
+
+
+# ...pero girar en el lugar ahí sigue bloqueado (la esquina pegaría en el marco).
+def test_nav_giro_en_el_lugar_en_puerta_bloqueado():
+    pn = SafetyParams(turn_check_only_in_place=True)
+    pts = np.array([[0.0, 0.45], [0.0, -0.45]])
+    _, w, s = filter_cmd(0.0, 0.5, pts, pn)
+    assert w == 0.0 and 'giro bloqueado' in s

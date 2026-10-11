@@ -87,7 +87,10 @@ def generate_launch_description():
     safety = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(PathJoinSubstitution([pkg_safety, 'launch', 'safety.launch.py'])),
         launch_arguments={'use_sim_time': 'false',
-                          'cmd_vel_out': '/diff_drive_controller/cmd_vel_unstamped'}.items(),
+                          'cmd_vel_out': '/diff_drive_controller/cmd_vel_unstamped',
+                          # teleop (default) o navegación (robot_navigation.launch.py)
+                          'config': LaunchConfiguration('safety_config'),
+                          'cmd_vel_in': LaunchConfiguration('cmd_vel_in')}.items(),
     )
 
     return LaunchDescription([
@@ -95,6 +98,8 @@ def generate_launch_description():
                               description='Puerto serie del hoverboard (ver docker/udev)'),
         DeclareLaunchArgument('lidar_port', default_value='/dev/rplidar',
                               description='Puerto serie del RPLIDAR C1 (ver docker/udev)'),
+        DeclareLaunchArgument('safety_config', default_value='safety.yaml'),
+        DeclareLaunchArgument('cmd_vel_in', default_value='/cmd_vel_teleop'),
         rsp,
         controller_manager,
         jsb_spawner,

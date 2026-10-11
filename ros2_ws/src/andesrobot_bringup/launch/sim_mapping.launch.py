@@ -49,9 +49,13 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        # Mundo por nombre (archivo en andesrobot_gazebo/worlds/): andesrobot_arena o robocup_casa.
+        # ./sim.sh casa pasa mundo:=robocup_casa. (world:= sigue sirviendo con una ruta completa.)
+        DeclareLaunchArgument('mundo', default_value='andesrobot_arena'),
         DeclareLaunchArgument(
             'world',
-            default_value=PathJoinSubstitution([pkg_gazebo, 'worlds', 'andesrobot_arena.world'])),
+            default_value=PathJoinSubstitution(
+                [pkg_gazebo, 'worlds', [LaunchConfiguration('mundo'), '.world']])),
         # ./sim.sh sin-gazebo pasa gazebo_gui:=false.
         DeclareLaunchArgument('gazebo_gui', default_value='true'),
         DeclareLaunchArgument('rviz', default_value='true'),

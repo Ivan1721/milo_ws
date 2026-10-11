@@ -74,7 +74,9 @@ milo_up() {
   $DC up -d --build
   # Dentro del contenedor ("exec ros"): si todavía no existe install/setup.bash (nunca se compiló),
   # compila el workspace. "bash -ic" = bash interactivo, para que cargue ~/.bashrc con ROS.
-  $DC exec ros bash -ic '[ -f /ros2_ws/install/setup.bash ] || (cd /ros2_ws && colcon build --symlink-install)'
+  # También compila si apareció un paquete nuevo en src/ que todavía no está en install/
+  # (por ejemplo andesrobot_navigation después de un git pull).
+  $DC exec ros bash -ic 'cd /ros2_ws && falta=0; [ -f install/setup.bash ] || falta=1; for p in $(colcon list -n 2>/dev/null); do [ -d install/$p ] || falta=1; done; [ $falta = 0 ] || colcon build --symlink-install'
 }
 
 # Corre un comando dentro del contenedor con ROS cargado.

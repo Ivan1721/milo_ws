@@ -1,0 +1,16 @@
+# twist_mux: elige qué velocidad pasa al filtro de seguridad.
+# Gana el de MAYOR prioridad que haya publicado hace menos de "timeout" segundos.
+#   teleop (teclado)  -> 100: si tocas una tecla, le quitas el control a Nav2 (medio segundo)
+#   navigation (Nav2) ->  10
+# Salida: /safety/cmd_vel_in (remapeada en navigation.launch.py) -> safety_filter -> robot.
+twist_mux:
+  ros__parameters:
+    topics:
+      navigation:
+        topic   : /nav/cmd_vel
+        timeout : 0.5
+        priority: 10
+      teleop:
+        topic   : /cmd_vel_teleop
+        timeout : 0.5
+        priority: 100

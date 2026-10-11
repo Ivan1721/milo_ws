@@ -12,8 +12,12 @@
 #   ./sim.sh software        render por CPU (si Gazebo/RViz se ven NEGROS); más lento
 #   ./sim.sh gpu             muestra con qué tarjeta está dibujando el contenedor
 #   ./sim.sh brazo           brazo de Milo: Gazebo + IK + marcador en RViz (ver andesrobot_arm)
+#   ./sim.sh casa            igual que ./sim.sh pero en la casa RoboCup@Home (para mapearla)
+#   ./sim.sh nav <mapa> [arena]   navegación autónoma (AMCL + Nav2) con un mapa ya guardado
+#   ./sim.sh ir <lugar> [...]     (otra terminal) mandar a Milo: ./sim.sh ir kitchen  / --lista
+#   ./sim.sh tour [veces]         (otra terminal) visitar todas las ubicaciones y guardar un CSV
 set -e
-# (Las líneas 2-14 de arriba son la ayuda: el "sed -n '2,14p'" de más abajo las imprime
+# (Las líneas 2-18 de arriba son la ayuda: el "sed -n '2,18p'" de más abajo las imprime
 #  cuando escribes una opción que no existe. Por eso los comentarios explicativos van aquí.)
 #
 # Línea 1 "#!/bin/bash": le dice al sistema que este archivo se ejecuta con bash.
@@ -53,10 +57,21 @@ case "$1" in
           echo "[milo] Mandar una pose a mano: ./sim.sh shell  y ver ros2_ws/src/andesrobot_arm/docs/BRAZO.md"
           echo
           exec $DC exec ros bash -ic "ros2 launch andesrobot_arm arm_sim.launch.py" ;;
+  # Ir a una o varias ubicaciones con nombre (ver ./sim.sh ir --lista). "shift" saca la palabra
+  # "ir" y "$*" pasa el resto tal cual.
+  ir)     milo_need_running; shift; exec $DC exec ros bash -ic "ros2 run andesrobot_navigation ir_a $*" ;;
+  # Tour para el paper: todas las ubicaciones del rulebook en orden aleatorio, resultados en CSV
+  # (quedan en ros2_ws/resultados/ en tu PC).
+  tour)   milo_need_running
+          CSV="/ros2_ws/resultados/tour_$(date +%Y%m%d_%H%M).csv"
+          exec $DC exec ros bash -ic "ros2 run andesrobot_navigation ir_a --tour --repeticiones ${2:-1} --csv $CSV" ;;
+  # Navegación: necesita el nombre de un mapa guardado con ./sim.sh mapa <nombre>.
+  nav)    [ -n "$2" ] || { echo "[milo] Uso: ./sim.sh nav <mapa> [arena]   (mapas en ros2_ws/src/andesrobot_slam/maps/)"; ls ros2_ws/src/andesrobot_slam/maps/*.yaml 2>/dev/null | xargs -n1 basename 2>/dev/null | sed 's/.yaml$//; s/^/  /'; exit 1; }
+          [ -f "ros2_ws/src/andesrobot_slam/maps/$2.yaml" ] || { echo "[milo] No existe el mapa ros2_ws/src/andesrobot_slam/maps/$2.yaml"; exit 1; } ;;
   # Estas opciones no hacen nada aquí: siguen hacia abajo a levantar la simulación.
-  ""|cpu|sin-gazebo|software) ;;
-  # Cualquier otra cosa: mostrar la ayuda (líneas 2 a 16 de este archivo) y salir con error.
-  *) sed -n '2,14p' "$0"; exit 1 ;;
+  ""|cpu|sin-gazebo|software|casa) ;;
+  # Cualquier otra cosa: mostrar la ayuda (líneas 2 a 18 de este archivo) y salir con error.
+  *) sed -n '2,18p' "$0"; exit 1 ;;
 esac
 
 # Por defecto se abre la ventana de Gazebo; con "sin-gazebo" no (ahorra GPU, la física igual corre).
@@ -65,10 +80,27 @@ GAZEBO_GUI=true
 
 # Levantar el contenedor y compilar si es la primera vez.
 milo_up
+
+# Navegación autónoma: otro launch (AMCL sobre el mapa guardado en vez de SLAM).
+if [ "$1" = "nav" ]; then
+  MUNDO=robocup_casa
+  [ "$3" = "arena" ] && MUNDO=andesrobot_arena
+  echo
+  echo "[milo] Navegación en $MUNDO con el mapa $2. En otra terminal:"
+  echo "[milo]   ./sim.sh ir --lista        ver ubicaciones"
+  echo "[milo]   ./sim.sh ir kitchen        mandar a Milo (o '2D Goal Pose' en RViz)"
+  echo "[milo]   ./sim.sh tour              visitar todas y guardar CSV"
+  echo
+  exec $DC exec ros bash -ic "ros2 launch andesrobot_bringup sim_navigation.launch.py map:=/ros2_ws/src/andesrobot_slam/maps/$2.yaml mundo:=$MUNDO"
+fi
+
+# Mundo para mapear: la arena SAR (default) o la casa RoboCup@Home.
+MUNDO=andesrobot_arena
+[ "$1" = "casa" ] && MUNDO=robocup_casa
 echo
 echo "[milo] Simulación arrancando. En otra terminal:  ./sim.sh teleop"
 echo "[milo] Para guardar el mapa:                     ./sim.sh mapa <nombre>"
 echo
 # Lanzar todo (ver andesrobot_bringup/launch/sim_mapping.launch.py). Queda en primer plano:
 # Ctrl+C lo detiene.
-exec $DC exec ros bash -ic "ros2 launch andesrobot_bringup sim_mapping.launch.py gazebo_gui:=$GAZEBO_GUI"
+exec $DC exec ros bash -ic "ros2 launch andesrobot_bringup sim_mapping.launch.py gazebo_gui:=$GAZEBO_GUI mundo:=$MUNDO"

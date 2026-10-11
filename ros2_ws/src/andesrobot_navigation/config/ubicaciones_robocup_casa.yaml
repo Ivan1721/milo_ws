@@ -1,0 +1,38 @@
+# GENERADO por andesrobot_gazebo/tools/gen_casa_robocup.py — NO editar a mano.
+# Ubicaciones de la casa RoboCup@Home en el frame "map" (= mundo de Gazebo si el mapa
+# se hizo partiendo desde el spawn por defecto). Pose = dónde se para Milo
+# (base_footprint) mirando al mueble, a ~0.80 m de su cara. yaw en radianes.
+# id = número del rulebook; place = se pueden dejar objetos ahí (*).
+frame_id: map
+ubicaciones:
+  laundry_table: {x: 2.330, y: 4.180, yaw: 1.5708, room: laundry, id: 1, place: true}
+  washing_machine: {x: 3.750, y: 4.280, yaw: 1.5708, room: laundry, id: 2, place: true}
+  shelf: {x: 1.900, y: 3.210, yaw: -1.5708, room: laundry, id: 3, place: true}
+  laundry_trash_bin: {x: 2.920, y: 3.250, yaw: -1.5708, room: laundry, id: 4, place: false}
+  bed: {x: 8.250, y: 2.680, yaw: 3.1416, room: bedroom, id: 5, place: true}
+  bedside_table: {x: 6.050, y: 4.405, yaw: -1.5708, room: bedroom, id: 17, place: true}
+  coat_rack: {x: 8.743, y: 4.623, yaw: 0.7854, room: bedroom, id: 18, place: false}
+  tv_stand: {x: 2.320, y: 0.710, yaw: 1.5708, room: living_room, id: 6, place: true}
+  sofa: {x: 3.150, y: -1.320, yaw: -1.5708, room: living_room, id: 7, place: true}
+  coffee_table: {x: 4.650, y: -1.725, yaw: -1.5708, room: living_room, id: 8, place: true}
+  cabinet: {x: 6.650, y: 1.080, yaw: 3.1416, room: kitchen, id: 9, place: true}
+  refrigerator: {x: 8.300, y: 1.080, yaw: 0.0000, room: kitchen, id: 10, place: false}
+  counter: {x: 6.100, y: -1.620, yaw: -1.5708, room: kitchen, id: 11, place: true}
+  sink: {x: 6.700, y: -1.620, yaw: -1.5708, room: kitchen, id: 12, place: false}
+  cooking_table: {x: 7.300, y: -1.620, yaw: -1.5708, room: kitchen, id: 13, place: true}
+  dishwasher: {x: 8.500, y: -1.620, yaw: -1.5708, room: kitchen, id: 14, place: true}
+  kitchen_trash_bin: {x: 8.470, y: -1.070, yaw: 0.0000, room: kitchen, id: 15, place: false}
+  dinner_table: {x: 8.580, y: -1.110, yaw: 2.3562, room: kitchen, id: 16, place: true}
+  laundry: {x: 3.200, y: 3.830, yaw: 0.0000, room: laundry, id: null, place: false}
+  bedroom: {x: 7.800, y: 4.130, yaw: 0.0000, room: bedroom, id: null, place: false}
+  living_room: {x: 3.300, y: -0.370, yaw: 0.0000, room: living_room, id: null, place: false}
+  kitchen: {x: 6.800, y: -1.370, yaw: 1.5708, room: kitchen, id: null, place: false}
+  entrada: {x: 0.000, y: 0.000, yaw: 0.0000, room: entrada, id: null, place: false}
+  salida: {x: 0.000, y: 4.330, yaw: 3.1416, room: salida, id: null, place: false}
+puertas:
+  puerta_entrada_living: {x: 0.975, y: 0.000}
+  puerta_salida_laundry: {x: 0.975, y: 4.330}
+  puerta_living_kitchen: {x: 5.375, y: -0.440}
+  puerta_laundry_bedroom: {x: 5.375, y: 4.890}
+  puerta_laundry_living: {x: 3.920, y: 1.985}
+  puerta_bedroom_kitchen: {x: 8.650, y: 1.985}
