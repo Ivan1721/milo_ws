@@ -5,7 +5,7 @@
 **Workspace de Milo, el robot de AndesRobot para RoboCup@Home**
 
 ![ROS 2 Humble](https://img.shields.io/badge/ROS_2-Humble-22314E?logo=ros&logoColor=white)
-![Gazebo Classic 11](https://img.shields.io/badge/Gazebo-Classic_11-F58113)
+![Gazebo Sim](https://img.shields.io/badge/Gazebo-Classic_11-F58113)
 ![Ubuntu 22.04](https://img.shields.io/badge/Ubuntu-22.04_(Docker)-E95420?logo=ubuntu&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-listo-2496ED?logo=docker&logoColor=white)
 
@@ -20,7 +20,7 @@ filtro de seguridad y brazo con cinemática inversa.
 
 ---
 
-## 📑 Contenido
+##  Contenido
 
 1. [Instalar (una vez por computador)](#1--instalar-una-vez-por-computador)
 2. [Simulación: arena de mapeo](#2--simulación-arena-de-mapeo)
@@ -37,7 +37,7 @@ filtro de seguridad y brazo con cinemática inversa.
 
 ---
 
-## 1. 🛠️ Instalar (una vez por computador)
+## 1.  Instalar (una vez por computador)
 
 ### Docker
 
@@ -82,7 +82,7 @@ cd ~/milo_ws
 
 ---
 
-## 2. 🗺️ Simulación: arena de mapeo
+## 2.  Simulación: arena de mapeo
 
 Una arena de 24 × 18 m (hall, oficina, bodega, zona con escombros y pilares).
 
@@ -106,7 +106,7 @@ El mapa queda en `ros2_ws/src/andesrobot_slam/maps/` como `nombre.pgm` (imagen) 
 
 ---
 
-## 3. 🏠 Simulación: casa RoboCup@Home + navegación autónoma
+## 3.  Simulación: casa RoboCup@Home + navegación autónoma
 
 La casa del rulebook: **12.6 × 12.6 m**, puertas de **1.4 m**, centrada en el (0, 0) de Gazebo.
 Milo parte **afuera de la puerta del living**, mirando hacia adentro.
@@ -243,7 +243,7 @@ ros2 run andesrobot_arm capturar_camara     # quedan en ros2_ws/capturas/
 Mandar poses a mano, abrir/cerrar la pinza, la cámara, medidas y ecuaciones:
 [`andesrobot_arm/docs/BRAZO.md`](ros2_ws/src/andesrobot_arm/docs/BRAZO.md).
 
-> ⚠️ Los límites de las articulaciones del brazo son **provisorios**. No usar con el brazo real
+>  Los límites de las articulaciones del brazo son **provisorios**. No usar con el brazo real
 > hasta medirlos.
 
 **Apagar:** `Ctrl+C` y después `./sim.sh stop`.
@@ -269,11 +269,11 @@ El que dice `idVendor "10c4"` es el **lidar**; el otro es el **hoverboard**. Ano
 | 2 | `./robot.sh teleop` |
 | 3 | `./robot.sh mapa nombre_del_mapa` |
 
-> ⚠️ **La primera vez, con Milo levantado y las ruedas en el aire:** con `i` las dos ruedas tienen
+>  **La primera vez, con Milo levantado y las ruedas en el aire:** con `i` las dos ruedas tienen
 > que ir hacia adelante y con `j` tiene que girar a la izquierda. Si eso anda bien, recién ahí
 > al suelo.
 
-**Navegación autónoma con Milo real** (🚧 sin probar todavía, ir con cuidado):
+**Navegación autónoma con Milo real** ( sin probar todavía):
 
 ```bash
 ./robot.sh nav <mapa>     # con un mapa hecho con ./robot.sh mapa
@@ -307,7 +307,7 @@ El que dice `idVendor "10c4"` es el **lidar**; el otro es el **hoverboard**. Ano
 
 ---
 
-## 7. 📦 Qué hay en el repo
+## 7.  Qué hay en el repo
 
 ```
 milo_ws/
@@ -339,7 +339,7 @@ vertical · brazo de 6 GDL · pinza de 2 dedos · cámara Orbbec en la pinza.
 
 ---
 
-## 8. 🩹 Problemas comunes
+## 8.  Problemas comunes
 
 | Problema | Solución |
 |---|---|
