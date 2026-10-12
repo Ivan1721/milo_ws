@@ -221,7 +221,7 @@ La casa se genera con un script; **no edites el `.world` a mano**.
 
 ---
 
-## 4. 🦾 Brazo (solo simulación)
+## 4.  Brazo (solo simulación)
 
 ```bash
 ./sim.sh brazo
@@ -250,7 +250,7 @@ Mandar poses a mano, abrir/cerrar la pinza, la cámara, medidas y ecuaciones:
 
 ---
 
-## 5. 🚗 Milo físico
+## 5.  Milo físico
 
 En el portátil que va arriba de Milo. Conecta el lidar y el cable USB del hoverboard.
 
@@ -284,7 +284,7 @@ El que dice `idVendor "10c4"` es el **lidar**; el otro es el **hoverboard**. Ano
 
 ---
 
-## 6. 📋 Todos los comandos
+## 6.  Todos los comandos
 
 | Comando | Qué hace |
 |---|---|
