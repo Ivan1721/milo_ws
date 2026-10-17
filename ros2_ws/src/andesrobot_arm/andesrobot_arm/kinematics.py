@@ -1,4 +1,4 @@
-"""Cinemática directa e inversa del brazo de Milo, leída del URDF (sin ROS: se puede probar solo).
+"""Cinemática directa e inversa del brazo de Milo, leída del URDF (sin ROS: se prueba sola).
 
 Ecuaciones y métodos explicados en docs/BRAZO.md.
 - Cinemática directa: producto de transformaciones homogéneas, una por articulación, tomadas

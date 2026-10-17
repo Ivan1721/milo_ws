@@ -1,9 +1,10 @@
 """Figura de notación: una articulación rotativa (R) y una prismática (P) de Milo, lado a lado.
 
-Explica los símbolos de las fórmulas del informe (T_o,i, M_i(q_i), z_i, q_i, p_i, p_e y la columna
-del jacobiano) sobre el robot real: las mallas 3D del URDF se dibujan casi transparentes, vistas
-desde una esquina, y encima va el "esqueleto" (una línea por eslabón, de articulación a
-articulación, que es lo que usan las cuentas). Así se ve a qué pieza corresponde cada símbolo.
+Explica los símbolos de las fórmulas del informe (T_o,i, M_i(q_i), z_i, q_i, p_i, p_e y la
+columna del jacobiano) sobre el robot real: las mallas 3D del URDF se dibujan casi
+transparentes, vistas desde una esquina, y encima va el "esqueleto" (una línea por eslabón, de
+articulación a articulación, que es lo que usan las cuentas). Así se ve a qué pieza corresponde
+cada símbolo.
   Izquierda: joint_2, el hombro (rotativa). Gris: lo que no se mueve con ella; azul: lo que gira.
   Derecha:   el lift (prismática). Gris: base y columna; azul: el carro y el brazo, que suben.
 En los dos, la línea punteada es el esqueleto con q_i = 0, para ver qué cambió.
@@ -48,7 +49,7 @@ JOINT = {j['name']: j for j in fg.JOINTS}
 
 
 class Camara:
-    """Proyección ortográfica desde una esquina: azimut y elevación en grados, como matplotlib."""
+    """Proyección ortográfica desde una esquina (azimut y elevación en grados)."""
 
     def __init__(self, azim, elev):
         a, e = np.radians(azim), np.radians(elev)

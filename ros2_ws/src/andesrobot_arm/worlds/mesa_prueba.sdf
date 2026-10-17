@@ -4,8 +4,10 @@
      las ruedas (el frente de Milo está en x = 0.436). Encima, tres objetos de colores distintos
      dentro del alcance del brazo (a 0.75 m de altura llega hasta x ~ 0.89 m) y a más de 0.25 m de
      la cámara (su distancia mínima).
-     Cada <link> sin <joint> es un cuerpo libre: la mesa es uno pesado (no se mueve al tocarla) y
-     cada objeto es otro, liviano, que el brazo puede empujar o tomar.
+     Cada <link> es un cuerpo aparte: la mesa está anclada al mundo con un joint fijo (un cuerpo
+     libre, aunque pese 30 kg, se desliza cuando el brazo mandado en posición lo toca); cada objeto
+     es un cuerpo libre y liviano, que el brazo puede empujar o tomar. Ojo: anclarla no hace que
+     Gazebo frene el brazo al chocar (ver docs/BRAZO.md, "Limitaciones").
      Medidas en metros; en cada <pose> la z es el centro de la pieza. -->
 <sdf version="1.6">
   <model name="mesa_prueba">
@@ -13,7 +15,12 @@
     <!-- self_collide: por defecto Gazebo NO hace chocar los links de un mismo modelo, y los objetos
          atravesarían la mesa hasta el suelo. Con true chocan entre sí como cuerpos separados. -->
     <self_collide>true</self_collide>
-    <!-- Mesa: tablero de 0.6 x 0.8 m a 0.72 m de alto, sobre un bloque (pata) más chico. -->
+    <!-- Mesa: tablero de 0.6 x 0.8 m a 0.72 m de alto, sobre un bloque (pata) más chico.
+         El joint fijo con parent "world" la deja clavada al suelo (los otros links siguen libres). -->
+    <joint name="mesa_fija" type="fixed">
+      <parent>world</parent>
+      <child>mesa</child>
+    </joint>
     <link name="mesa">
       <pose>1.0 0 0 0 0 0</pose>
       <inertial>

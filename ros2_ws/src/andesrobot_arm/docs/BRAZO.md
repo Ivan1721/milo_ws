@@ -36,6 +36,10 @@ pinza, `mesa:=false` sin la mesa de prueba).
 
 Tests (sin ROS corriendo): `source install/setup.bash && cd src/andesrobot_arm && python3 -m pytest -q test`
 
+Prueba de humo en Gazebo, sin ventanas (~2 min, con el contenedor levantado y sin otra simulación
+andando): `bash /ros2_ws/src/andesrobot_arm/scripts/prueba_gazebo.sh`. Comprueba controladores,
+`/joint_states`, los 4 canales de la cámara, una pose alcanzable y la pinza, y apaga todo al final.
+
 ## Cámara de la pinza (Orbbec Gemini Plus)
 
 `./sim.sh brazo` monta la cámara sobre la pinza (`andesrobot_description/urdf/andesrobot.gripper_camera.xacro`,
@@ -80,10 +84,17 @@ imagen gris. Gazebo publica además `/gripper_camera/depth/color_sim/*`, que no 
 
 ## Qué corre
 
+![Lazo cerrado del brazo](figuras/fig_lazo_cerrado.png)
+
+Lazo de control, de la orden al movimiento y de vuelta: la IK parte de `/joint_states`, el
+controlador compara la posición pedida con la medida a 100 Hz, y la cámara (pendiente) cerrará el
+lazo de percepción. En Gazebo la posición medida es la orden misma (mando por posición): ver
+«Limitaciones». Se genera con `scripts/fig_lazo_cerrado.py` (solo matplotlib).
+
 | Pieza | Qué hace |
 |---|---|
 | `arm_sim.launch.py` | xacro con `lock_arm:=false arm_control:=true gripper_camera:=true` → Gazebo, spawn de Milo y la mesa, controladores, nodos, RViz |
-| `arm_controller` | `JointTrajectoryController`: `vertical_lift_joint` + `joint_1..6` en una sola trayectoria, con tolerancias de meta (aborta si el brazo no llega) |
+| `arm_controller` | `JointTrajectoryController`: `vertical_lift_joint` + `joint_1..6` en una sola trayectoria, con tolerancias de meta (aborta si una articulación no llega; ver «Limitaciones») |
 | `gripper_controller` | `JointTrajectoryController`: `right_finger_joint` (el izquierdo lo copia Gazebo, `mimic`) |
 | `arm_ik_node` | escucha `/arm_target_pose` (cualquier frame de TF), resuelve la IK y manda la trayectoria |
 | `arm_marker_node` | marcador en RViz sobre `gripper_tcp`; al soltar publica en `/arm_target_pose` (frame `base_footprint`) |
@@ -166,10 +177,17 @@ python3 scripts/figuras.py docs/figuras
   "al otro lado" da casi una vuelta completa. Ejemplo medido: `joint_1` de 3.05 a −3.03 rad recorre
   6.08 rad en 12.2 s en vez de 0.2 rad. Se arregla con los topes reales.
 - **Sin revisión de choques**: la IK no sabe dónde están el chasis, la columna ni la mesa, y el brazo
-  va directo a la solución. Desde que `arm_controller` tiene **tolerancias de meta**
-  (`config/arm_controllers.yaml`: 0.02 rad por articulación, 5 mm el lift, 1 s de margen), si queda
-  bloqueado el controlador aborta y `arm_ik_node` avisa *"el brazo no llegó… ¿chocó con algo?"*, en
-  vez de reportar éxito. La pinza no tiene tolerancia a propósito: al agarrar, los dedos quedan frenados.
+  va directo a la solución. `arm_controller` tiene **tolerancias de meta**
+  (`config/arm_controllers.yaml`: 0.02 rad por articulación, 5 mm el lift, 1 s de margen): si una
+  articulación no llega, aborta y `arm_ik_node` avisa *"el brazo no llegó… ¿chocó con algo?"*. Pero
+  en Gazebo eso **casi nunca pasa**: con el mando por posición las articulaciones son infinitamente
+  rígidas y un choque no frena el brazo, sino que mueve al robot entero. Medido el 17 de octubre de
+  2026: la pinza mandada 2 cm dentro del tablero de la mesa (desde arriba y desde el costado) «llega»
+  al milímetro, y la base queda inclinada 3° y corrida 3.5 cm hacia atrás. El abort del 9 de octubre
+  (la mesa frenó la pinza a 6 mm) fue un caso afortunado. Las tolerancias quedan como red de
+  seguridad para el robot real con encoders; la protección de verdad es planificar con revisión de
+  choques (MoveIt 2, ver `docs/tecnologias/` en la raíz del repo). La pinza no tiene tolerancia a
+  propósito: al agarrar, los dedos quedan frenados.
 - **Muñeca distinta al EB300**: el DH oficial del fabricante tiene d₄ = 122, d₅ = 99 y d₆ = 57 mm; el
   URDF (del CAD del equipo), 89.6, 89.5 y 41 mm. El brazo y el antebrazo sí coinciden. Hay que medir
   el brazo real antes de confiar en la posición de la pinza al centímetro.
@@ -177,8 +195,9 @@ python3 scripts/figuras.py docs/figuras
   las piezas impresas se calcularon como ABS macizo.
 - **Cámara ideal**: Gazebo da una profundidad perfecta (sin ruido, sombras ni huecos) y un IR sin el
   patrón del proyector. Ver «Cómo hacer realista la profundidad» en el informe (sección 14).
-- **Mando por posición**: Gazebo pone las articulaciones en el ángulo pedido sin fuerzas; para
-  agarrar objetos de verdad habría que pasar a esfuerzo con PID.
+- **Mando por posición**: Gazebo pone las articulaciones en el ángulo pedido como si fueran
+  infinitamente rígidas; para agarrar objetos de verdad (y para que un choque frene el brazo en vez
+  de inclinar la base) habría que pasar a esfuerzo con PID.
 - `simple_collision:=true` deja al brazo sin colisión propia (y una caja fija donde estaría el brazo
   bloqueado): por eso `arm_sim.launch.py` usa las mallas por defecto.
 - `gazebo_ros2_control` (Humble) no puede leer un URDF con comentarios XML: `arm_sim.launch.py` los

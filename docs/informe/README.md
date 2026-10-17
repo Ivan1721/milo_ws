@@ -228,7 +228,10 @@ La documentación del repositorio está en español y pensada para estudiantes: 
 | `6e52d7d` | Masas reales del brazo (sección 6) y cámara de la pinza (sección 14) |
 | `e578acc` | Estructura del repo: `docs/` en la raíz (informe y documentación del hardware) y drivers externos en `docker/milo.repos` |
 | `7261aa5` | Tolerancias de meta del brazo y correcciones de la auditoría |
-| (este cambio) | El informe pasa a Markdown (`docs/informe/README.md`) para leerlo directo en GitHub |
+| `72944fb` · `6a0f32f` | El informe pasa a Markdown (`docs/informe/README.md`) para leerlo directo en GitHub; se quita la escena web |
+| `cd672be` · `ad2908e` | Explicaciones para otras áreas, glosario, figura A (articulaciones R y P sobre el modelo 3D) y límite de la cámara de profundidad |
+| `2619d5b` | Repasos de literatura (`docs/literatura/`) y de tecnologías (`docs/tecnologias/`, con diagramas de lazo cerrado y análisis de NBV) |
+| (este cambio) | Revisión completa del proyecto: 5 pruebas unitarias nuevas, mesa de prueba anclada al mundo, líneas largas y un comentario desactualizado del xacro; validación repetida en Gazebo (sección 21) |
 
 La rama está en GitHub: `github.com/Ivan1721/milo_ws`, rama `brazo` (repositorio público; el remoto usa SSH). En la raíz, `docs/` guarda lo que no es código: `docs/informe/`, este informe, y `docs/hardware/`, los manuales y modelos de las piezas (de terceros: solo su índice va a git). `ros2_ws/src/` queda solo para paquetes de ROS.
 
@@ -823,11 +826,21 @@ flowchart LR
   RSP -- "/tf" --> MK
 ```
 
+![Diagrama de bloques del lazo de control del brazo. Fila principal, de izquierda a derecha: objetivo (pose de la pinza), cinemática inversa (arm_ik_node), controlador (arm_controller a 100 Hz, con tolerancia de meta), actuadores (GazeboSystem en simulación, Arduino con TB6600 en el robot real, pendiente) y planta (brazo, lift y pinza). Debajo, la realimentación: los sensores de posición (joint_state_broadcaster, /joint_states) devuelven q medido al controlador y q actual a la cinemática inversa, y robot_state_publisher entrega TF. Más abajo, en naranja punteado, el lazo pendiente de la cámara de la pinza, que medirá la pose del objeto y la devolverá como nuevo objetivo. Un recuadro explica que en Gazebo, con mando por posición, la posición medida es la orden misma, por lo que un choque no frena el brazo sino que inclina la base.](img/fig_lazo_cerrado.png)
+
+**Figura B.** Lazo cerrado del brazo, como corre hoy en simulación. Las flechas continuas existen; las naranjas punteadas faltan (actuadores reales, encoders, cámara). Generada con `andesrobot_arm/scripts/fig_lazo_cerrado.py`.
+
+**Se lee así**, siguiendo los tres lazos de afuera hacia adentro:
+
+- **Lazo de la tarea** (objetivo → IK → controlador → brazo → `/joint_states` → IK): la cinemática inversa parte de la posición *medida* de cada motor (la semilla) y usa TF para pasar el objetivo al frame de la base; el controlador devuelve si llegó o no. Se cierra una vez por objetivo.
+- **Lazo de posición** (controlador → actuadores → brazo → sensores → controlador): a 100 Hz, `arm_controller` interpola la posición pedida y la compara con la medida; al final aplica las tolerancias de meta. En Gazebo este lazo se cierra sobre la propia orden: el actuador pone cada eje exactamente en `q_ref` y el sensor lee eso mismo, así que un choque no se nota (sección 21). En el robot real se cierra de verdad solo con encoders en cada eje.
+- **Lazo de percepción** (brazo → cámara → detección → objetivo, pendiente): la cámara va en la pinza, así que cada movimiento cambia lo que ve; medir el objeto y volver a mandarlo como objetivo es el esquema «mirar y luego moverse» de la sección 14. Los seis lazos por separado, incluidos la IMU y el *next-best-view*, están en `docs/tecnologias/README.md`, sección 10.
+
 ### Control en Gazebo
 
 - `andesrobot.arm_control.xacro`: hardware `GazeboSystem` con mando de **posición** para el lift, joint_1…6 y `right_finger_joint`. El dedo izquierdo es *mimic* y aparece como `left_finger_joint_mimic`.
 - Con `arm_control:=true`, el plugin de joint states de Gazebo publica solo las ruedas; el brazo lo publica únicamente `joint_state_broadcaster`.
-- `arm_controllers.yaml` (100 Hz): `arm_controller` con el lift + joint_1…6 (acepta metas parciales) y `gripper_controller`. El `arm_controller` tiene **tolerancias de meta**: si al terminar la trayectoria (con 1 s de margen) una articulación quedó a más de 0.02 rad de su objetivo, o el lift a más de 5 mm, aborta, y `arm_ik_node` avisa «el brazo no llegó… ¿chocó con algo?». La pinza no tiene tolerancia a propósito: al agarrar un objeto, los dedos quedan frenados antes de llegar.
+- `arm_controllers.yaml` (100 Hz): `arm_controller` con el lift + joint_1…6 (acepta metas parciales) y `gripper_controller`. El `arm_controller` tiene **tolerancias de meta**: si al terminar la trayectoria (con 1 s de margen) una articulación quedó a más de 0.02 rad de su objetivo, o el lift a más de 5 mm, aborta, y `arm_ik_node` avisa «el brazo no llegó… ¿chocó con algo?». Ojo: en Gazebo eso solo pasa si la física logra frenar el brazo, y con el mando por posición casi nunca lo logra (sección 21, prueba del 17 de octubre). La pinza no tiene tolerancia a propósito: al agarrar un objeto, los dedos quedan frenados antes de llegar.
 - El launch quita los comentarios XML del URDF: `gazebo_ros2_control` en Humble no logra leerlo si los tiene, y el controller_manager nunca arranca.
 
 ### Nodo `arm_ik_node`
@@ -1241,7 +1254,7 @@ El mapa se guarda con `./sim.sh mapa nombre` (o `./robot.sh mapa`), que llama a 
 
 ### Pruebas automáticas (pytest, sin ROS corriendo)
 
-Corridas dentro del contenedor (la última vez el 6 de octubre de 2026, con las masas y la cámara nuevas): **6 de 6** en `andesrobot_arm` y **9 de 9** en `andesrobot_safety`.
+Corridas dentro del contenedor (la última vez el 17 de octubre de 2026, en la revisión completa): **11 de 11** en `andesrobot_arm` y **9 de 9** en `andesrobot_safety`. Las cinco últimas del brazo se agregaron en esa revisión.
 
 | Prueba | Qué comprueba | Resultado |
 | --- | --- | --- |
@@ -1251,6 +1264,11 @@ Corridas dentro del contenedor (la última vez el 6 de octubre de 2026, con las 
 | `ik_con_lift` | 10 poses aleatorias con 7 ejes + un punto a 5 cm del suelo frente a Milo | ✅ pasa |
 | `cuaternion_ida_y_vuelta` | 50 rotaciones, matriz → cuaternión → matriz | ✅ pasa |
 | `duracion_de_trayectoria` | fórmula de duración, velocidad común y por articulación | ✅ pasa |
+| `jacobiano_angular_igual_a_diferencias_finitas` | parte angular de $`J`$ (7 ejes) vs. derivar la orientación de la FK, tolerancia $`10^{-6}`$; el lift no gira nada | ✅ pasa |
+| `limites_dan_la_vuelta_o_recortan` | 189° pasa a −171° (misma posición física) y el lift se recorta a 0.6 m | ✅ pasa |
+| `log_de_rotacion_ida_y_vuelta` | vector de rotación ↔ matriz en 6 ángulos, incluido 180°, donde la fórmula general se indefine | ✅ pasa |
+| `ik_rechaza_pose_fuera_de_alcance` | un punto a 3 m devuelve éxito = falso con el error en metros (el nodo no mueve el brazo) | ✅ pasa |
+| `pose_de_ros_a_matriz` | el `PoseStamped` de ROS pasa a la matriz 4×4 de la IK sin cambiar posición ni orientación | ✅ pasa |
 | `libre_avanza_y_satura` | sin obstáculos avanza, recortado a la velocidad máxima | ✅ pasa |
 | `para_en_stop_distance / frena_en_zona_lenta` | se detiene a 0.30 m y frena proporcionalmente antes | ✅ pasa |
 | `puede_retroceder_con_muro_adelante / para_atras` | con muro adelante puede retroceder; atrás también se detiene | ✅ pasa |
@@ -1274,6 +1292,8 @@ Corridas dentro del contenedor (la última vez el 6 de octubre de 2026, con las 
 | Simulación de mapeo (`lock_arm:=true`) | Milo aparece, `/scan` a 10 Hz, `/odom` a 50 Hz, base nivelada | ✅ bien |
 | Objetivo bajo justo delante de la base (en `preparacion_ws`) | la trayectoria atraviesa la base: Gazebo bloqueó el brazo a 5.9 cm del objetivo y el controlador igual reportó éxito | ❌ falla conocida |
 | Tolerancias de meta (9 de octubre): pinza mandada dentro del tablero de la mesa | la mesa frena la pinza a 6 mm del objetivo y el controlador **aborta** (GOAL_TOLERANCE_VIOLATED) en vez de reportar éxito; las tres poses normales siguen terminando bien | ✅ bien |
+| Revisión del 17 de octubre, sin ventanas (`gui:=false rviz:=false`) | los 3 controladores activos a los 4 s del arranque; pose alcanzable (0.5048, −0.2163, 1.862) → TF (0.505, −0.216, 1.862); los 4 canales de la cámara a 14.8–15.0 Hz; la pinza abre a 0.016 y cierra a −0.007 (el dedo izquierdo copia en espejo); los tres objetos quedan sobre la mesa anclada al mundo; al apagar no quedan procesos huérfanos | ✅ bien |
+| 17 de octubre: pinza mandada 2 cm **dentro** del tablero, desde arriba y desde el costado | en los dos casos el controlador reporta **éxito** y el TCP llega al milímetro: el contacto no frena el brazo, sino que **inclina la base 3° y la corre 3.5 cm hacia atrás**. Con las articulaciones mandadas en posición (infinitamente rígidas), el choque se transmite al robot entero. El abort del 9 de octubre fue un caso afortunado: las tolerancias de meta no son una detección confiable de choques en Gazebo | ⚠️ limitación (sección 23) |
 
 El robot físico (hoverboard, lidar y mapeo real) no se probó como parte de este informe; la calibración del driver viene documentada como "ya probada en el robot".
 
@@ -1297,7 +1317,7 @@ El robot físico (hoverboard, lidar y mapeo real) no se probó como parte de est
 | Soluciones de IK pegadas en ±π | recortar en ±π impide dar la vuelta | envolver en vez de recortar si el rango cubre 2π |
 | Los objetos de la mesa de prueba caían al suelo | Gazebo no hace chocar los links de un mismo modelo | `<self_collide>true` en `mesa_prueba.sdf` |
 | `arm_sim` se caía (segfault) al arrancar | nodos de pruebas anteriores seguían vivos y publicaban otro `robot_description` | cerrar todos los procesos de ROS antes de relanzar (`./sim.sh stop`) |
-| El controlador reportaba éxito con el brazo bloqueado | `arm_controller` no tenía tolerancias de meta | tolerancias en `arm_controllers.yaml` (0.02 rad, lift 5 mm, 1 s de margen) |
+| El controlador reportaba éxito con el brazo bloqueado | `arm_controller` no tenía tolerancias de meta | tolerancias en `arm_controllers.yaml` (0.02 rad, lift 5 mm, 1 s de margen). Sirven solo si la física frena el brazo; en Gazebo con mando por posición casi nunca pasa (sección 21): la solución de fondo es revisar choques antes de mover (MoveIt 2) |
 | Ventanas de Gazebo o RViz negras | OpenGL sin aceleración utilizable en el contenedor | `./sim.sh software` (render por CPU) |
 
 <a id="pendientes"></a>
@@ -1308,7 +1328,7 @@ El robot físico (hoverboard, lidar y mapeo real) no se probó como parte de est
 
 ### Repositorio
 
-- Hacer commit de las masas reales y la cámara, y subirlos.
+- Integración continua: correr las pruebas de `pytest` en GitHub Actions en cada cambio subido (hoy se corren a mano dentro del contenedor).
 
 ### Brazo
 
@@ -1318,9 +1338,9 @@ El robot físico (hoverboard, lidar y mapeo real) no se probó como parte de est
 - **Cámara**: hacer realista la profundidad (nodo `gemini_realista`, sección 14), conectar la cámara real con `OrbbecSDK_ROS2`.
 - **Confirmar los desplazamientos a lo largo de los ejes** (orígenes en los acoplamientos, sección 5) midiendo el brazo real.
 - **Sin driver del brazo real**: el control existe solo en Gazebo. El EB300 se controla con un Arduino MEGA 2560 y 6 drivers TB6600; el camino natural es un plugin de ros2_control que hable por serie con el Arduino, como el del hoverboard.
-- **Sin revisión de choques**: el brazo puede atravesar la base o la columna. Mejora directa: descartar soluciones que entren en cajas que aproximen la base y la columna (medidas de la sección 4).
+- **Sin revisión de choques**: el brazo puede atravesar la base, la columna o la mesa, y Gazebo **no lo frena** con el mando por posición: el contacto inclina y desplaza la base y el controlador reporta éxito (sección 21). Las tolerancias de meta quedan como red de seguridad para el robot real con encoders. Mejora de fondo: planificar con revisión de choques (MoveIt 2 con el mismo URDF, ver `docs/tecnologias/`); mejora rápida: descartar soluciones de la IK que entren en cajas que aproximen la base y la columna (medidas de la sección 4).
 - **Giros largos cerca de ±π**: con los límites provisorios una articulación no puede pasar de ±π, así que un objetivo «al otro lado» obliga a casi una vuelta completa (medido: `joint_1` recorre 6.08 rad en 12.2 s en vez de 0.2 rad). Se arregla con los topes reales.
-- **Mando por posición**: Gazebo coloca las articulaciones sin fuerzas; agarrar objetos no será realista.
+- **Mando por posición**: Gazebo coloca las articulaciones en el ángulo pedido como si fueran infinitamente rígidas. Agarrar objetos no será realista, y un choque mueve al robot entero en vez de frenar el brazo (medido el 17 de octubre: 3° de inclinación de la base). La alternativa es mando por esfuerzo con PID por articulación.
 
 ### Robot físico (según `ROBOT.md`)
 
@@ -1378,4 +1398,4 @@ cd /ros2_ws/src/andesrobot_arm && python3 scripts/figuras.py docs/figuras   # tr
 
 ---
 
-*La figura A se dibuja con `andesrobot_arm/scripts/fig_articulaciones.py` a partir del URDF y las mallas STL. Figuras 1–5 generadas con `andesrobot_arm/scripts/figuras.py` a partir del URDF procesado y las mallas STL; la figura 6 y las distancias de la sección 5 se calcularon con `ArmKinematics` sobre el mismo URDF; la figura 7 son capturas de la cámara simulada (`capturar_camara`); la figura 8 es `andesrobot_gazebo/worlds/andesrobot_arena.png`. Masas leídas del URDF procesado. Medidas en metros y radianes salvo que se indique otra unidad.*
+*La figura A se dibuja con `andesrobot_arm/scripts/fig_articulaciones.py` a partir del URDF y las mallas STL. La figura B es un esquema dibujado con `andesrobot_arm/scripts/fig_lazo_cerrado.py`. Figuras 1–5 generadas con `andesrobot_arm/scripts/figuras.py` a partir del URDF procesado y las mallas STL; la figura 6 y las distancias de la sección 5 se calcularon con `ArmKinematics` sobre el mismo URDF; la figura 7 son capturas de la cámara simulada (`capturar_camara`); la figura 8 es `andesrobot_gazebo/worlds/andesrobot_arena.png`. Masas leídas del URDF procesado. Medidas en metros y radianes salvo que se indique otra unidad.*

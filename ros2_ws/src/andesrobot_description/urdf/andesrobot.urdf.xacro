@@ -13,7 +13,8 @@
       <collision> con qué forma choca. Puede ser distinta del visual (más simple = más estable).
   - <joint> = la unión entre dos links: padre -> hijo. Tipos que usamos:
       fixed       pegado, no se mueve (lidar, IMU, columna...)
-      continuous  gira sin límite (ruedas, brazo mientras no se midan sus topes)
+      continuous  gira sin límite (ruedas)
+      revolute    gira con límites (brazo: ±π provisorios hasta medir los topes reales)
       prismatic   se desliza en línea recta, con límites (lift, dedos)
     <origin xyz="x y z" rpy="roll pitch yaw"> = dónde queda el hijo respecto al padre
       (metros y radianes; 3.14159 = 180 grados).

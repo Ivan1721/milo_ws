@@ -144,8 +144,8 @@ def generate_launch_description():
                               description='Abrir la ventana de Gazebo'),
         DeclareLaunchArgument('rviz', default_value='true',
                               description='Abrir RViz con el marcador'),
-        # Con cajas simples el brazo NO tiene colisión propia (y queda una caja fija donde estaría
-        # el brazo bloqueado): por eso aquí las mallas CAD son el default.
+        # Con cajas simples el brazo NO tiene colisión propia (y queda una caja fija donde
+        # estaría el brazo bloqueado): por eso aquí las mallas CAD son el default.
         DeclareLaunchArgument('simple_collision', default_value='false',
                               description='true = colisiones con cajas en vez de mallas CAD'),
         DeclareLaunchArgument('camara', default_value='true',

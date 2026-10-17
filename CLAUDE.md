@@ -65,6 +65,10 @@ cd /ros2_ws/src/andesrobot_arm && python3 -m pytest -q test -k ik_con_lift      
 cd /ros2_ws/src/andesrobot_safety && python3 -m pytest -q test
 ```
 
+Gazebo smoke test, headless (~2 min, container up, no other sim running):
+`bash /ros2_ws/src/andesrobot_arm/scripts/prueba_gazebo.sh` (controllers, joint_states, camera rates,
+a reachable pose via TF, gripper open/close, clean shutdown).
+
 There are no ament_lint tests; keep Python within 99 columns (flake8) to match the code.
 
 **Never run `colcon build` natively inside `~/milo_ws/ros2_ws`.** The container reuses
@@ -125,7 +129,8 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   `/gripper_camera/depth/points`, same names as the real `OrbbecSDK_ROS2` driver. Plugin topics are
   renamed with `<remapping>`. `ros2 run andesrobot_arm capturar_camara` saves one image per channel to
   `ros2_ws/capturas/` (gitignored). `arm_sim` also spawns `worlds/mesa_prueba.sdf` (arg `mesa`); its
-  objects are links of one model, so it needs `<self_collide>true` or they fall through the table.
+  objects are links of one model, so it needs `<self_collide>true` or they fall through the table;
+  the table link is fixed to `world`.
 - Arm masses: gripper scaled from the CAD's steel to ABS (`gripper_mass_scale`); stepper motors and
   the gripper servo are fixed `motor_joint_N`/`gripper_servo_link` inertial-only links on the link
   before each joint. Sources in `docs/hardware/README.md` at the repo root (the docs there are
@@ -147,14 +152,20 @@ The wrist isn't spherical (joint_4 ∥ joint_6), so there's no closed-form IK.
 marker's frame. `andesrobot_arm/scripts/figuras.py` regenerates `docs/figuras/` (renders, dimension
 drawings, workspace and `medidas.json`) from the URDF + STL meshes; rerun it after geometry changes. `scripts/fig_articulaciones.py` (imports figuras.py, so needs the container) draws the
 report's notation figure A (joint_2 and the lift over translucent URDF meshes, with every formula
-symbol) into `docs/figuras/`; copy it to `docs/informe/img/`. Arm limits are **provisional** (`arm_lower/arm_upper/arm_effort/arm_velocity`
+symbol) into `docs/figuras/`; copy it to `docs/informe/img/`. `scripts/fig_lazo_cerrado.py` (matplotlib only) draws the
+report's figure B, the arm's closed-loop block diagram. Arm limits are **provisional** (`arm_lower/arm_upper/arm_effort/arm_velocity`
 properties: ±π, 20 N·m, 1 rad/s); don't use them for real hardware.
 
-Known sim behaviors: IK has no collision checking, so poses that pass through the chassis/column/table
-get physically blocked in Gazebo; `arm_controller` has goal tolerances (`arm_controllers.yaml`:
-0.02 rad, lift 5 mm, `goal_time` 1 s, path tolerance off) so a blocked move aborts with
-GOAL_TOLERANCE_VIOLATED and `arm_ik_node` logs it. `gripper_controller` has no tolerances on purpose
-(fingers stall on a grasped object). With the provisional ±π limits a joint can't cross ±π, so a
+Known sim behaviors: IK has no collision checking. `arm_controller` has goal tolerances
+(`arm_controllers.yaml`: 0.02 rad, lift 5 mm, `goal_time` 1 s, path tolerance off) so a move whose
+joints don't arrive aborts with GOAL_TOLERANCE_VIOLATED and `arm_ik_node` logs it, but **Gazebo
+almost never blocks the arm**: position-commanded joints are rigid, so a collision with the table or
+column tilts/pushes the whole base (measured 2026-10-17: TCP sent 2 cm into the tabletop "arrives",
+base tilts 3° and slides 3.5 cm back) and the controller reports success. Don't present the
+tolerances as collision detection; real protection needs MoveIt collision checking (or effort
+control with PIDs). `gripper_controller` has no tolerances on purpose (fingers stall on a grasped
+object). The test table in `worlds/mesa_prueba.sdf` is anchored to `world` with a fixed joint so
+the arm can't slide it. With the provisional ±π limits a joint can't cross ±π, so a
 target "on the other side" makes a near-full turn (measured: 6.08 rad / 12.2 s for a 0.2 rad change).
 A Ctrl+C can leave an orphan `gzserver` holding port 11345 (next launch dies with exit 255):
 `killall gzserver gzclient` or `./sim.sh stop`.

@@ -36,10 +36,12 @@ arm_controller:
     # La trayectoria debe terminar con velocidad 0 (las de arm_ik_node tienen un solo punto, sin
     # velocidad: cumplen). Se fija explícito porque el valor por defecto va a cambiar.
     allow_nonzero_velocity_at_trajectory_end: false
-    # TOLERANCIAS: sin ellas el controlador reporta éxito aunque el brazo haya quedado bloqueado
-    # (por ejemplo, chocando con la mesa o la columna). Con ellas, si al terminar el tiempo de la
-    # trayectoria + goal_time alguna articulación quedó más lejos que "goal" de su objetivo, aborta
-    # con GOAL_TOLERANCE_VIOLATED y arm_ik_node lo avisa.
+    # TOLERANCIAS: si al terminar el tiempo de la trayectoria + goal_time alguna articulación quedó
+    # más lejos que "goal" de su objetivo, el controlador aborta con GOAL_TOLERANCE_VIOLATED y
+    # arm_ik_node lo avisa. OJO: en Gazebo con mando por posición eso casi nunca ocurre, porque un
+    # choque no frena el brazo (las articulaciones son rígidas) sino que mueve la base entera
+    # (ver docs/BRAZO.md, "Limitaciones"). Sirven de red de seguridad para el robot real con
+    # encoders; no son una detección de choques.
     #   goal        error máximo al final [rad o m]
     #   trajectory  error máximo DURANTE el movimiento (0 = no se revisa). Está en 0: con el brazo
     #               pesado podría abortar movimientos normales; probar antes de activarlo.

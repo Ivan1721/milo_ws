@@ -167,7 +167,7 @@ def normals_of(t):
 
 
 def ortho(T, plane):
-    """Proyección ortográfica (pintor: lo de atrás primero) en 'xz' (lateral) o 'yz' (frontal)."""
+    """Proyección ortográfica en 'xz' (lateral) o 'yz' (frontal); pinta lo de atrás primero."""
     i, j, depth = {'xz': (0, 2, 1), 'yz': (1, 2, 0)}[plane]
     light = np.zeros(3)
     light[depth], light[2] = -1.0, 0.35
