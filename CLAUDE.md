@@ -22,6 +22,9 @@ Repo-root `docs/` holds non-code material: `docs/informe/` (the technical report
 `README.md` + `img/`, so GitHub renders it, math and mermaid blocks included; keep it in sync with
 the claude.ai artifact) and `docs/hardware/` (vendor manuals, datasheets, CAD for the EB300 arm,
 EBG-20 gripper, motors and Orbbec camera; third-party, so only its `README.md` index is versioned).
+`docs/literatura/README.md` is the literature review (methods per pending task, with references;
+open-access PDFs in the gitignored `docs/literatura/pdf/`) and `docs/tecnologias/README.md` the
+technology review (tools per layer, closed-loop diagrams, NBV feasibility).
 Keep `ros2_ws/src/` for ROS packages only.
 
 ## Commands
