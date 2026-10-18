@@ -33,6 +33,13 @@
   <exec_depend>joint_state_broadcaster</exec_depend>
   <exec_depend>joint_trajectory_controller</exec_depend>
   <exec_depend>rviz2</exec_depend>
+  <!-- MoveIt 2 (arm_sim con moveit:=true): el planificador, su configuración y los mensajes
+       que usa arm_moveit_node. -->
+  <exec_depend>andesrobot_moveit_config</exec_depend>
+  <exec_depend>moveit_ros_move_group</exec_depend>
+  <exec_depend>moveit_configs_utils</exec_depend>
+  <exec_depend>moveit_msgs</exec_depend>
+  <exec_depend>shape_msgs</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <!-- test_depend = solo para correr los tests. -->

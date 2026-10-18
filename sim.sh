@@ -46,8 +46,9 @@ case "$1" in
   gpu)    milo_need_running; milo_gpu_info; exit 0 ;;
   # Brazo: levanta el contenedor y lanza la simulación del brazo (en vez de la de mapeo).
   brazo)  milo_up
-          # Si el contenedor ya estaba compilado de antes, puede faltar andesrobot_arm: compilar.
-          $DC exec ros bash -ic '[ -d /ros2_ws/install/andesrobot_arm ] || (cd /ros2_ws && colcon build --symlink-install)'
+          # Si el contenedor ya estaba compilado de antes, pueden faltar andesrobot_arm o
+          # andesrobot_moveit_config (los paquetes del brazo): compilar.
+          $DC exec ros bash -ic '[ -d /ros2_ws/install/andesrobot_arm ] && [ -d /ros2_ws/install/andesrobot_moveit_config ] || (cd /ros2_ws && colcon build --symlink-install)'
           echo
           echo "[milo] Brazo arrancando. En RViz: herramienta Interact (tecla i), arrastra la esfera naranja."
           echo "[milo] Mandar una pose a mano: ./sim.sh shell  y ver ros2_ws/src/andesrobot_arm/docs/BRAZO.md"

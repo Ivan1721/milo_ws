@@ -1,0 +1,40 @@
+# Cómo ejecuta MoveIt las trayectorias que planifica: se las manda a los MISMOS controladores de
+# ros2_control que ya usa arm_ik_node (andesrobot_arm/config/arm_controllers.yaml), por la acción
+# FollowJointTrajectory. MoveIt solo necesita saber qué articulaciones maneja cada uno.
+moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControllerManager
+
+moveit_simple_controller_manager:
+  controller_names:
+    - arm_controller
+    - gripper_controller
+
+  arm_controller:
+    type: FollowJointTrajectory
+    action_ns: follow_joint_trajectory   # -> /arm_controller/follow_joint_trajectory
+    default: true
+    joints:
+      - vertical_lift_joint
+      - joint_1
+      - joint_2
+      - joint_3
+      - joint_4
+      - joint_5
+      - joint_6
+
+  gripper_controller:
+    type: FollowJointTrajectory
+    action_ns: follow_joint_trajectory
+    default: true
+    joints:
+      - right_finger_joint
+
+# Vigilancia de la ejecución (figura C del informe):
+#   allowed_execution_duration_scaling  si tarda más de 1.5 veces lo planificado (+ el margen),
+#                                       MoveIt aborta
+#   allowed_goal_duration_margin        margen fijo [s] sobre la duración planificada
+#   allowed_start_tolerance             diferencia máxima [rad] entre la postura actual y el
+#                                       primer punto de la trayectoria para aceptar ejecutarla
+trajectory_execution:
+  allowed_execution_duration_scaling: 1.5
+  allowed_goal_duration_margin: 1.0
+  allowed_start_tolerance: 0.02

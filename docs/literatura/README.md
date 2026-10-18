@@ -41,8 +41,8 @@ están en la lista de referencias del final. Los términos técnicos están expl
 | --- | --- | --- |
 | Modelo del brazo (URDF) con masas corregidas | hecho; límites de las articulaciones provisorios (±180°) | 2, 8 |
 | Cinemática directa, jacobiano e inversa con el lift (7 ejes) | hecho y probado, solo en simulación | 3 |
-| Evitar choques del brazo con la base, la columna o la mesa | **no hay**: la inversa puede atravesar el robot | 4 |
-| Trayectorias suaves (aceleración limitada) | no: velocidad constante entre dos posturas | 5 |
+| Evitar choques del brazo con la base, la columna o la mesa | hecho con MoveIt 2 (18-10-2026): escena con el robot, la mesa y el OctoMap de la cámara | 4 |
+| Trayectorias suaves (aceleración limitada) | hecho (TOTG en MoveIt); falta limitar el tirón (Ruckig) | 5 |
 | Electrónica y driver del brazo real | **no hay**: piezas impresas sin montar, falta el plano eléctrico | 6 |
 | IMU MPU-9250 debajo de la cámara | por agregar al modelo y al montaje | 7 |
 | Medir el brazo real y calibrar | pendiente (la muñeca del modelo no coincide del todo con el DH oficial) | 8 |
@@ -99,7 +99,8 @@ comparar** (ya está en la sección 5 del informe) y para la calibración (secci
   La **manipulabilidad** de Yoshikawa [14] mide qué tan lejos de una singularidad está una postura.
 
 **Qué hace Milo.** DLS con pesos (el lift pesa 10, los demás 1) y reinicios al azar, en
-`kinematics.py`. Coincide con lo recomendado en [8–10, 12] para una muñeca no esférica.
+`kinematics.py` (`moveit:=false`), y KDL dentro de MoveIt 2 (el default desde el 18-10-2026).
+Coincide con lo recomendado en [8–10, 12] para una muñeca no esférica.
 
 **Recomendación.**
 - Seguir con la IK propia para pruebas y para la página interactiva.
@@ -125,13 +126,14 @@ comparar** (ya está en la sección 5 del informe) y para la calibración (secci
   optimizadores, llama al solver de IK (KDL o TRAC-IK) y manda la trayectoria al controlador por
   la misma acción `FollowJointTrajectory` que ya usa Milo.
 
-**Qué hace Milo.** La IK no revisa choques: una postura que atraviesa la base o la mesa queda
-bloqueada en Gazebo. Desde el 9 de octubre el controlador al menos lo detecta (tolerancias de
-meta) y aborta.
+**Qué hace Milo.** Desde el 18-10-2026 planifica con MoveIt 2 (`andesrobot_moveit_config`):
+OMPL/RRT-Connect sobre una escena con el robot, la mesa y el OctoMap de la cámara; una pose
+dentro de la mesa se rechaza. La IK propia (`moveit:=false`) sigue sin revisar choques.
 
-**Recomendación.** Es el paso con más impacto. **Configurar MoveIt 2 para Milo** con el asistente
-(`moveit_setup_assistant`), con el mismo URDF, el grupo de 7 ejes (lift + joint_1…6) y la pinza
-como herramienta. El nodo `arm_ik_node` se puede mantener como alternativa simple.
+**Recomendación.** Hecho: MoveIt 2 con el mismo URDF, el grupo de 7 ejes (lift + joint_1…6) y la
+pinza como herramienta. Siguientes pasos: afinar el OctoMap (resolución, filtrado del propio
+robot), agregar los objetos de la mesa como objetos conocidos para poder agarrarlos, y TRAC-IK.
+El nodo `arm_ik_node` queda como alternativa simple (`moveit:=false`).
 
 ---
 
@@ -146,8 +148,9 @@ como herramienta. El nodo `arm_ik_node` se puede mantener como alternativa simpl
 - **Límite de tirón (*jerk*):** además de la aceleración, limita qué tan rápido cambia. **Ruckig**
   [25] lo hace en tiempo real (microsegundos) y está integrado en MoveIt 2 y ros2_control.
 
-**Qué hace Milo.** `arm_ik_node` usa una duración común con velocidad constante: en Gazebo
-funciona porque el mando es por posición ideal, pero en motores reales provocaría pasos perdidos.
+**Qué hace Milo.** Con MoveIt, TOTG pone rampas de aceleración (`joint_limits.yaml`, al 50 %).
+`arm_ik_node` (`moveit:=false`) usa una duración común con velocidad constante, que en motores
+reales provocaría pasos perdidos.
 
 **Recomendación.** Usar la parametrización con aceleración limitada de MoveIt (TOTG o Ruckig) y,
 en el microcontrolador, rampas de aceleración por motor (sección 6). Medir la aceleración máxima
@@ -318,7 +321,7 @@ Cada fase termina con una prueba que se puede medir.
 | 2. Electrónica | plano eléctrico (Mega, 6 TB6600, motores, finales de carrera, IMU), cableado | cada motor gira y hace homing desde el Mega | 6, 7 |
 | 3. Firmware y driver | rampas por motor, protocolo serie, hardware interface de ros2_control | `arm_controller` mueve el brazo real con la misma acción que en Gazebo | 5, 6 |
 | 4. IMU | agregarla al URDF y a Gazebo, filtro de Madgwick, comparar con la cinemática directa | detecta un paso perdido provocado a propósito | 7 |
-| 5. Choques | MoveIt 2 con el grupo de 7 ejes y TRAC-IK | ninguna trayectoria atraviesa la base, la columna o la mesa | 3, 4 |
+| 5. Choques | ✅ hecho (18-10-2026): MoveIt 2 con el grupo de 7 ejes y KDL; falta TRAC-IK | una pose dentro de la mesa se rechaza (prueba de humo) | 3, 4 |
 | 6. Calibración | cinemática y mano–ojo | exactitud y repetibilidad según ISO 9283 simplificada | 8 |
 | 7. Percepción | mirar y luego moverse con detección simple | agarra los objetos de la mesa de prueba desde distintas posiciones | 9 |
 | 8. Realismo | profundidad realista y escena aleatoria en Gazebo | el mismo detector funciona en simulación y en el robot | 10 |

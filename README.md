@@ -138,9 +138,11 @@ cd ~/milo_ws
 ./sim.sh brazo
 
 En RViz elige la herramienta "Interact" (tecla i), arrastra la esfera
-naranja que esta en la pinza y suelta: el brazo (y el lift) van ahi.
-Si no se mueve, esa pose no se alcanza: clic derecho en la esfera,
-"Volver a la pinza".
+naranja que esta en la pinza y suelta: MoveIt busca un camino sin chocar
+con la mesa ni con el propio robot, y el brazo (y el lift) van ahi.
+Si no se mueve, esa pose no se alcanza o choca con algo: clic derecho en
+la esfera, "Volver a la pinza". En RViz se ven en verde los obstaculos
+que conoce MoveIt (la mesa y lo que ve la camara).
 
 Apagar:   Ctrl+C en la terminal 1 y despues   ./sim.sh stop
 

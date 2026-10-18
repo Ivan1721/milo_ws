@@ -1,0 +1,11 @@
+# Solver de cinemática inversa que usa MoveIt para cada grupo (lo carga move_group y RViz).
+# KDL: el solver numérico que viene con MoveIt (Newton con el jacobiano). Sirve con cadenas de
+# rotativas y prismáticas, como la de Milo (lift + 6 ejes); con 7 ejes para 6 restricciones
+# devuelve la solución más cercana al punto de partida (la postura actual).
+# TRAC-IK resolvería más casos cerca de los límites, pero en Humble hay que compilarlo aparte
+# (ver docs/tecnologias/README.md en la raíz del repo).
+brazo:
+  kinematics_solver: kdl_kinematics_plugin/KDLKinematicsPlugin
+  # Paso de búsqueda sobre el eje redundante (rad) y tiempo máximo por intento (s).
+  kinematics_solver_search_resolution: 0.005
+  kinematics_solver_timeout: 0.05

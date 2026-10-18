@@ -31,5 +31,6 @@ setup(
         'arm_ik_node = andesrobot_arm.arm_ik_node:main',
         'arm_marker_node = andesrobot_arm.arm_marker_node:main',
         'capturar_camara = andesrobot_arm.capturar_camara:main',
+        'arm_moveit_node = andesrobot_arm.arm_moveit_node:main',
     ]},
 )

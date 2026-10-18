@@ -1,8 +1,9 @@
 # Brazo de Milo (`andesrobot_arm`)
 
-Cinemática directa e inversa del brazo + lift, control en Gazebo y marcador interactivo en RViz.
-Solo el brazo: la base se supone quieta (el diff drive y el SLAM son de los otros paquetes).
-El robot real todavía no tiene driver para el brazo: esto funciona **solo en simulación**.
+Cinemática directa e inversa del brazo + lift, control en Gazebo, planificación sin choques con
+MoveIt 2 y marcador interactivo en RViz. Solo el brazo: la base se supone quieta (el diff drive y
+el SLAM son de los otros paquetes). El robot real todavía no tiene driver para el brazo: esto
+funciona **solo en simulación**.
 
 ## Usarlo
 
@@ -11,9 +12,10 @@ cd ~/milo_ws
 ./sim.sh brazo          # Gazebo + Milo con el brazo controlado + IK + marcador + RViz
 ```
 
-En RViz: herramienta **Interact** (tecla `i`), arrastra la esfera naranja y suelta. El brazo va a esa
-pose. Si no se mueve, la pose está fuera de alcance (el log dice `IK sin solución`): clic derecho en
-la esfera → **Volver a la pinza**.
+En RViz: herramienta **Interact** (tecla `i`), arrastra la esfera naranja y suelta. MoveIt busca un
+camino sin choques y el brazo va a esa pose. Si no se mueve, no hay camino: la pose está fuera de
+alcance o choca con la mesa, la columna o lo que ve la cámara (el log dice `MoveIt no movió el
+brazo` y por qué): clic derecho en la esfera → **Volver a la pinza**.
 
 Mandar una pose a mano (en otra terminal, `./sim.sh shell`):
 
@@ -32,13 +34,68 @@ ros2 action send_goal /gripper_controller/follow_joint_trajectory control_msgs/a
 
 Sin Docker (ROS Humble instalado en el PC): `ros2 launch andesrobot_arm arm_sim.launch.py`
 (`gui:=false` sin ventana de Gazebo, `rviz:=false` sin RViz, `camara:=false` sin la cámara de la
-pinza, `mesa:=false` sin la mesa de prueba).
+pinza, `mesa:=false` sin la mesa de prueba, `moveit:=false` con la cinemática inversa propia en vez
+de MoveIt, `octomap:=false` sin el mapa de la cámara en la escena).
 
 Tests (sin ROS corriendo): `source install/setup.bash && cd src/andesrobot_arm && python3 -m pytest -q test`
 
 Prueba de humo en Gazebo, sin ventanas (~2 min, con el contenedor levantado y sin otra simulación
 andando): `bash /ros2_ws/src/andesrobot_arm/scripts/prueba_gazebo.sh`. Comprueba controladores,
 `/joint_states`, los 4 canales de la cámara, una pose alcanzable y la pinza, y apaga todo al final.
+
+## MoveIt 2: planificar sin choques
+
+Desde el 18 de octubre de 2026, `./sim.sh brazo` lanza **MoveIt 2** (`move_group`) con la
+configuración del paquete `andesrobot_moveit_config`, y `arm_moveit_node` reemplaza a `arm_ik_node`.
+Cada pose que llega a `/arm_target_pose` se convierte en una petición a la acción `/move_action`:
+
+1. `move_group` arma la **escena de planificación**: el robot (URDF + SRDF), la mesa de prueba
+   (la publica `arm_moveit_node` como dos cajas en `/planning_scene`) y, con `octomap:=true`, lo
+   que ve la cámara de la pinza como OctoMap (celdas de 2 cm; `config/sensors_3d.yaml`).
+2. Resuelve la IK con KDL para el grupo `brazo` (lift + joint_1…6, de `base_footprint` a
+   `gripper_tcp`) y busca con OMPL (RRT-Connect) un camino completo que no choque en ningún tramo.
+3. Le pone tiempo con rampas de aceleración (TOTG, límites en `config/joint_limits.yaml`, al 50 %
+   por defecto) y lo ejecuta en el mismo `arm_controller`, vigilando que llegue a tiempo.
+
+Si no hay camino, `arm_moveit_node` lo dice en el log con el código de MoveIt explicado («no
+encontró un camino: la meta está fuera de alcance, choca con algo… o no tiene solución de IK») y
+el brazo no se mueve. Es la diferencia de fondo con `arm_ik_node`: una pose dentro de la mesa
+ahora se **rechaza** en vez de ejecutarse.
+
+Parámetros de `arm_moveit_node` (`--ros-args -p nombre:=valor`):
+
+| Parámetro | Default | Uso |
+|---|---|---|
+| `planning_time` / `planning_attempts` | 5.0 s / 5 | tiempo e intentos de OMPL |
+| `velocity_scaling` / `acceleration_scaling` | 0.5 / 0.5 | fracción de los límites de `joint_limits.yaml` |
+| `tolerancia_pos` / `tolerancia_rot` | 2 mm / 0.02 rad | esfera y ángulo por eje que se aceptan como «llegó» |
+| `position_only` | false | ignorar la orientación |
+| `mesa` / `mesa_frame` | true / `base_footprint` | publicar la mesa de prueba como obstáculo; `mesa:=false` del launch la apaga |
+
+Archivos de `andesrobot_moveit_config/config/`: `andesrobot.srdf` (grupos `brazo` y `pinza`,
+posturas `cero`, `frente`, `abierta`, `cerrada`, y los pares de piezas sin revisión de choques),
+`kinematics.yaml` (KDL), `joint_limits.yaml`, `moveit_controllers.yaml` (los mismos controladores de
+`arm_controllers.yaml`), `ompl_planning.yaml` y `sensors_3d.yaml` (OctoMap). En RViz, los paneles
+*Escena de MoveIt* (obstáculos y OctoMap en verde) y *Trayectoria planificada* muestran lo que
+planifica (`rviz/arm_moveit.rviz`).
+
+Si cambia la geometría del robot (una pieza nueva, la cámara en otro lugar), regenerar los pares
+de piezas que no chocan del SRDF (dentro de `./sim.sh shell`):
+
+```bash
+X=$(ros2 pkg prefix andesrobot_description)/share/andesrobot_description/urdf/andesrobot.urdf.xacro
+ros2 run moveit_setup_assistant collisions_updater --urdf $X \
+  --xacro-args "lock_arm:=false arm_control:=true gripper_camera:=true arm_controllers_file:=/tmp/c.yaml" \
+  --srdf /ros2_ws/src/andesrobot_moveit_config/config/andesrobot.srdf \
+  --output /tmp/andesrobot_generado.srdf --default --always --trials 30000
+# y copiar las líneas <disable_collisions .../> de /tmp/andesrobot_generado.srdf al final del SRDF
+```
+
+Limitaciones de esta integración: la escena de MoveIt solo conoce los frames del robot, por eso
+la mesa y el OctoMap van en `base_footprint` (vale mientras la base no se mueva); los objetos de la
+mesa que ve la cámara entran como obstáculos, así que una pose que los toque se rechaza (para
+agarrar uno hay que quitarlo de la escena o apagar el OctoMap); y la IK es KDL, que cerca de los
+límites de las articulaciones falla más que TRAC-IK (no hay binario para Humble).
 
 ## Cámara de la pinza (Orbbec Gemini Plus)
 
@@ -89,14 +146,17 @@ imagen gris. Gazebo publica además `/gripper_camera/depth/color_sim/*`, que no 
 Lazo de control, de la orden al movimiento y de vuelta: la IK parte de `/joint_states`, el
 controlador compara la posición pedida con la medida a 100 Hz, y la cámara (pendiente) cerrará el
 lazo de percepción. En Gazebo la posición medida es la orden misma (mando por posición): ver
-«Limitaciones». Se genera con `scripts/fig_lazo_cerrado.py` (solo matplotlib).
+«Limitaciones». Se genera con `scripts/fig_lazo_cerrado.py` (solo matplotlib). Cómo quedaría el mismo lazo con
+MoveIt 2 (planificación con revisión de choques): figura C del informe, `scripts/fig_lazo_moveit.py`.
 
 | Pieza | Qué hace |
 |---|---|
-| `arm_sim.launch.py` | xacro con `lock_arm:=false arm_control:=true gripper_camera:=true` → Gazebo, spawn de Milo y la mesa, controladores, nodos, RViz |
+| `arm_sim.launch.py` | xacro con `lock_arm:=false arm_control:=true gripper_camera:=true` → Gazebo, spawn de Milo y la mesa, controladores, MoveIt (`moveit:=true`), nodos, RViz |
+| `move_group` | MoveIt 2: escena de planificación (robot + mesa + OctoMap), IK (KDL), planificador (OMPL) y ejecución vigilada; configuración en `andesrobot_moveit_config` |
+| `arm_moveit_node` | escucha `/arm_target_pose` y se lo pide a MoveIt (acción `/move_action`); publica la mesa en la escena |
 | `arm_controller` | `JointTrajectoryController`: `vertical_lift_joint` + `joint_1..6` en una sola trayectoria, con tolerancias de meta (aborta si una articulación no llega; ver «Limitaciones») |
 | `gripper_controller` | `JointTrajectoryController`: `right_finger_joint` (el izquierdo lo copia Gazebo, `mimic`) |
-| `arm_ik_node` | escucha `/arm_target_pose` (cualquier frame de TF), resuelve la IK y manda la trayectoria |
+| `arm_ik_node` | (con `moveit:=false`) escucha `/arm_target_pose`, resuelve la IK propia y manda la trayectoria, sin revisión de choques |
 | `arm_marker_node` | marcador en RViz sobre `gripper_tcp`; al soltar publica en `/arm_target_pose` (frame `base_footprint`) |
 | `capturar_camara` | guarda una imagen de cada canal de la cámara de la pinza (`ros2 run andesrobot_arm capturar_camara`) |
 
@@ -176,8 +236,9 @@ python3 scripts/figuras.py docs/figuras
 - **Giros largos cerca de ±π**: una articulación no puede pasar de ±π, así que si el objetivo queda
   "al otro lado" da casi una vuelta completa. Ejemplo medido: `joint_1` de 3.05 a −3.03 rad recorre
   6.08 rad en 12.2 s en vez de 0.2 rad. Se arregla con los topes reales.
-- **Sin revisión de choques**: la IK no sabe dónde están el chasis, la columna ni la mesa, y el brazo
-  va directo a la solución. `arm_controller` tiene **tolerancias de meta**
+- **Sin revisión de choques (solo con `moveit:=false`)**: la IK propia no sabe dónde están el
+  chasis, la columna ni la mesa, y el brazo va directo a la solución. Con MoveIt (el default) los
+  choques se evitan antes de mover. `arm_controller` tiene **tolerancias de meta**
   (`config/arm_controllers.yaml`: 0.02 rad por articulación, 5 mm el lift, 1 s de margen): si una
   articulación no llega, aborta y `arm_ik_node` avisa *"el brazo no llegó… ¿chocó con algo?"*. Pero
   en Gazebo eso **casi nunca pasa**: con el mando por posición las articulaciones son infinitamente

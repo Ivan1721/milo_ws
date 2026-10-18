@@ -1,0 +1,53 @@
+# Planificadores de OMPL (los que buscan un camino sin choques entre la postura actual y la meta)
+# y los "adaptadores" que arreglan la petición antes y la trayectoria después.
+planning_plugin: ompl_interface/OMPLPlanner
+# Orden de los adaptadores: el primero de la lista es el que se aplica al final.
+#   AddTimeOptimalParameterization  le pone tiempo al camino con los límites de velocidad y
+#                                   aceleración de joint_limits.yaml (rampas: aptas para motores
+#                                   paso a paso)
+#   ResolveConstraintFrames         pasa las restricciones al frame del robot
+#   FixWorkspaceBounds              si la petición no trae espacio de trabajo, usa 10 m
+#   FixStartStateBounds             si una articulación parte apenas fuera de su límite, la mete
+#   FixStartStateCollision          si parte en choque leve, la corre un poco
+#   FixStartStatePathConstraints    idem para restricciones de camino
+request_adapters: >-
+  default_planner_request_adapters/AddTimeOptimalParameterization
+  default_planner_request_adapters/ResolveConstraintFrames
+  default_planner_request_adapters/FixWorkspaceBounds
+  default_planner_request_adapters/FixStartStateBounds
+  default_planner_request_adapters/FixStartStateCollision
+  default_planner_request_adapters/FixStartStatePathConstraints
+start_state_max_bounds_error: 0.1
+
+planner_configs:
+  # RRT-Connect: dos árboles al azar (desde el inicio y desde la meta) que crecen hasta tocarse.
+  # Rápido y confiable; es el que usa casi todo el mundo para brazos.
+  RRTConnectkConfigDefault:
+    type: geometric::RRTConnect
+    range: 0.0   # 0 = OMPL elige el paso según el tamaño del espacio
+  # RRT*: igual pero sigue mejorando el camino mientras le quede tiempo (más suave, más lento).
+  RRTstarkConfigDefault:
+    type: geometric::RRTstar
+    range: 0.0
+    goal_bias: 0.05
+    delay_collision_checking: 1
+  # PRM: red de posturas al azar reutilizable entre consultas.
+  PRMkConfigDefault:
+    type: geometric::PRM
+    max_nearest_neighbors: 10
+
+brazo:
+  default_planner_config: RRTConnectkConfigDefault
+  planner_configs:
+    - RRTConnectkConfigDefault
+    - RRTstarkConfigDefault
+    - PRMkConfigDefault
+  # Proyección para los planificadores que la usan: las dos primeras articulaciones del brazo.
+  projection_evaluator: joints(joint_1,joint_2)
+  # Cada cuánto (fracción del rango) se revisa el choque a lo largo de un tramo del camino.
+  longest_valid_segment_fraction: 0.005
+
+pinza:
+  default_planner_config: RRTConnectkConfigDefault
+  planner_configs:
+    - RRTConnectkConfigDefault

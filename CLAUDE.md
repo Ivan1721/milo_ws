@@ -67,7 +67,8 @@ cd /ros2_ws/src/andesrobot_safety && python3 -m pytest -q test
 
 Gazebo smoke test, headless (~2 min, container up, no other sim running):
 `bash /ros2_ws/src/andesrobot_arm/scripts/prueba_gazebo.sh` (controllers, joint_states, camera rates,
-a reachable pose via TF, gripper open/close, clean shutdown).
+a reachable pose via TF, with MoveIt also: table in the scene, a pose inside the table rejected,
+OctoMap filled; gripper open/close, clean shutdown). `MOVEIT=false` runs it with `arm_ik_node`.
 
 There are no ament_lint tests; keep Python within 99 columns (flake8) to match the code.
 
@@ -89,7 +90,8 @@ Packages (`ros2_ws/src/`):
 | `andesrobot_bringup` | top-level launches: `sim_mapping` (what `./sim.sh` runs), `robot`/`robot_mapping` (real), `rviz_mapping`; `milo_controllers.yaml` (diff drive, real robot) |
 | `andesrobot_safety` | `safety_filter`: `/cmd_vel_teleop` + `/scan` → stops before obstacles → `cmd_vel_out`. Math in `logic.py` (unit-tested), ROS in `safety_filter.py` |
 | `andesrobot_slam` | `laser_filters` (removes the column from the scan) + slam_toolbox online async |
-| `andesrobot_arm` | arm kinematics/IK, `arm_ik_node`, `arm_marker_node`, `arm_controllers.yaml`, `arm_sim.launch.py` |
+| `andesrobot_arm` | arm kinematics/IK, `arm_ik_node`, `arm_moveit_node`, `arm_marker_node`, `arm_controllers.yaml`, `arm_sim.launch.py` |
+| `andesrobot_moveit_config` | MoveIt 2 config for the arm: `andesrobot.srdf`, `kinematics.yaml` (KDL), `joint_limits.yaml`, `moveit_controllers.yaml`, `ompl_planning.yaml`, `sensors_3d.yaml` (OctoMap). Config only; launched from `arm_sim.launch.py` |
 | `drivers/hoverboard_hardware_interface` | C++ ros2_control hardware plugin for the real wheels (serial) |
 
 **Sim vs real parity for the base:** same topics in both. Sim uses Gazebo plugins from
@@ -118,9 +120,25 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   sync; `allow_partial_joints_goal: true`); `gripper_controller` holds `right_finger_joint`.
 - Controllers are spawned only if `spawn_entity` exits 0.
 - Data flow: `arm_marker_node` (interactive marker at `gripper_tcp`) publishes `PoseStamped` on
-  `/arm_target_pose` → `arm_ik_node` (TF into the IK chain's base frame, IK seeded from `/joint_states`) →
-  `FollowJointTrajectory` on `/arm_controller/follow_joint_trajectory`. Anything that publishes
-  `/arm_target_pose` can drive the arm (params: `use_lift`, `position_only`, `lift_weight`, ...).
+  `/arm_target_pose`. With `moveit:=true` (default since 2026-10-18) `arm_moveit_node` turns it into
+  a `MoveGroup` action goal (`/move_action`, group `brazo` = `base_footprint → gripper_tcp`, 7
+  joints) and `move_group` plans a collision-free path (OMPL RRT-Connect, KDL IK, TOTG timing) and
+  executes it on `/arm_controller/follow_joint_trajectory`; failures are logged in Spanish with the
+  MoveIt error code (`MOTIVOS` in `arm_moveit_node.py`). With `moveit:=false` the old `arm_ik_node`
+  does the IK itself (no collision checking; params `use_lift`, `position_only`, `lift_weight`).
+- MoveIt details: `move_group` is started by `OnProcessExit` of the controller spawner (so the
+  FollowJointTrajectory servers exist); `MoveItConfigsBuilder('andesrobot',
+  package_name='andesrobot_moveit_config')` processes the **same xacro with the same mappings** as
+  `robot_state_publisher`. The planning scene only knows robot frames (`Unknown frame: odom`), so
+  the test table (two boxes published by `arm_moveit_node` on `/planning_scene`) and the OctoMap
+  (`octomap_frame`) use `base_footprint`; fine while the base doesn't move. `octomap:=false`
+  disables `sensors_3d.yaml`. Objects seen by the camera become obstacles, so a pose touching them
+  is rejected. Regenerate the SRDF `<disable_collisions>` pairs after geometry changes with
+  `ros2 run moveit_setup_assistant collisions_updater` (command in `docs/BRAZO.md`); the SRDF keeps
+  its hand-written header, so merge the generated pairs instead of overwriting the file. RViz uses
+  `rviz/arm_moveit.rviz` (PlanningScene + Trajectory displays) and needs the robot_description
+  params. The image installs `ros-humble-moveit`, `moveit-ros-perception` (OctoMap updater, not in
+  the metapackage) and `moveit-setup-assistant`.
 - Uses mesh collisions by default (`simple_collision:=false`) because the simple boxes leave the arm
   without collision.
 - `gripper_camera:=true` (on by default in `arm_sim`, arg `camara`) adds the Orbbec Gemini Plus on
@@ -153,17 +171,18 @@ marker's frame. `andesrobot_arm/scripts/figuras.py` regenerates `docs/figuras/` 
 drawings, workspace and `medidas.json`) from the URDF + STL meshes; rerun it after geometry changes. `scripts/fig_articulaciones.py` (imports figuras.py, so needs the container) draws the
 report's notation figure A (joint_2 and the lift over translucent URDF meshes, with every formula
 symbol) into `docs/figuras/`; copy it to `docs/informe/img/`. `scripts/fig_lazo_cerrado.py` (matplotlib only) draws the
-report's figure B, the arm's closed-loop block diagram. Arm limits are **provisional** (`arm_lower/arm_upper/arm_effort/arm_velocity`
+report's figure B, the arm's closed-loop block diagram; `fig_lazo_moveit.py` reuses its helpers for
+figure C (the same loop with MoveIt 2, a proposal). Arm limits are **provisional** (`arm_lower/arm_upper/arm_effort/arm_velocity`
 properties: ±π, 20 N·m, 1 rad/s); don't use them for real hardware.
 
-Known sim behaviors: IK has no collision checking. `arm_controller` has goal tolerances
+Known sim behaviors: the own IK (`moveit:=false`) has no collision checking. `arm_controller` has goal tolerances
 (`arm_controllers.yaml`: 0.02 rad, lift 5 mm, `goal_time` 1 s, path tolerance off) so a move whose
 joints don't arrive aborts with GOAL_TOLERANCE_VIOLATED and `arm_ik_node` logs it, but **Gazebo
 almost never blocks the arm**: position-commanded joints are rigid, so a collision with the table or
 column tilts/pushes the whole base (measured 2026-10-17: TCP sent 2 cm into the tabletop "arrives",
 base tilts 3° and slides 3.5 cm back) and the controller reports success. Don't present the
-tolerances as collision detection; real protection needs MoveIt collision checking (or effort
-control with PIDs). `gripper_controller` has no tolerances on purpose (fingers stall on a grasped
+tolerances as collision detection; the real protection is MoveIt's planning-scene collision
+checking (default) or effort control with PIDs. `gripper_controller` has no tolerances on purpose (fingers stall on a grasped
 object). The test table in `worlds/mesa_prueba.sdf` is anchored to `world` with a fixed joint so
 the arm can't slide it. With the provisional ±π limits a joint can't cross ±π, so a
 target "on the other side" makes a near-full turn (measured: 6.08 rad / 12.2 s for a 0.2 rad change).

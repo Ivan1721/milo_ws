@@ -44,9 +44,9 @@ están al final.
 
 | Capa | Hoy | Recomendado | Por qué |
 | --- | --- | --- | --- |
-| Planificación sin choques | IK propia, sin choques | **MoveIt 2** | revisa choques con las mallas y ya habla con el mismo controlador |
-| Solver de IK | DLS propio | **KDL** al empezar → **TRAC-IK** | KDL viene con MoveIt; TRAC-IK resuelve más casos cerca de los límites |
-| Trayectorias suaves | velocidad constante | **Ruckig** (dentro de MoveIt) | rampas de aceleración para que los motores paso a paso no pierdan pasos |
+| Planificación sin choques | ✅ **MoveIt 2** (desde el 18-10-2026, `andesrobot_moveit_config`) | seguir afinando | revisa choques con las mallas, la mesa y el OctoMap, y habla con el mismo controlador |
+| Solver de IK | ✅ **KDL** (en MoveIt); DLS propio con `moveit:=false` | **TRAC-IK** después | KDL viene con MoveIt; TRAC-IK resuelve más casos cerca de los límites |
+| Trayectorias suaves | ✅ **TOTG** (rampas de aceleración, en MoveIt) | **Ruckig** (tirón limitado) | rampas para que los motores paso a paso no pierdan pasos |
 | Control | ros2_control en Gazebo | **ros2_control** + hardware interface propio | el mismo `arm_controller` sirve en simulación y en el robot |
 | Microcontrolador | Arduino Mega (sin montar) | Mega para empezar; **ESP32 o Teensy 4.1** si falta velocidad o se quiere micro-ROS | el Mega genera pulsos para 6 motores solo por software |
 | Drivers de motor | TB6600 | TB6600 al empezar; DM542/DM556 si hay ruido o pérdida de pasos | los digitales manejan mejor la resonancia de los NEMA23 |
@@ -68,22 +68,23 @@ están al final.
 
 | Tecnología | Para qué | Estado |
 | --- | --- | --- |
-| **MoveIt 2** | planifica movimientos sin choques: lee el URDF, revisa las mallas y manda la trayectoria al controlador por `FollowJointTrajectory`, la misma acción que ya usa Milo | ⭐ recomendada; viene en binario para Humble (`ros-humble-moveit`) |
-| **MoveIt Setup Assistant** | asistente gráfico que genera la configuración de MoveIt a partir del URDF: grupos, poses guardadas, pares de piezas que no hace falta revisar | ⭐ es el primer paso |
+| **MoveIt 2** | planifica movimientos sin choques: lee el URDF, revisa las mallas y manda la trayectoria al controlador por `FollowJointTrajectory`, la misma acción que ya usa Milo | ✅ **en uso** desde el 18-10-2026 (`andesrobot_moveit_config`, `arm_moveit_node`); binario `ros-humble-moveit` |
+| **MoveIt Setup Assistant** | asistente gráfico que genera la configuración de MoveIt a partir del URDF: grupos, poses guardadas, pares de piezas que no hace falta revisar | ✅ la configuración se escribió a mano y los pares de choques con su `collisions_updater` |
 | **MoveIt Task Constructor** | arma tareas de varias etapas: acercarse, abrir la pinza, bajar, cerrar, levantar | ➕ para "tomar y dejar" objetos |
 | **MoveIt Servo** | mueve el brazo en tiempo real a partir de velocidades (joystick o visión), revisando choques | ➕ para teleoperar o corregir con la cámara |
 | **OMPL** | biblioteca de planificadores por muestreo (RRT, PRM…) que MoveIt usa por defecto | ✅ incluida en MoveIt |
 | **STOMP / CHOMP** | planificadores por optimización, dan caminos más suaves | ➕ incluidos en MoveIt 2 |
 
-**Cómo configurarlo para Milo:** un grupo `brazo` con `vertical_lift_joint` + `joint_1…6` (el
-mismo de `arm_controller`) y un grupo `pinza` con `right_finger_joint`. El lift entra como un eje
-más, igual que hace TIAGo con su torso.
+**Cómo quedó configurado para Milo** (`andesrobot_moveit_config`): un grupo `brazo` con
+`vertical_lift_joint` + `joint_1…6` (el mismo de `arm_controller`) y un grupo `pinza` con
+`right_finger_joint`. El lift entra como un eje más, igual que hace TIAGo con su torso. Cómo usarlo
+y sus límites: `andesrobot_arm/docs/BRAZO.md`, sección «MoveIt 2».
 
 ### Solvers de cinemática inversa para MoveIt
 
 | Solver | Qué es | Estado |
 | --- | --- | --- |
-| **KDL** | el solver por defecto de MoveIt (Newton con el jacobiano) | ⭐ para empezar; falla más cerca de los límites |
+| **KDL** | el solver por defecto de MoveIt (Newton con el jacobiano) | ✅ en uso (`kinematics.yaml`); falla más cerca de los límites |
 | **TRAC-IK** | corre en paralelo un KDL mejorado y una optimización; resuelve bastantes más casos | ⭐ después; ⚠️ en Humble no encontré paquete binario confirmado: se compila desde el código (rama de ROS 2) |
 | `kinematics.py` propio | el DLS con pesos que ya tiene Milo | ✅ en uso; se mantiene para pruebas y para `arm-viz` |
 
@@ -92,7 +93,7 @@ más, igual que hace TIAGo con su torso.
 | Tecnología | Para qué | Estado |
 | --- | --- | --- |
 | **Ruckig** | genera trayectorias con límites de velocidad, aceleración y tirón en microsegundos; integrada en MoveIt 2 como suavizado | ⭐ para los motores paso a paso |
-| **TOTG** | parametrización en el tiempo con límites de velocidad y aceleración, la de MoveIt por defecto | ✅ viene con MoveIt |
+| **TOTG** | parametrización en el tiempo con límites de velocidad y aceleración, la de MoveIt por defecto | ✅ en uso (`ompl_planning.yaml`, límites en `joint_limits.yaml`) |
 
 ### Control
 
@@ -133,6 +134,7 @@ junto con el equipo de la base, porque afecta a todo el robot.
 | **OrbbecSDK_ROS2** | driver oficial de las cámaras Orbbec; publica los mismos topics que la simulación de Milo | ⚠️ la rama actual (`v2-main`) no lista la **Gemini Plus** entre sus cámaras; la rama `main` (SDK v1) cubre modelos antiguos. Hay que probar con la cámara conectada antes de fijar la versión en `docker/milo.repos` |
 | **image_pipeline** (`depth_image_proc`) | rectificar imágenes, pasar profundidad a nube de puntos | ➕ si el driver no entrega la nube |
 | **easy_handeye2** | calibración cámara–pinza (Tsai–Lenz, Park–Martin) | ⭐ al montar la cámara |
+| **OctoMap** (`moveit_ros_perception`) | la nube de la cámara como obstáculos en la escena de MoveIt | ✅ en uso (`sensors_3d.yaml`, `octomap:=true`) |
 | **ArUco** (en OpenCV) | marcadores impresos fáciles de detectar; sirven para calibrar y para medir exactitud | ⭐ |
 
 ### Detección y agarre
@@ -357,6 +359,9 @@ flowchart LR
   CAM["Cámara"] -. "posición del objeto<br/>en la imagen" .-> ERR
   ERR --> SV["MoveIt Servo<br/>velocidades"] --> BR["Brazo"] --> CAM
 ```
+
+El lazo completo del brazo tal como corre hoy, y cómo quedaría con MoveIt 2, están dibujados en
+las figuras B y C del [informe](../informe/README.md#13-el-brazo-en-simulación) (sección 13).
 
 ### Lazo 6: Next-Best-View
 

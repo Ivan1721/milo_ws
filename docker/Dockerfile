@@ -64,6 +64,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN apt-get update && apt-get install -y --no-install-recommends python3-vcstool \
     && rm -rf /var/lib/apt/lists/*
 
+# MoveIt 2: planificación del brazo con revisión de choques (paquete andesrobot_moveit_config).
+#   moveit                  move_group (el planificador), OMPL, cinemática KDL, escena de
+#                           planificación y los paneles de RViz
+#   moveit-ros-perception   el OctoMap: convierte la nube de la cámara en obstáculos (no viene
+#                           con el metapaquete moveit)
+#   moveit-setup-assistant  el asistente gráfico y "collisions_updater", que calcula qué pares de
+#                           piezas nunca chocan (para el SRDF)
+#   moveit-configs-utils    MoveItConfigsBuilder, con el que el launch arma los parámetros
+# También en un RUN aparte: así agregar MoveIt no obliga a reinstalar todo lo de arriba.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ros-humble-moveit \
+      ros-humble-moveit-ros-perception \
+      ros-humble-moveit-setup-assistant \
+      ros-humble-moveit-configs-utils \
+    && rm -rf /var/lib/apt/lists/*
+
 # Drivers externos (por ahora el del RPLIDAR C1 de Slamtec), listados con su versión exacta en
 # milo.repos: así todos los PCs compilan exactamente lo mismo, y las versiones se cambian en un
 # solo archivo. El driver del hoverboard NO va ahí: vive en ros2_ws/src/drivers con la

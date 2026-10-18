@@ -10,6 +10,12 @@ Orden de lo que pasa:
 
 Uso:  ros2 launch andesrobot_arm arm_sim.launch.py   [gui:=false] [rviz:=false]
                                                     [camara:=false] [mesa:=false]
+                                                    [moveit:=false] [octomap:=false]
+Con moveit:=true (default) arranca move_group (MoveIt 2) con la configuración de
+andesrobot_moveit_config y arm_moveit_node reemplaza a arm_ik_node: las poses de
+/arm_target_pose se planifican sin choques (robot, mesa y, con octomap:=true, lo que ve la
+cámara). Con moveit:=false queda la cinemática inversa propia (arm_ik_node), sin revisión
+de choques.
 Cámara: topics /gripper_camera/{color,depth,ir}/image_raw y /gripper_camera/depth/points
 (ver andesrobot_description/urdf/andesrobot.gripper_camera.xacro). Guardar una imagen de cada
 canal:  ros2 run andesrobot_arm capturar_camara
@@ -27,6 +33,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+from moveit_configs_utils import MoveItConfigsBuilder
 
 
 def _strip_comments(node):
@@ -57,9 +64,45 @@ def robot_description_urdf(simple_collision, camara):
     return doc.toxml()
 
 
+def moveit_config(simple_collision, camara, octomap):
+    """Parámetros de MoveIt 2 (URDF + SRDF + cinemática + límites + controladores + OctoMap).
+
+    MoveItConfigsBuilder lee los archivos de andesrobot_moveit_config/config y procesa el MISMO
+    xacro que robot_state_publisher (con los mismos argumentos), así move_group y la simulación
+    ven el mismo robot. Devuelve un objeto cuyo .to_dict() son los parámetros de move_group.
+    """
+    xacro_file = os.path.join(get_package_share_directory('andesrobot_description'),
+                              'urdf', 'andesrobot.urdf.xacro')
+    controllers = os.path.join(get_package_share_directory('andesrobot_arm'),
+                               'config', 'arm_controllers.yaml')
+    # (Al arrancar avisa "Cannot infer URDF/SRDF ... using config/andesrobot.urdf": es porque el
+    # paquete no trae su propio xacro; el URDF se le pasa explícito abajo. No es un error.)
+    builder = (
+        MoveItConfigsBuilder('andesrobot', package_name='andesrobot_moveit_config')
+        .robot_description(file_path=xacro_file, mappings={
+            'lock_arm': 'false', 'arm_control': 'true', 'arm_controllers_file': controllers,
+            'simple_collision': simple_collision, 'gripper_camera': camara})
+        .robot_description_semantic(file_path='config/andesrobot.srdf')
+        .robot_description_kinematics(file_path='config/kinematics.yaml')
+        .joint_limits(file_path='config/joint_limits.yaml')
+        .trajectory_execution(file_path='config/moveit_controllers.yaml')
+        .planning_pipelines(pipelines=['ompl'])
+        # Publicar la escena (obstáculos, OctoMap, estado) para RViz.
+        .planning_scene_monitor(publish_robot_description=False,
+                                publish_robot_description_semantic=True,
+                                publish_planning_scene=True, publish_geometry_updates=True,
+                                publish_state_updates=True, publish_transforms_updates=True)
+    )
+    if octomap == 'true':
+        # OctoMap desde la nube de la cámara de la pinza (config/sensors_3d.yaml).
+        builder = builder.sensors_3d(file_path='config/sensors_3d.yaml')
+    return builder.to_moveit_configs()
+
+
 def launch_setup(context):
     urdf = robot_description_urdf(LaunchConfiguration('simple_collision').perform(context),
                                   LaunchConfiguration('camara').perform(context))
+    moveit = LaunchConfiguration('moveit').perform(context) == 'true'
 
     # robot_state_publisher: publica /robot_description y las TF, con el reloj de Gazebo.
     rsp = Node(
@@ -99,15 +142,37 @@ def launch_setup(context):
         OnProcessExit(target_action=spawn, on_exit=start_controllers_if_spawned))
 
     sim_time = [{'use_sim_time': True}]
-    ik = Node(package='andesrobot_arm', executable='arm_ik_node',
-              parameters=sim_time, output='screen')
     marker = Node(package='andesrobot_arm', executable='arm_marker_node',
                   parameters=sim_time, output='screen')
+    rviz_params = list(sim_time)
+    if moveit:
+        config = moveit_config(LaunchConfiguration('simple_collision').perform(context),
+                               LaunchConfiguration('camara').perform(context),
+                               LaunchConfiguration('octomap').perform(context))
+        # move_group: el planificador. Arranca cuando el spawner terminó (controladores
+        # activos): así encuentra las acciones FollowJointTrajectory al conectarse.
+        move_group = Node(package='moveit_ros_move_group', executable='move_group',
+                          output='screen', parameters=[config.to_dict(), {'use_sim_time': True}])
+        # Cliente: /arm_target_pose -> acción MoveGroup (y la mesa como obstáculo).
+        mover = Node(package='andesrobot_arm', executable='arm_moveit_node', output='screen',
+                     parameters=[{'use_sim_time': True,
+                                  'mesa': LaunchConfiguration('mesa').perform(context) == 'true'}])
+        after_controllers = RegisterEventHandler(
+            OnProcessExit(target_action=spawner, on_exit=[move_group, mover]))
+        # RViz necesita el URDF/SRDF como parámetros para dibujar la escena y la trayectoria.
+        rviz_params += [config.robot_description, config.robot_description_semantic,
+                        config.robot_description_kinematics]
+        rviz_file = 'arm_moveit.rviz'
+    else:
+        # Sin MoveIt: la cinemática inversa propia, sin revisión de choques.
+        after_controllers = Node(package='andesrobot_arm', executable='arm_ik_node',
+                                 parameters=sim_time, output='screen')
+        rviz_file = 'arm.rviz'
     rviz = Node(
         package='rviz2', executable='rviz2', output='screen',
         arguments=['-d', os.path.join(get_package_share_directory('andesrobot_arm'),
-                                      'rviz', 'arm.rviz')],
-        parameters=sim_time,
+                                      'rviz', rviz_file)],
+        parameters=rviz_params,
         condition=IfCondition(LaunchConfiguration('rviz')),
     )
     # Mesa con tres objetos frente a Milo (worlds/mesa_prueba.sdf): algo que la cámara vea a
@@ -122,7 +187,7 @@ def launch_setup(context):
         output='screen',
         condition=IfCondition(LaunchConfiguration('mesa')),
     )
-    return [rsp, spawn, controllers, ik, marker, rviz, mesa]
+    return [rsp, spawn, controllers, after_controllers, marker, rviz, mesa]
 
 
 def generate_launch_description():
@@ -152,6 +217,12 @@ def generate_launch_description():
                               description='Cámara Orbbec Gemini Plus sobre la pinza'),
         DeclareLaunchArgument('mesa', default_value='true',
                               description='Mesa con objetos de prueba frente a Milo'),
+        DeclareLaunchArgument('moveit', default_value='true',
+                              description='true = MoveIt 2 planifica sin choques '
+                                          '(arm_moveit_node); false = IK propia (arm_ik_node)'),
+        DeclareLaunchArgument('octomap', default_value='true',
+                              description='Con moveit: lo que ve la cámara entra a la escena '
+                                          'como obstáculo (OctoMap)'),
         gazebo,
         OpaqueFunction(function=launch_setup),
     ])

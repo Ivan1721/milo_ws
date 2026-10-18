@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- =============================================================================================
+  SRDF DE MILO (Semantic Robot Description Format): lo que MoveIt necesita saber del robot y que
+  el URDF no dice.
+  - <group>        qué articulaciones mueve el planificador juntas. "brazo" es la cadena completa
+                   desde el suelo (base_footprint) hasta el punto de agarre (gripper_tcp): pasa
+                   por el lift y las 6 articulaciones del brazo, o sea los mismos 7 ejes que
+                   maneja arm_controller. "pinza" es solo el dedo derecho (el izquierdo lo copia
+                   el URDF con "mimic").
+  - <group_state>  posturas con nombre, para pedirlas desde RViz o desde código.
+  - <end_effector> la pinza cuelga de gripper_tcp, al final del grupo "brazo".
+  - <disable_collisions>  pares de piezas que MoveIt NO revisa entre sí: las que se tocan
+                   siempre por estar unidas (Adjacent), las que nunca pueden tocarse (Never) y
+                   las que chocan en la postura cero por cómo están las mallas (Default). Sin esta
+                   lista el robot estaría "chocando consigo mismo" todo el tiempo y nada se
+                   podría planificar. La lista la calcula collisions_updater (MoveIt) probando
+                   miles de posturas al azar; cómo regenerarla está en docs/BRAZO.md.
+============================================================================================= -->
+<robot name="andesrobot">
+
+  <group name="brazo">
+    <chain base_link="base_footprint" tip_link="gripper_tcp"/>
+  </group>
+  <group name="pinza">
+    <joint name="right_finger_joint"/>
+  </group>
+
+  <!-- Todo en cero: brazo vertical, lift a media altura. -->
+  <group_state name="cero" group="brazo">
+    <joint name="vertical_lift_joint" value="0"/>
+    <joint name="joint_1" value="0"/>
+    <joint name="joint_2" value="0"/>
+    <joint name="joint_3" value="0"/>
+    <joint name="joint_4" value="0"/>
+    <joint name="joint_5" value="0"/>
+    <joint name="joint_6" value="0"/>
+  </group_state>
+  <!-- Pinza delante y arriba de Milo: la pose de validación del informe
+       (0.5048, -0.2163, 1.862 en base_footprint). -->
+  <group_state name="frente" group="brazo">
+    <joint name="vertical_lift_joint" value="0.191"/>
+    <joint name="joint_1" value="0.500"/>
+    <joint name="joint_2" value="0.363"/>
+    <joint name="joint_3" value="-0.255"/>
+    <joint name="joint_4" value="0.281"/>
+    <joint name="joint_5" value="0.100"/>
+    <joint name="joint_6" value="0.301"/>
+  </group_state>
+  <group_state name="abierta" group="pinza">
+    <joint name="right_finger_joint" value="0.016"/>
+  </group_state>
+  <group_state name="cerrada" group="pinza">
+    <joint name="right_finger_joint" value="-0.007"/>
+  </group_state>
+
+  <end_effector name="pinza" parent_link="gripper_tcp" group="pinza" parent_group="brazo"/>
+
+  <!-- PARES SIN REVISIÓN DE CHOQUES (generados por collisions_updater; no editar a mano) -->
+  <disable_collisions link1="arm_base_link_1" link2="lift_carriage_link_1" reason="Adjacent"/>
+  <disable_collisions link1="arm_base_link_1" link2="link_1_1" reason="Adjacent"/>
+  <disable_collisions link1="base_link" link2="front_caster_link_1" reason="Adjacent"/>
+  <disable_collisions link1="base_link" link2="imu_link_1" reason="Adjacent"/>
+  <disable_collisions link1="base_link" link2="left_wheel_link_1" reason="Adjacent"/>
+  <disable_collisions link1="base_link" link2="lidar_link_1" reason="Adjacent"/>
+  <disable_collisions link1="base_link" link2="right_wheel_link_1" reason="Adjacent"/>
+  <disable_collisions link1="base_link" link2="vertical_column_link_1" reason="Adjacent"/>
+  <disable_collisions link1="gripper_camera_link" link2="link_6_1" reason="Adjacent"/>
+  <disable_collisions link1="left_finger_link_1" link2="link_6_1" reason="Adjacent"/>
+  <disable_collisions link1="lift_carriage_link_1" link2="vertical_column_link_1" reason="Adjacent"/>
+  <disable_collisions link1="link_1_1" link2="link_2_1" reason="Adjacent"/>
+  <disable_collisions link1="link_2_1" link2="link_3_1" reason="Adjacent"/>
+  <disable_collisions link1="link_3_1" link2="link_4_1" reason="Adjacent"/>
+  <disable_collisions link1="link_4_1" link2="link_5_1" reason="Adjacent"/>
+  <disable_collisions link1="link_5_1" link2="link_6_1" reason="Adjacent"/>
+  <disable_collisions link1="link_6_1" link2="right_finger_link_1" reason="Adjacent"/>
+  <disable_collisions link1="left_finger_link_1" link2="right_finger_link_1" reason="Default"/>
+  <disable_collisions link1="arm_base_link_1" link2="base_link" reason="Never"/>
+  <disable_collisions link1="arm_base_link_1" link2="front_caster_link_1" reason="Never"/>
+  <disable_collisions link1="arm_base_link_1" link2="imu_link_1" reason="Never"/>
+  <disable_collisions link1="arm_base_link_1" link2="left_wheel_link_1" reason="Never"/>
+  <disable_collisions link1="arm_base_link_1" link2="lidar_link_1" reason="Never"/>
+  <disable_collisions link1="arm_base_link_1" link2="right_wheel_link_1" reason="Never"/>
+  <disable_collisions link1="arm_base_link_1" link2="vertical_column_link_1" reason="Never"/>
+  <disable_collisions link1="base_link" link2="lift_carriage_link_1" reason="Never"/>
+  <disable_collisions link1="base_link" link2="link_1_1" reason="Never"/>
+  <disable_collisions link1="front_caster_link_1" link2="imu_link_1" reason="Never"/>
+  <disable_collisions link1="front_caster_link_1" link2="left_wheel_link_1" reason="Never"/>
+  <disable_collisions link1="front_caster_link_1" link2="lidar_link_1" reason="Never"/>
+  <disable_collisions link1="front_caster_link_1" link2="lift_carriage_link_1" reason="Never"/>
+  <disable_collisions link1="front_caster_link_1" link2="link_1_1" reason="Never"/>
+  <disable_collisions link1="front_caster_link_1" link2="link_2_1" reason="Never"/>
+  <disable_collisions link1="front_caster_link_1" link2="right_wheel_link_1" reason="Never"/>
+  <disable_collisions link1="front_caster_link_1" link2="vertical_column_link_1" reason="Never"/>
+  <disable_collisions link1="gripper_camera_link" link2="left_finger_link_1" reason="Never"/>
+  <disable_collisions link1="gripper_camera_link" link2="link_4_1" reason="Never"/>
+  <disable_collisions link1="gripper_camera_link" link2="link_5_1" reason="Never"/>
+  <disable_collisions link1="gripper_camera_link" link2="right_finger_link_1" reason="Never"/>
+  <disable_collisions link1="imu_link_1" link2="left_wheel_link_1" reason="Never"/>
+  <disable_collisions link1="imu_link_1" link2="lidar_link_1" reason="Never"/>
+  <disable_collisions link1="imu_link_1" link2="lift_carriage_link_1" reason="Never"/>
+  <disable_collisions link1="imu_link_1" link2="link_1_1" reason="Never"/>
+  <disable_collisions link1="imu_link_1" link2="link_2_1" reason="Never"/>
+  <disable_collisions link1="imu_link_1" link2="link_4_1" reason="Never"/>
+  <disable_collisions link1="imu_link_1" link2="link_5_1" reason="Never"/>
+  <disable_collisions link1="imu_link_1" link2="right_wheel_link_1" reason="Never"/>
+  <disable_collisions link1="imu_link_1" link2="vertical_column_link_1" reason="Never"/>
+  <disable_collisions link1="left_finger_link_1" link2="link_4_1" reason="Never"/>
+  <disable_collisions link1="left_finger_link_1" link2="link_5_1" reason="Never"/>
+  <disable_collisions link1="left_wheel_link_1" link2="lidar_link_1" reason="Never"/>
+  <disable_collisions link1="left_wheel_link_1" link2="lift_carriage_link_1" reason="Never"/>
+  <disable_collisions link1="left_wheel_link_1" link2="link_1_1" reason="Never"/>
+  <disable_collisions link1="left_wheel_link_1" link2="link_2_1" reason="Never"/>
+  <disable_collisions link1="left_wheel_link_1" link2="right_wheel_link_1" reason="Never"/>
+  <disable_collisions link1="left_wheel_link_1" link2="vertical_column_link_1" reason="Never"/>
+  <disable_collisions link1="lidar_link_1" link2="lift_carriage_link_1" reason="Never"/>
+  <disable_collisions link1="lidar_link_1" link2="link_1_1" reason="Never"/>
+  <disable_collisions link1="lidar_link_1" link2="right_wheel_link_1" reason="Never"/>
+  <disable_collisions link1="lidar_link_1" link2="vertical_column_link_1" reason="Never"/>
+  <disable_collisions link1="lift_carriage_link_1" link2="link_1_1" reason="Never"/>
+  <disable_collisions link1="lift_carriage_link_1" link2="right_wheel_link_1" reason="Never"/>
+  <disable_collisions link1="link_1_1" link2="right_wheel_link_1" reason="Never"/>
+  <disable_collisions link1="link_1_1" link2="vertical_column_link_1" reason="Never"/>
+  <disable_collisions link1="link_2_1" link2="right_wheel_link_1" reason="Never"/>
+  <disable_collisions link1="link_4_1" link2="link_6_1" reason="Never"/>
+  <disable_collisions link1="link_4_1" link2="right_finger_link_1" reason="Never"/>
+  <disable_collisions link1="link_5_1" link2="right_finger_link_1" reason="Never"/>
+  <disable_collisions link1="right_wheel_link_1" link2="vertical_column_link_1" reason="Never"/>
+</robot>

@@ -1,0 +1,50 @@
+# Límites de velocidad y aceleración por articulación para ponerle tiempo a las trayectorias
+# (parametrización TOTG, ver ompl_planning.yaml). Las velocidades son las del URDF (provisorias:
+# 1 rad/s el brazo, 0.2 m/s el lift); las aceleraciones no están en el URDF y se fijan aquí.
+# Los factores de escala valen por defecto para todo movimiento: 0.5 = a la mitad de los límites,
+# igual que la velocidad que usa arm_ik_node (0.5 rad/s). arm_moveit_node los puede cambiar por
+# parámetro.
+default_velocity_scaling_factor: 0.5
+default_acceleration_scaling_factor: 0.5
+
+joint_limits:
+  vertical_lift_joint:
+    has_velocity_limits: true
+    max_velocity: 0.2       # [m/s]
+    has_acceleration_limits: true
+    max_acceleration: 0.5   # [m/s²]
+  joint_1:
+    has_velocity_limits: true
+    max_velocity: 1.0       # [rad/s]
+    has_acceleration_limits: true
+    max_acceleration: 1.0   # [rad/s²]
+  joint_2:
+    has_velocity_limits: true
+    max_velocity: 1.0
+    has_acceleration_limits: true
+    max_acceleration: 1.0
+  joint_3:
+    has_velocity_limits: true
+    max_velocity: 1.0
+    has_acceleration_limits: true
+    max_acceleration: 1.0
+  joint_4:
+    has_velocity_limits: true
+    max_velocity: 1.0
+    has_acceleration_limits: true
+    max_acceleration: 1.0
+  joint_5:
+    has_velocity_limits: true
+    max_velocity: 1.0
+    has_acceleration_limits: true
+    max_acceleration: 1.0
+  joint_6:
+    has_velocity_limits: true
+    max_velocity: 1.0
+    has_acceleration_limits: true
+    max_acceleration: 1.0
+  right_finger_joint:
+    has_velocity_limits: true
+    max_velocity: 0.05      # [m/s]
+    has_acceleration_limits: true
+    max_acceleration: 0.2   # [m/s²]

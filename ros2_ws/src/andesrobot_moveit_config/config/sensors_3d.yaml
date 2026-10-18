@@ -1,0 +1,30 @@
+# Percepción para MoveIt: la nube de puntos de la cámara de la pinza se convierte en un OctoMap
+# (mapa 3D de celdas ocupadas) que entra a la escena de planificación como obstáculo. Así lo que
+# la cámara ve delante de la pinza bloquea los caminos que pasan por ahí (figura C del informe).
+# Lo carga move_group con octomap:=true en arm_sim.launch.py.
+#
+# octomap_frame       frame en el que se guarda el mapa. base_footprint es el frame del modelo
+#                     (el único que la escena de MoveIt conoce seguro); como la base no se mueve
+#                     en la simulación del brazo, da lo mismo que un frame fijo al mundo.
+# octomap_resolution  tamaño de cada celda [m]. 2 cm: suficiente para la mesa y sus objetos.
+octomap_frame: base_footprint
+octomap_resolution: 0.02
+
+sensors:
+  - camara_pinza
+
+camara_pinza:
+  sensor_plugin: occupancy_map_monitor/PointCloudOctomapUpdater
+  point_cloud_topic: /gripper_camera/depth/points
+  # Más lejos que esto se ignora (el rango útil de la Gemini Plus).
+  max_range: 2.5
+  # Usar 1 de cada 2 puntos: 640x400 a 15 Hz es mucho para el mapa.
+  point_subsample: 2
+  # Los puntos que caen sobre el propio robot (los dedos se ven en la imagen) se descartan;
+  # padding = cuánto se "engorda" cada pieza para esa máscara [m] y factor de escala.
+  padding_offset: 0.03
+  padding_scale: 1.0
+  # Como máximo 2 actualizaciones por segundo.
+  max_update_rate: 2.0
+  # Nube ya sin el robot, por si se quiere mirar en RViz.
+  filtered_cloud_topic: /gripper_camera/depth/points_filtrados
