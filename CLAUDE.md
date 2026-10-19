@@ -165,7 +165,13 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   to `ros2_ws/modelos/` (gitignored). Pretrained YOLOE / YOLOv8-OIV7 localize the simulated handle
   but misclassify it (conf < 0.06), so `scripts/generar_dataset_manija.py` auto-labels images
   (box, polygon, 3 keypoints eje/agarre/punta) from the known door geometry + TF into
-  `ros2_ws/datasets/manija_sim/` (gitignored); goals go in `base_footprint` (MoveIt has no `odom`).
+  `ros2_ws/datasets/manija_sim/{train,val}` (gitignored); goals go in `base_footprint` (MoveIt has
+  no `odom`). `--variar K` respawns a randomized door every K images (`sdf_variante` edits
+  `puerta_prueba.sdf` with ElementTree: materials, lever size, a dim point light, spring
+  references for hinge/handle angles; unique model names; first batch is always the original;
+  brighter lights wash the image out). `scripts/entrenar_manija.py --tarea pose|seg|det` hard-links
+  the split into Ultralytics' images/labels layout and fine-tunes yolov8s-* into
+  `ros2_ws/modelos/entrenamientos/`.
 - Arm masses: gripper scaled from the CAD's steel to ABS (`gripper_mass_scale`); stepper motors and
   the gripper servo are fixed `motor_joint_N`/`gripper_servo_link` inertial-only links on the link
   before each joint. Sources in `docs/hardware/README.md` at the repo root (the docs there are

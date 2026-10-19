@@ -132,13 +132,31 @@ geometría conocida de la manija (TF + `/puerta/joint_states`) para escribir la 
 (máscara) y 3 keypoints (`eje` de la roseta, punto de `agarre` a 7 cm, `punta` de la palanca) en
 formato YOLO, en `ros2_ws/datasets/manija_sim/` (no va a git):
 
+Si todas las fotos muestran la misma puerta café con la misma luz, el modelo aprende *esa*
+puerta y no reconoce otra. Por eso, con `--variar K`, cada K fotos el generador borra la puerta de
+Gazebo y pone una **variante al azar** («domain randomization»): colores y texturas de hoja,
+marco y muros (madera, ladrillo, pintura); manija plateada, dorada, negra, blanca...; largo de la
+palanca (10–14 cm), grosor y roseta; una luz extra de color e intensidad al azar; y la hoja
+entreabierta o la manija bajada (se corre el punto de reposo de sus resortes). Las etiquetas
+usan las medidas de cada variante; `meta.csv` anota cuál tiene cada foto.
+
+Para entrenar se generan dos carpetas con distinta semilla (así la validación son puertas que el
+modelo nunca vio) y luego `scripts/entrenar_manija.py` afina el modelo (pesos y gráficos en
+`ros2_ws/modelos/entrenamientos/`, no van a git):
+
 ```bash
-ros2 launch andesrobot_arm arm_sim.launch.py puerta:=true octomap:=false    # terminal 1
-python3 /ros2_ws/src/andesrobot_arm/scripts/generar_dataset_manija.py --n 200   # terminal 2
+ros2 launch andesrobot_arm arm_sim.launch.py puerta:=true octomap:=false        # terminal 1
+cd /ros2_ws/src/andesrobot_arm/scripts                                           # terminal 2
+python3 generar_dataset_manija.py --n 300 --variar 5 --semilla 1 --salida /ros2_ws/datasets/manija_sim/train
+python3 generar_dataset_manija.py --n 60 --variar 5 --semilla 2 --salida /ros2_ws/datasets/manija_sim/val
+# (apagar la simulación para dejar la GPU libre)
+python3 entrenar_manija.py --tarea pose     # caja + keypoints; o --tarea seg (máscara)
 ```
 
-Medido: 12 imágenes en 15 vistas (3 que MoveIt no alcanzó se saltan), con las etiquetas
-calzando sobre la manija.
+«Afinar» (fine-tuning) es partir de un modelo ya entrenado con miles de fotos (COCO) y enseñarle
+solo la clase nueva: necesita cientos de imágenes y minutos, no millones y días.
+
+Medido: unos 9 s por foto (≈ 1 hora las 360); una vista que MoveIt no alcanza se salta.
 
 ## Cámara de la pinza (Orbbec Gemini Plus)
 
