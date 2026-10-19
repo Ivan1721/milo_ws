@@ -27,7 +27,11 @@ def generate_launch_description():
     sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(PathJoinSubstitution([pkg_gazebo, 'launch', 'sim.launch.py'])),
         launch_arguments={'world': LaunchConfiguration('world'),
-                          'gui': LaunchConfiguration('gazebo_gui')}.items(),
+                          'gui': LaunchConfiguration('gazebo_gui'),
+                          # Dónde aparece Milo (la casa lo pone afuera de su puerta: ver sim.sh)
+                          'x': LaunchConfiguration('x'),
+                          'y': LaunchConfiguration('y'),
+                          'yaw': LaunchConfiguration('yaw')}.items(),
     )
     # 2) SLAM: filtro del lidar + slam_toolbox, con el reloj de Gazebo.
     mapping = IncludeLaunchDescription(
@@ -49,9 +53,17 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        # Mundo por nombre (archivo en andesrobot_gazebo/worlds/): andesrobot_arena o robocup_casa.
+        # ./sim.sh casa pasa mundo:=robocup_casa. (world:= sigue sirviendo con una ruta completa.)
+        DeclareLaunchArgument('mundo', default_value='andesrobot_arena'),
+        # Pose inicial de Milo en el mundo (m, m, rad). Arena: (0, 0) en el centro.
+        DeclareLaunchArgument('x', default_value='0.0'),
+        DeclareLaunchArgument('y', default_value='0.0'),
+        DeclareLaunchArgument('yaw', default_value='0.0'),
         DeclareLaunchArgument(
             'world',
-            default_value=PathJoinSubstitution([pkg_gazebo, 'worlds', 'andesrobot_arena.world'])),
+            default_value=PathJoinSubstitution(
+                [pkg_gazebo, 'worlds', [LaunchConfiguration('mundo'), '.world']])),
         # ./sim.sh sin-gazebo pasa gazebo_gui:=false.
         DeclareLaunchArgument('gazebo_gui', default_value='true'),
         DeclareLaunchArgument('rviz', default_value='true'),

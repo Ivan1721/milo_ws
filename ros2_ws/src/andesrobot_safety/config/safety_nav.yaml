@@ -1,0 +1,21 @@
+# Filtro de seguridad en MODO NAVEGACIÓN AUTÓNOMA (Nav2). Lo usa sim_navigation.launch.py.
+# Igual que safety.yaml salvo lo marcado con "NAV:".
+safety_filter:
+  ros__parameters:
+    stop_distance: 0.30
+    slow_distance: 0.70
+    side_margin: 0.10
+    # NAV: Nav2 ya revisa el footprint al planear; aquí solo una holgura chica para girar en el lugar.
+    rotation_clearance: 0.08
+    # NAV: no bloquear las curvas mientras avanza (si no, no puede corregir rumbo en una puerta
+    # de 0.9 m). Girar EN EL LUGAR sigue bloqueado si hay algo dentro del radio de giro.
+    turn_check_only_in_place: true
+    max_linear: 0.4
+    max_angular: 1.0
+    footprint_x_min: -0.12
+    footprint_x_max: 0.44
+    footprint_half_width: 0.25
+    scan_timeout: 0.5
+    # NAV: si Nav2 (o el teclado) deja de mandar comandos por 0.5 s, se detiene.
+    # (En modo teleop es 0 = mantener el último comando del teclado.)
+    cmd_timeout: 0.5

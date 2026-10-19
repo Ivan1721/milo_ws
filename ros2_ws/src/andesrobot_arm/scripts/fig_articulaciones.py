@@ -15,7 +15,6 @@ así que necesita el workspace compilado y cargado (dentro del contenedor):
   source /ros2_ws/install/setup.bash
   cd /ros2_ws/src/andesrobot_arm
   python3 scripts/fig_articulaciones.py docs/figuras
-  # y en el PC: cp ros2_ws/src/andesrobot_arm/docs/figuras/fig_articulaciones.png docs/informe/img/
 Genera fig_articulaciones.png en la carpeta indicada (por defecto ./figuras).
 """
 import os

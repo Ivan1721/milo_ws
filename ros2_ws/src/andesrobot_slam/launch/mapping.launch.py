@@ -11,6 +11,7 @@ Este mismo launch se usa en simulación (use_sim_time:=true) y en Milo físico (
 """
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -44,10 +45,13 @@ def generate_launch_description():
         name='slam_toolbox',
         parameters=[slam_params, {'use_sim_time': use_sim_time}],
         output='screen',
+        # slam:=false -> solo el filtro del lidar (lo usa la navegación con AMCL sobre un mapa ya hecho).
+        condition=IfCondition(LaunchConfiguration('slam')),
     )
 
     return LaunchDescription([
         DeclareLaunchArgument('use_sim_time', default_value='true'),
+        DeclareLaunchArgument('slam', default_value='true'),
         DeclareLaunchArgument(
             'slam_params',
             default_value=PathJoinSubstitution([pkg, 'config', 'slam_toolbox_mapping.yaml'])),

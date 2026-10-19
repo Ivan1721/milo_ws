@@ -1,4 +1,7 @@
-"""Filtro de seguridad: /cmd_vel_teleop + /scan -> cmd_vel_out.
+"""Filtro de seguridad: cmd_vel_in (default /cmd_vel_teleop) + /scan -> cmd_vel_out.
+
+Modo teleop (default): config:=safety.yaml, entrada /cmd_vel_teleop.
+Modo Nav2: config:=safety_nav.yaml, entrada /safety/cmd_vel_in (sale de twist_mux).
 
 Simulación: cmd_vel_out=/cmd_vel (plugin de Gazebo).
 Milo físico: cmd_vel_out=/diff_drive_controller/cmd_vel_unstamped.
@@ -15,6 +18,9 @@ def generate_launch_description():
         DeclareLaunchArgument('use_sim_time', default_value='false'),
         # A dónde manda el filtro los comandos ya revisados (cambia entre sim y robot).
         DeclareLaunchArgument('cmd_vel_out', default_value='/cmd_vel'),
+        # De dónde lee los comandos y qué archivo de parámetros usa (teleop o navegación).
+        DeclareLaunchArgument('cmd_vel_in', default_value='/cmd_vel_teleop'),
+        DeclareLaunchArgument('config', default_value='safety.yaml'),
         Node(
             package='andesrobot_safety',
             # "safety_filter" es el ejecutable que define setup.py (entry_points).
@@ -23,9 +29,10 @@ def generate_launch_description():
             output='screen',
             # Parámetros: los de config/safety.yaml (distancias, velocidades) + el reloj.
             parameters=[PathJoinSubstitution([FindPackageShare('andesrobot_safety'),
-                                              'config', 'safety.yaml']),
+                                              'config', LaunchConfiguration('config')]),
                         {'use_sim_time': LaunchConfiguration('use_sim_time')}],
             # El nodo publica en "cmd_vel"; aquí lo renombramos al destino real.
-            remappings=[('cmd_vel', LaunchConfiguration('cmd_vel_out'))],
+            remappings=[('cmd_vel', LaunchConfiguration('cmd_vel_out')),
+                        ('cmd_vel_teleop', LaunchConfiguration('cmd_vel_in'))],
         ),
     ])

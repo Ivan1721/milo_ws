@@ -1,0 +1,372 @@
+<?xml version="1.0"?>
+<!-- GENERADO por andesrobot_gazebo/tools/gen_casa_robocup.py — NO editar a mano.
+     Casa RoboCup@Home (rulebook): Laundry, Bedroom, Living room, Kitchen. 9 x 9 m, puertas 0.90 m.
+     Origen del mundo (0,0) = punto de partida de Milo, afuera de la puerta del living, mirando +X.
+     Mesas y sillas tienen PATAS: el lidar (a 0.33 m) solo ve las patas, como en una casa real. -->
+<sdf version="1.6">
+  <world name="robocup_casa">
+    <include><uri>model://sun</uri></include>
+    <include><uri>model://ground_plane</uri></include>
+    <physics type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+    <scene><shadows>false</shadows></scene>
+    <gui><camera name="user_camera">
+      <pose>0.00 -14.11 18.3 0 0.95 1.5708</pose></camera></gui>
+    <model name="muros">
+      <static>true</static>
+      <link name="l0"><pose>0.000 -6.225 0.600 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>12.600 0.150 1.200</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>12.600 0.150 1.200</size></box></geometry><material><ambient>0.85 0.83 0.78 1</ambient><diffuse>0.85 0.83 0.78 1</diffuse></material></visual>
+      </link>
+      <link name="l1"><pose>0.000 6.225 0.600 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>12.600 0.150 1.200</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>12.600 0.150 1.200</size></box></geometry><material><ambient>0.85 0.83 0.78 1</ambient><diffuse>0.85 0.83 0.78 1</diffuse></material></visual>
+      </link>
+      <link name="l2"><pose>6.225 0.000 0.600 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.150 12.300 1.200</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.150 12.300 1.200</size></box></geometry><material><ambient>0.85 0.83 0.78 1</ambient><diffuse>0.85 0.83 0.78 1</diffuse></material></visual>
+      </link>
+      <link name="l3"><pose>-6.225 -4.356 0.600 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.150 3.588 1.200</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.150 3.588 1.200</size></box></geometry><material><ambient>0.85 0.83 0.78 1</ambient><diffuse>0.85 0.83 0.78 1</diffuse></material></visual>
+      </link>
+      <link name="l4"><pose>-6.225 1.169 0.600 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.150 4.662 1.200</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.150 4.662 1.200</size></box></geometry><material><ambient>0.85 0.83 0.78 1</ambient><diffuse>0.85 0.83 0.78 1</diffuse></material></visual>
+      </link>
+      <link name="l5"><pose>-6.225 5.525 0.600 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.150 1.250 1.200</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.150 1.250 1.200</size></box></geometry><material><ambient>0.85 0.83 0.78 1</ambient><diffuse>0.85 0.83 0.78 1</diffuse></material></visual>
+      </link>
+      <link name="l6"><pose>-0.035 -4.664 0.600 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.150 2.972 1.200</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.150 2.972 1.200</size></box></geometry><material><ambient>0.85 0.83 0.78 1</ambient><diffuse>0.85 0.83 0.78 1</diffuse></material></visual>
+      </link>
+      <link name="l7"><pose>-0.035 1.253 0.600 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.150 6.062 1.200</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.150 6.062 1.200</size></box></geometry><material><ambient>0.85 0.83 0.78 1</ambient><diffuse>0.85 0.83 0.78 1</diffuse></material></visual>
+      </link>
+      <link name="l8"><pose>-0.035 5.917 0.600 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.150 0.466 1.200</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.150 0.466 1.200</size></box></geometry><material><ambient>0.85 0.83 0.78 1</ambient><diffuse>0.85 0.83 0.78 1</diffuse></material></visual>
+      </link>
+      <link name="l9"><pose>-4.461 0.917 0.600 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>3.378 0.150 1.200</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>3.378 0.150 1.200</size></box></geometry><material><ambient>0.85 0.83 0.78 1</ambient><diffuse>0.85 0.83 0.78 1</diffuse></material></visual>
+      </link>
+      <link name="l10"><pose>1.239 0.917 0.600 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>5.222 0.150 1.200</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>5.222 0.150 1.200</size></box></geometry><material><ambient>0.85 0.83 0.78 1</ambient><diffuse>0.85 0.83 0.78 1</diffuse></material></visual>
+      </link>
+      <link name="l11"><pose>5.700 0.917 0.600 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.900 0.150 1.200</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.900 0.150 1.200</size></box></geometry><material><ambient>0.85 0.83 0.78 1</ambient><diffuse>0.85 0.83 0.78 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="piso_casa">
+      <static>true</static>
+      <link name="l"><pose>0.000 0.000 0.0005 0 0 0</pose>
+        <visual name="v"><geometry><box><size>12.6 12.6 0.001</size></box></geometry><material><ambient>0.93 0.84 0.68 1</ambient><diffuse>0.93 0.84 0.68 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="laundry_table">
+      <static>true</static>
+      <link name="l0"><pose>-4.298 5.800 0.730 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>1.400 0.700 0.040</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>1.400 0.700 0.040</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l1"><pose>-4.938 5.510 0.355 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.050 0.050 0.710</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.050 0.050 0.710</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l2"><pose>-4.938 6.090 0.355 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.050 0.050 0.710</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.050 0.050 0.710</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l3"><pose>-3.658 5.510 0.355 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.050 0.050 0.710</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.050 0.050 0.710</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l4"><pose>-3.658 6.090 0.355 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.050 0.050 0.710</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.050 0.050 0.710</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="washing_machine">
+      <static>true</static>
+      <link name="l0"><pose>-2.310 5.850 0.425 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.600 0.600 0.850</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.600 0.600 0.850</size></box></geometry><material><ambient>0.92 0.92 0.92 1</ambient><diffuse>0.92 0.92 0.92 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="shelf">
+      <static>true</static>
+      <link name="l0"><pose>-4.900 1.167 0.750 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>1.200 0.350 1.500</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>1.200 0.350 1.500</size></box></geometry><material><ambient>0.92 0.92 0.92 1</ambient><diffuse>0.92 0.92 0.92 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="laundry_trash_bin">
+      <static>true</static>
+      <link name="l0"><pose>-3.472 1.212 0.300 0 0 0.0000</pose>
+        <collision name="c"><geometry><cylinder><radius>0.170</radius><length>0.600</length></cylinder></geometry></collision>
+        <visual name="v"><geometry><cylinder><radius>0.170</radius><length>0.600</length></cylinder></geometry><material><ambient>0.55 0.55 0.58 1</ambient><diffuse>0.55 0.55 0.58 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="bed">
+      <static>true</static>
+      <link name="l0"><pose>1.040 1.492 0.250 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>2.000 1.000 0.500</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>2.000 1.000 0.500</size></box></geometry><material><ambient>0.92 0.92 0.92 1</ambient><diffuse>0.92 0.92 0.92 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="bedside_table">
+      <static>true</static>
+      <link name="l0"><pose>0.910 2.870 0.275 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.500 0.450 0.550</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.500 0.450 0.550</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="coat_rack">
+      <static>true</static>
+      <link name="l0"><pose>5.850 5.600 0.850 0 0 0.0000</pose>
+        <collision name="c"><geometry><cylinder><radius>0.200</radius><length>1.700</length></cylinder></geometry></collision>
+        <visual name="v"><geometry><cylinder><radius>0.200</radius><length>1.700</length></cylinder></geometry><material><ambient>0.45 0.30 0.18 1</ambient><diffuse>0.45 0.30 0.18 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="planta_bedroom">
+      <static>true</static>
+      <link name="l0"><pose>5.670 1.262 0.350 0 0 0.0000</pose>
+        <collision name="c"><geometry><cylinder><radius>0.150</radius><length>0.700</length></cylinder></geometry></collision>
+        <visual name="v"><geometry><cylinder><radius>0.150</radius><length>0.700</length></cylinder></geometry><material><ambient>0.20 0.50 0.20 1</ambient><diffuse>0.20 0.50 0.20 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="tv_stand">
+      <static>true</static>
+      <link name="l0"><pose>-4.312 0.642 0.250 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>1.300 0.400 0.500</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>1.300 0.400 0.500</size></box></geometry><material><ambient>0.45 0.30 0.18 1</ambient><diffuse>0.45 0.30 0.18 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="sofa">
+      <static>true</static>
+      <link name="l0"><pose>-3.150 -5.700 0.400 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>2.100 0.900 0.800</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>2.100 0.900 0.800</size></box></geometry><material><ambient>0.80 0.80 0.80 1</ambient><diffuse>0.80 0.80 0.80 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="coffee_table">
+      <static>true</static>
+      <link name="l0"><pose>-0.770 -5.880 0.430 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.600 0.450 0.040</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.600 0.450 0.040</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l1"><pose>-1.010 -6.045 0.205 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.050 0.050 0.410</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.050 0.050 0.410</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l2"><pose>-1.010 -5.715 0.205 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.050 0.050 0.410</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.050 0.050 0.410</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l3"><pose>-0.530 -6.045 0.205 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.050 0.050 0.410</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.050 0.050 0.410</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l4"><pose>-0.530 -5.715 0.205 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.050 0.050 0.410</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.050 0.050 0.410</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="planta_living">
+      <static>true</static>
+      <link name="l0"><pose>-5.460 -5.390 0.350 0 0 0.0000</pose>
+        <collision name="c"><geometry><cylinder><radius>0.150</radius><length>0.700</length></cylinder></geometry></collision>
+        <visual name="v"><geometry><cylinder><radius>0.150</radius><length>0.700</length></cylinder></geometry><material><ambient>0.20 0.50 0.20 1</ambient><diffuse>0.20 0.50 0.20 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="cabinet">
+      <static>true</static>
+      <link name="l0"><pose>0.240 -0.350 0.450 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.400 1.200 0.900</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.400 1.200 0.900</size></box></geometry><material><ambient>0.92 0.92 0.92 1</ambient><diffuse>0.92 0.92 0.92 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="refrigerator">
+      <static>true</static>
+      <link name="l0"><pose>5.825 -0.350 0.900 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.650 0.800 1.800</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.650 0.800 1.800</size></box></geometry><material><ambient>0.55 0.55 0.58 1</ambient><diffuse>0.55 0.55 0.58 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="kitchen_trash_bin">
+      <static>true</static>
+      <link name="l0"><pose>5.850 -3.360 0.300 0 0 0.0000</pose>
+        <collision name="c"><geometry><cylinder><radius>0.180</radius><length>0.600</length></cylinder></geometry></collision>
+        <visual name="v"><geometry><cylinder><radius>0.180</radius><length>0.600</length></cylinder></geometry><material><ambient>0.55 0.55 0.58 1</ambient><diffuse>0.55 0.55 0.58 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="dinner_table">
+      <static>true</static>
+      <link name="l0"><pose>3.066 -2.030 0.730 0 0 0.0000</pose>
+        <collision name="c"><geometry><cylinder><radius>0.600</radius><length>0.040</length></cylinder></geometry></collision>
+        <visual name="v"><geometry><cylinder><radius>0.600</radius><length>0.040</length></cylinder></geometry><material><ambient>0.45 0.30 0.18 1</ambient><diffuse>0.45 0.30 0.18 1</diffuse></material></visual>
+      </link>
+      <link name="l1"><pose>2.790 -2.306 0.355 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.050 0.050 0.710</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.050 0.050 0.710</size></box></geometry><material><ambient>0.45 0.30 0.18 1</ambient><diffuse>0.45 0.30 0.18 1</diffuse></material></visual>
+      </link>
+      <link name="l2"><pose>2.790 -1.754 0.355 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.050 0.050 0.710</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.050 0.050 0.710</size></box></geometry><material><ambient>0.45 0.30 0.18 1</ambient><diffuse>0.45 0.30 0.18 1</diffuse></material></visual>
+      </link>
+      <link name="l3"><pose>3.342 -2.306 0.355 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.050 0.050 0.710</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.050 0.050 0.710</size></box></geometry><material><ambient>0.45 0.30 0.18 1</ambient><diffuse>0.45 0.30 0.18 1</diffuse></material></visual>
+      </link>
+      <link name="l4"><pose>3.342 -1.754 0.355 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.050 0.050 0.710</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.050 0.050 0.710</size></box></geometry><material><ambient>0.45 0.30 0.18 1</ambient><diffuse>0.45 0.30 0.18 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="counter">
+      <static>true</static>
+      <link name="l0"><pose>0.840 -5.850 0.450 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.750 0.600 0.900</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.750 0.600 0.900</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="sink">
+      <static>true</static>
+      <link name="l0"><pose>1.820 -5.850 0.450 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.600 0.600 0.900</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.600 0.600 0.900</size></box></geometry><material><ambient>0.55 0.55 0.58 1</ambient><diffuse>0.55 0.55 0.58 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="cooking_table">
+      <static>true</static>
+      <link name="l0"><pose>2.660 -5.850 0.450 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.600 0.600 0.900</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.600 0.600 0.900</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="dishwasher">
+      <static>true</static>
+      <link name="l0"><pose>4.340 -5.850 0.425 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.600 0.600 0.850</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.600 0.600 0.850</size></box></geometry><material><ambient>0.92 0.92 0.92 1</ambient><diffuse>0.92 0.92 0.92 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="silla_n">
+      <static>true</static>
+      <link name="l0"><pose>3.066 -1.310 0.430 0 0 -1.5708</pose>
+        <collision name="c"><geometry><box><size>0.420 0.420 0.040</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.420 0.420 0.040</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l1"><pose>2.886 -1.130 0.205 0 0 -1.5708</pose>
+        <collision name="c"><geometry><box><size>0.040 0.040 0.410</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.040 0.040 0.410</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l2"><pose>3.246 -1.130 0.205 0 0 -1.5708</pose>
+        <collision name="c"><geometry><box><size>0.040 0.040 0.410</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.040 0.040 0.410</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l3"><pose>2.886 -1.490 0.205 0 0 -1.5708</pose>
+        <collision name="c"><geometry><box><size>0.040 0.040 0.410</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.040 0.040 0.410</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l4"><pose>3.246 -1.490 0.205 0 0 -1.5708</pose>
+        <collision name="c"><geometry><box><size>0.040 0.040 0.410</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.040 0.040 0.410</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l5"><pose>3.066 -1.120 0.650 0 0 -1.5708</pose>
+        <collision name="c"><geometry><box><size>0.040 0.420 0.400</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.040 0.420 0.400</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="silla_s">
+      <static>true</static>
+      <link name="l0"><pose>3.066 -2.750 0.430 0 0 1.5708</pose>
+        <collision name="c"><geometry><box><size>0.420 0.420 0.040</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.420 0.420 0.040</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l1"><pose>3.246 -2.930 0.205 0 0 1.5708</pose>
+        <collision name="c"><geometry><box><size>0.040 0.040 0.410</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.040 0.040 0.410</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l2"><pose>2.886 -2.930 0.205 0 0 1.5708</pose>
+        <collision name="c"><geometry><box><size>0.040 0.040 0.410</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.040 0.040 0.410</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l3"><pose>3.246 -2.570 0.205 0 0 1.5708</pose>
+        <collision name="c"><geometry><box><size>0.040 0.040 0.410</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.040 0.040 0.410</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l4"><pose>2.886 -2.570 0.205 0 0 1.5708</pose>
+        <collision name="c"><geometry><box><size>0.040 0.040 0.410</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.040 0.040 0.410</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l5"><pose>3.066 -2.940 0.650 0 0 1.5708</pose>
+        <collision name="c"><geometry><box><size>0.040 0.420 0.400</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.040 0.420 0.400</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="silla_o">
+      <static>true</static>
+      <link name="l0"><pose>2.346 -2.030 0.430 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.420 0.420 0.040</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.420 0.420 0.040</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l1"><pose>2.166 -2.210 0.205 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.040 0.040 0.410</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.040 0.040 0.410</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l2"><pose>2.166 -1.850 0.205 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.040 0.040 0.410</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.040 0.040 0.410</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l3"><pose>2.526 -2.210 0.205 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.040 0.040 0.410</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.040 0.040 0.410</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l4"><pose>2.526 -1.850 0.205 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.040 0.040 0.410</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.040 0.040 0.410</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l5"><pose>2.156 -2.030 0.650 0 0 0.0000</pose>
+        <collision name="c"><geometry><box><size>0.040 0.420 0.400</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.040 0.420 0.400</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="silla_e">
+      <static>true</static>
+      <link name="l0"><pose>3.786 -2.030 0.430 0 0 3.1416</pose>
+        <collision name="c"><geometry><box><size>0.420 0.420 0.040</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.420 0.420 0.040</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l1"><pose>3.966 -1.850 0.205 0 0 3.1416</pose>
+        <collision name="c"><geometry><box><size>0.040 0.040 0.410</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.040 0.040 0.410</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l2"><pose>3.966 -2.210 0.205 0 0 3.1416</pose>
+        <collision name="c"><geometry><box><size>0.040 0.040 0.410</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.040 0.040 0.410</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l3"><pose>3.606 -1.850 0.205 0 0 3.1416</pose>
+        <collision name="c"><geometry><box><size>0.040 0.040 0.410</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.040 0.040 0.410</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l4"><pose>3.606 -2.210 0.205 0 0 3.1416</pose>
+        <collision name="c"><geometry><box><size>0.040 0.040 0.410</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.040 0.040 0.410</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+      <link name="l5"><pose>3.976 -2.030 0.650 0 0 3.1416</pose>
+        <collision name="c"><geometry><box><size>0.040 0.420 0.400</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.040 0.420 0.400</size></box></geometry><material><ambient>0.25 0.22 0.20 1</ambient><diffuse>0.25 0.22 0.20 1</diffuse></material></visual>
+      </link>
+    </model>
+  </world>
+</sdf>

@@ -9,11 +9,13 @@
 #   ./robot.sh shell         terminal dentro del contenedor
 #   ./robot.sh build         recompilar el workspace
 #   ./robot.sh stop          apagar el contenedor
+#   ./robot.sh nav <mapa>    navegación autónoma (AMCL + Nav2) con un mapa ya guardado (SIN PROBAR)
+#   ./robot.sh ir <lugar>    (otra terminal) mandar a Milo a una ubicación (ver ./robot.sh ir --lista)
 #
 # Puertos (por defecto /dev/rplidar y /dev/hoverboard, ver docker/udev/README.md). Sin udev:
 #   LIDAR=/dev/ttyUSB0 HOVER=/dev/ttyUSB1 ./robot.sh
 set -e
-# (Las líneas 2-14 de arriba son la ayuda que imprime "sed -n '2,14p'" si escribes una opción
+# (Las líneas 2-16 de arriba son la ayuda que imprime "sed -n '2,16p'" si escribes una opción
 #  que no existe. Los comentarios explicativos van desde aquí.)
 #
 # "set -e": si un comando falla, el script se detiene.
@@ -69,10 +71,13 @@ case "$1" in
   shell)  milo_need_running; exec $DC exec ros bash ;;
   build)  milo_need_running; exec $DC exec ros bash -ic 'cd /ros2_ws && colcon build --symlink-install' ;;
   stop)   $DC down; exit 0 ;;
+  # Navegación (ver sim.sh): ir a ubicaciones con nombre / levantar Nav2 con un mapa guardado.
+  ir)     milo_need_running; shift; exec $DC exec ros bash -ic "ros2 run andesrobot_navigation ir_a $*" ;;
+  nav)    [ -f "ros2_ws/src/andesrobot_slam/maps/$2.yaml" ] || { echo "[milo] Uso: ./robot.sh nav <mapa>  (no existe ros2_ws/src/andesrobot_slam/maps/$2.yaml)"; exit 1; } ;;
   # Sin palabra: sigue abajo a levantar a Milo.
   "") ;;
   # Opción desconocida: mostrar ayuda.
-  *) sed -n '2,14p' "$0"; exit 1 ;;
+  *) sed -n '2,16p' "$0"; exit 1 ;;
 esac
 
 # Antes de arrancar, revisar que el lidar y el hoverboard estén conectados.
@@ -88,6 +93,11 @@ echo
 echo "[milo] Milo arrancando (lidar $LIDAR, hoverboard $HOVER). En otra terminal:  ./robot.sh teleop"
 echo "[milo] Guardar el mapa:  ./robot.sh mapa <nombre>      (RViz: $RVIZ)"
 echo
+# Navegación autónoma: AMCL + Nav2 sobre el mapa guardado (robot_navigation.launch.py).
+if [ "$1" = "nav" ]; then
+  echo "[milo] Navegación con el mapa $2. Otra terminal: ./robot.sh ir --lista / ./robot.sh ir <lugar>"
+  exec $DC exec ros bash -ic "ros2 launch andesrobot_bringup robot_navigation.launch.py map:=/ros2_ws/src/andesrobot_slam/maps/$2.yaml lidar_port:=$LIDAR hoverboard_port:=$HOVER rviz:=$RVIZ"
+fi
 # Lanzar a Milo (ver andesrobot_bringup/launch/robot_mapping.launch.py) pasándole los puertos
 # y si abrir RViz.
 exec $DC exec ros bash -ic "ros2 launch andesrobot_bringup robot_mapping.launch.py lidar_port:=$LIDAR hoverboard_port:=$HOVER rviz:=$RVIZ"

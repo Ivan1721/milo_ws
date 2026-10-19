@@ -12,7 +12,7 @@ posición (controlador → actuadores → sensores) queda igual.
 Es un esquema: no lee el URDF ni necesita ROS, solo matplotlib. Reutiliza los bloques y flechas
 de fig_lazo_cerrado.py (misma carpeta).
   python3 fig_lazo_moveit.py [carpeta_salida]      # por defecto ./figuras
-Genera fig_lazo_moveit.png. Para el informe: copiar a docs/informe/img/ (raíz del repo).
+Genera fig_lazo_moveit.png. El informe (docs/informe/README.md) la lee directo de docs/figuras.
 """
 import os
 import sys

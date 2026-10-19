@@ -91,7 +91,7 @@ Para que un brazo robótico tome un objeto, alguien tiene que decirle cuánto gi
 
 <a id="fig-articulaciones"></a>
 
-![Dos paneles con el robot real visto desde una esquina, con las mallas 3D casi transparentes y encima el esqueleto de eslabones (líneas) y articulaciones (círculos). Izquierda, joint_2: la base del brazo en gris, el brazo que gira en azul, el eje z_i naranja saliendo del hombro, el ángulo q_i entre el esqueleto punteado con q_i = 0 y el actual, la palanca punteada de p_i a la pinza p_e y la flecha negra J_v,i. Derecha, el lift: base y columna en gris, carro y brazo en azul subidos una distancia q_i = d respecto al esqueleto punteado, el eje z_i vertical y la flecha negra J_v,i hacia arriba en la pinza.](img/fig_articulaciones.png)
+![Dos paneles con el robot real visto desde una esquina, con las mallas 3D casi transparentes y encima el esqueleto de eslabones (líneas) y articulaciones (círculos). Izquierda, joint_2: la base del brazo en gris, el brazo que gira en azul, el eje z_i naranja saliendo del hombro, el ángulo q_i entre el esqueleto punteado con q_i = 0 y el actual, la palanca punteada de p_i a la pinza p_e y la flecha negra J_v,i. Derecha, el lift: base y columna en gris, carro y brazo en azul subidos una distancia q_i = d respecto al esqueleto punteado, el eje z_i vertical y la flecha negra J_v,i hacia arriba en la pinza.](../../ros2_ws/src/andesrobot_arm/docs/figuras/fig_articulaciones.png)
 
 **Figura A.** Las dos clases de articulación de Milo y los símbolos que usan las fórmulas. Izquierda: rotativa (R), joint_2 (el hombro). Derecha: prismática (P), el lift. Las piezas son las mallas reales del URDF, casi transparentes y vistas desde una esquina; encima va el esqueleto que usan las cuentas: una línea por eslabón y un círculo por articulación. Gris: lo que no se mueve con esa articulación; azul: lo que mueve. Postura de ejemplo: joint_2 = 0.6, joint_3 = 1.1 y joint_5 = 0.6 rad; en el panel P, el lift subió 0.30 m.
 
@@ -232,7 +232,8 @@ La documentación del repositorio está en español y pensada para estudiantes: 
 | `cd672be` · `ad2908e` | Explicaciones para otras áreas, glosario, figura A (articulaciones R y P sobre el modelo 3D) y límite de la cámara de profundidad |
 | `2619d5b` | Repasos de literatura (`docs/literatura/`) y de tecnologías (`docs/tecnologias/`, con diagramas de lazo cerrado y análisis de NBV) |
 | `bb67df7` | Revisión completa del proyecto: 5 pruebas unitarias nuevas, prueba de humo en Gazebo, mesa de prueba anclada al mundo, figura B del lazo cerrado; validación repetida en Gazebo (sección 21) |
-| (este cambio) | **MoveIt 2 integrado**: paquete `andesrobot_moveit_config`, nodo `arm_moveit_node`, `arm_sim` planifica sin choques por defecto (`moveit:=true`), mesa y OctoMap de la cámara en la escena; figura C pasa de propuesta a lo que corre |
+| `3015097` | **MoveIt 2 integrado**: paquete `andesrobot_moveit_config`, nodo `arm_moveit_node`, `arm_sim` planifica sin choques por defecto (`moveit:=true`), mesa y OctoMap de la cámara en la escena; figura C pasa de propuesta a lo que corre |
+| (este cambio) | Se integra `main` (casa RoboCup@Home, Nav2, informe de navegación del otro equipo) y se limpia la rama: el informe enlaza las figuras de `andesrobot_arm/docs/figuras/` en vez de guardar copias |
 
 La rama está en GitHub: `github.com/Ivan1721/milo_ws`, rama `brazo` (repositorio público; el remoto usa SSH). En la raíz, `docs/` guarda lo que no es código: `docs/informe/`, este informe, y `docs/hardware/`, los manuales y modelos de las piezas (de terceros: solo su índice va a git). `ros2_ws/src/` queda solo para paquetes de ROS.
 
@@ -333,13 +334,13 @@ En Fusion el robot se modeló girado 180° en Z. Por eso las uniones a nivel de 
 | `arm_control / arm_controllers_file` | false / vacío | brazo, lift y pinza con ros2_control en Gazebo |
 | `gripper_camera` | false | cámara Orbbec Gemini Plus sobre la pinza, con sus sensores en Gazebo (sección 14) |
 
-![Vista 3D de Milo: base de perfiles con dos ruedas y rueda loca, columna vertical gris, y brazo azul de seis ejes con la pinza naranja arriba.](img/fig_3d.png)
+![Vista 3D de Milo: base de perfiles con dos ruedas y rueda loca, columna vertical gris, y brazo azul de seis ejes con la pinza naranja arriba.](../../ros2_ws/src/andesrobot_arm/docs/figuras/fig_3d.png)
 
 **Figura 1.** Modelo 3D generado a partir de las mallas de `andesrobot_description` (brazo en azul, pinza en naranja, columna y base en gris). Postura de ejemplo: joint_2 = 0.35, joint_3 = 0.9, joint_5 = 0.6 rad.
 
 <p>
-<img src="img/fig_side.png" alt="Vista lateral de Milo con cotas: largo 0.556 m, altura 1.816 m con el brazo vertical, altura de la base 0.374 m, base del brazo a 0.920 m." width="48%">
-<img src="img/fig_front.png" alt="Vista frontal de Milo con cotas: ancho 0.500 m y separación entre ruedas 0.3605 m." width="48%">
+<img src="../../ros2_ws/src/andesrobot_arm/docs/figuras/fig_lateral.png" alt="Vista lateral de Milo con cotas: largo 0.556 m, altura 1.816 m con el brazo vertical, altura de la base 0.374 m, base del brazo a 0.920 m." width="48%">
+<img src="../../ros2_ws/src/andesrobot_arm/docs/figuras/fig_frontal.png" alt="Vista frontal de Milo con cotas: ancho 0.500 m y separación entre ruedas 0.3605 m." width="48%">
 </p>
 
 **Figura 2.** Vista lateral (X-Z), brazo en cero y lift en 0. El frente está a la derecha; el eje de las ruedas en x = 0.
@@ -399,7 +400,7 @@ La cadena va de `arm_base_link_1` a `gripper_tcp`. Cada articulación tiene un d
 
 El eje en el mundo difiere del local por la corrección de 180° en Z de la base. El brazo mide 0.350 m (joint_2 → joint_3) y el antebrazo 0.325 m (joint_3 → joint_4). Los límites provisorios están en las propiedades `arm_lower`, `arm_upper`, `arm_effort` (20 N·m) y `arm_velocity` (1 rad/s).
 
-![Dos paneles. Izquierda: Milo de perfil con la cadena del brazo dibujada en tres alturas del lift, la carrera del lift de 1.000 m y cotas de altura del TCP de 1.376, 1.776 y 2.376 m; arriba, el desplazamiento total del lift al TCP, ΔX 0.3251 y ΔZ 0.9236. Derecha: detalle de la cadena con lift en 0 y una etiqueta por tramo con ΔX, ΔZ y distancia, desde vertical_lift_joint hasta el TCP.](img/fig_cadena.png)
+![Dos paneles. Izquierda: Milo de perfil con la cadena del brazo dibujada en tres alturas del lift, la carrera del lift de 1.000 m y cotas de altura del TCP de 1.376, 1.776 y 2.376 m; arriba, el desplazamiento total del lift al TCP, ΔX 0.3251 y ΔZ 0.9236. Derecha: detalle de la cadena con lift en 0 y una etiqueta por tramo con ΔX, ΔZ y distancia, desde vertical_lift_joint hasta el TCP.](../../ros2_ws/src/andesrobot_arm/docs/figuras/fig_cadena.png)
 
 **Figura 4.** Cadena de 7 ejes con el brazo en cero, proyectada en X-Z. **Izquierda:** la cadena en las tres alturas del lift (−0.4, 0 y +0.6 m), la carrera de 1.000 m medida en el origen de `vertical_lift_joint`, la altura del TCP sobre el suelo en cada caso y el desplazamiento total lift → TCP, que no cambia con la altura. **Derecha:** cada tramo con ΔX, ΔZ y su distancia; entre paréntesis, el eje de giro en el marco del mundo. Con el brazo en cero todos los ΔY son 0. Generada por `scripts/figuras.py`.
 
@@ -761,7 +762,7 @@ Las diferencias son modestas: el peso afecta sobre todo al primer intento. Con r
 
 **Método (Monte Carlo):** se muestrean configuraciones uniformes dentro de los límites, se calcula $`\mathbf p = \text{FK}(\mathbf q)`$ y se toman los extremos. 60 000 muestras para el alcance al frente y 12 000 por panel en la figura. Se descartan puntos bajo el suelo.
 
-![Tres paneles, uno por altura del lift (−0.4, 0 y +0.6 m), con nubes de puntos alcanzables por la pinza alrededor de Milo; la nube sube con el lift.](img/fig_workspace.png)
+![Tres paneles, uno por altura del lift (−0.4, 0 y +0.6 m), con nubes de puntos alcanzables por la pinza alrededor de Milo; la nube sube con el lift.](../../ros2_ws/src/andesrobot_arm/docs/figuras/fig_alcance.png)
 
 **Figura 5.** Puntos alcanzados por el TCP, proyectados en X-Z, para tres alturas del lift. No se revisan choques: parte de cada nube cae dentro de la base o la columna.
 
@@ -832,7 +833,7 @@ flowchart LR
   RSP -- "/tf" --> MK
 ```
 
-![Diagrama de bloques del lazo de control del brazo. Fila principal, de izquierda a derecha: objetivo (pose de la pinza), cinemática inversa (arm_ik_node), controlador (arm_controller a 100 Hz, con tolerancia de meta), actuadores (GazeboSystem en simulación, Arduino con TB6600 en el robot real, pendiente) y planta (brazo, lift y pinza). Debajo, la realimentación: los sensores de posición (joint_state_broadcaster, /joint_states) devuelven q medido al controlador y q actual a la cinemática inversa, y robot_state_publisher entrega TF. Más abajo, en naranja punteado, el lazo pendiente de la cámara de la pinza, que medirá la pose del objeto y la devolverá como nuevo objetivo. Un recuadro explica que en Gazebo, con mando por posición, la posición medida es la orden misma, por lo que un choque no frena el brazo sino que inclina la base.](img/fig_lazo_cerrado.png)
+![Diagrama de bloques del lazo de control del brazo. Fila principal, de izquierda a derecha: objetivo (pose de la pinza), cinemática inversa (arm_ik_node), controlador (arm_controller a 100 Hz, con tolerancia de meta), actuadores (GazeboSystem en simulación, Arduino con TB6600 en el robot real, pendiente) y planta (brazo, lift y pinza). Debajo, la realimentación: los sensores de posición (joint_state_broadcaster, /joint_states) devuelven q medido al controlador y q actual a la cinemática inversa, y robot_state_publisher entrega TF. Más abajo, en naranja punteado, el lazo pendiente de la cámara de la pinza, que medirá la pose del objeto y la devolverá como nuevo objetivo. Un recuadro explica que en Gazebo, con mando por posición, la posición medida es la orden misma, por lo que un choque no frena el brazo sino que inclina la base.](../../ros2_ws/src/andesrobot_arm/docs/figuras/fig_lazo_cerrado.png)
 
 **Figura B.** Lazo cerrado del brazo, como corre hoy en simulación. Las flechas continuas existen; las naranjas punteadas faltan (actuadores reales, encoders, cámara). Generada con `andesrobot_arm/scripts/fig_lazo_cerrado.py`.
 
@@ -844,7 +845,7 @@ flowchart LR
 
 ### Con MoveIt 2 (el default desde el 18 de octubre)
 
-![Diagrama de bloques del lazo de control del brazo con MoveIt 2, con la misma disposición que la figura B. En el lugar de la cinemática inversa hay un bloque verde, move_group: la escena de planificación (URDF, SRDF, estado actual, OctoMap de la cámara y la mesa), el solver de IK (KDL o TRAC-IK), el planificador OMPL que revisa choques en cada tramo y la parametrización en el tiempo (TOTG o Ruckig); entrega una trayectoria completa al controlador. Vuelven a MoveIt el estado actual de las articulaciones, TF, el resultado de la ejecución y, desde la cámara, la nube de puntos convertida en OctoMap. En naranja punteado sigue pendiente la detección del objeto que daría el nuevo objetivo. Un recuadro resume qué cambia respecto a la figura B.](img/fig_lazo_moveit.png)
+![Diagrama de bloques del lazo de control del brazo con MoveIt 2, con la misma disposición que la figura B. En el lugar de la cinemática inversa hay un bloque verde, move_group: la escena de planificación (URDF, SRDF, estado actual, OctoMap de la cámara y la mesa), el solver de IK (KDL o TRAC-IK), el planificador OMPL que revisa choques en cada tramo y la parametrización en el tiempo (TOTG o Ruckig); entrega una trayectoria completa al controlador. Vuelven a MoveIt el estado actual de las articulaciones, TF, el resultado de la ejecución y, desde la cámara, la nube de puntos convertida en OctoMap. En naranja punteado sigue pendiente la detección del objeto que daría el nuevo objetivo. Un recuadro resume qué cambia respecto a la figura B.](../../ros2_ws/src/andesrobot_arm/docs/figuras/fig_lazo_moveit.png)
 
 **Figura C.** Lazo cerrado del brazo con MoveIt 2, lo que corre con `moveit:=true`: misma disposición que la figura B. Azul: igual que sin MoveIt; verde: lo que agrega MoveIt 2; naranja punteado: pendiente. Generada con `andesrobot_arm/scripts/fig_lazo_moveit.py`.
 
@@ -1120,7 +1121,7 @@ Fricción de las ruedas μ = 1.2 con contacto rígido (kp = 10⁶, kd = 100); la
 
 ### La arena
 
-![Plano de la arena de 24 por 18 metros con cinco zonas: oficina, bodega con tres pasillos, hall central, zona colapsada con escombros y zona de pilares; una línea roja marca el recorrido sugerido desde el spawn en el centro.](img/arena.png)
+![Plano de la arena de 24 por 18 metros con cinco zonas: oficina, bodega con tres pasillos, hall central, zona colapsada con escombros y zona de pilares; una línea roja marca el recorrido sugerido desde el spawn en el centro.](../../ros2_ws/src/andesrobot_gazebo/worlds/andesrobot_arena.png)
 
 **Figura 8.** `andesrobot_arena.world`: 24 × 18 m, muros de 1.5 m. Zonas de oficina, bodega, hall, zona colapsada y pilares. En verde, donde cabe Milo girando en el lugar; en rojo, el recorrido sugerido para mapear (unos 203 m). Puertas de al menos 2.2 m y obstáculos de al menos 0.5 m de alto (el lidar escanea a 0.36 m). Milo aparece en (0, 0) mirando a +X.
 
