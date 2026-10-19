@@ -4,7 +4,7 @@
 
 Informe técnico de `milo_ws` centrado en el brazo de Milo: su modelo, su hardware real, la cinemática, el control en Gazebo y la cámara de la pinza. También explica cómo se ejecuta el workspace (Docker y scripts) y resume, como contexto, la base móvil, que desarrolla otro equipo. Todos los valores están tomados del código y de pruebas corridas sobre él.
 
-**Fecha:** 6 de octubre de 2026 · **Alcance:** los 7 paquetes de `ros2_ws/src`, Docker y los scripts · **Rama:** `brazo` (base: `72fc3a1 Workspace de Milo`)
+**Fecha:** 19 de octubre de 2026 · **Alcance:** los 9 paquetes de `ros2_ws/src`, Docker y los scripts · **Rama:** `brazo` (base: `72fc3a1 Workspace de Milo`)
 
 | Dato | Qué es |
 | ---: | --- |
@@ -219,7 +219,7 @@ Milo (`andesrobot`) es un manipulador móvil: una base diferencial con ruedas y 
 
 - **Base:** teleoperación con teclado, filtro de seguridad que frena ante obstáculos y mapeo 2D con slam_toolbox. En simulación y en el robot real.
 - **Brazo:** cinemática directa e inversa (con el lift), control de brazo, lift y pinza en Gazebo, planificación sin choques con **MoveIt 2** (desde el 18 de octubre) y un marcador en RViz para moverlo con el mouse. **Solo en simulación**: aún no hay driver del brazo real.
-- **Desafío de la puerta** (en curso): una puerta de prueba en Gazebo que se abre empujando, y un detector de la manija (YOLO) entrenado con imágenes simuladas que se etiquetan solas (sección 14). Falta probarlo con una puerta real y hacer el movimiento de abrir.
+- **Desafío de la puerta** (en curso): una puerta de prueba en Gazebo que se abre empujando, y un detector de la manija (YOLO) entrenado con imágenes simuladas que se etiquetan solas ([sección 14](#manija)). Falta probarlo con una puerta real y hacer el movimiento de abrir.
 
 La documentación del repositorio está en español y pensada para estudiantes: cada launch, xacro, YAML y script explica sus conceptos en comentarios. El `README.md` es un paso a paso; los detalles por paquete están en `andesrobot_description/docs/ROBOT.md` y `andesrobot_arm/docs/BRAZO.md`.
 
@@ -245,7 +245,7 @@ La documentación del repositorio está en español y pensada para estudiantes: 
 | `d781403` | Puerta de prueba para el desafío de abrir una puerta (`puerta:=true`): se abre empujando, manija de palanca, resortes, ángulos reales en `/puerta/joint_states` |
 | `24b4c82` | YOLO (Ultralytics) en la imagen de Docker; los detectores ya entrenados no reconocen la manija simulada; generador de imágenes etiquetadas |
 | `44ee336` | Variantes al azar de la puerta (colores, luz, medidas, ángulos) y script para entrenar el detector |
-| (este cambio) | Protecciones del generador contra el resbalón de la base, primer detector de la manija entrenado (sección 14) y revisión de la documentación |
+| `45ef778` | Protecciones del generador contra el resbalón de la base, primer detector de la manija entrenado (sección 14) y revisión de la documentación |
 
 La rama está en GitHub: `github.com/Ivan1721/milo_ws`, rama `brazo` (repositorio público; el remoto usa SSH). En la raíz, `docs/` guarda lo que no es código: `docs/informe/`, este informe, y `docs/hardware/`, los manuales y modelos de las piezas (de terceros: solo su índice va a git). `ros2_ws/src/` queda solo para paquetes de ROS.
 
@@ -278,7 +278,7 @@ Todo corre dentro de un contenedor para que cualquier PC con Docker tenga el mis
 | Comando | Qué hace |
 | --- | --- |
 | `./sim.sh` | Gazebo + Milo (brazo bloqueado) + filtro de seguridad + slam_toolbox + RViz |
-| `./sim.sh brazo` | Gazebo + Milo con brazo, lift y pinza controlados + IK + marcador en RViz |
+| `./sim.sh brazo` | Gazebo + Milo con brazo, lift y pinza controlados + MoveIt 2 + cámara + mesa de prueba + marcador en RViz |
 | `./sim.sh cpu · software · sin-gazebo` | sin NVIDIA · render por CPU (si las ventanas se ven negras) · sin ventana de Gazebo |
 | `./sim.sh gpu` | muestra con qué tarjeta dibuja el contenedor (`llvmpipe` = CPU) |
 | `./sim.sh teleop` | teclado → `/cmd_vel_teleop` (entrada del filtro de seguridad) |
