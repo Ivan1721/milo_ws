@@ -97,6 +97,25 @@ mesa que ve la cámara entran como obstáculos, así que una pose que los toque 
 agarrar uno hay que quitarlo de la escena o apagar el OctoMap); y la IK es KDL, que cerca de los
 límites de las articulaciones falla más que TRAC-IK (no hay binario para Humble).
 
+## Puerta de prueba (desafío: abrir una puerta empujando)
+
+`ros2 launch andesrobot_arm arm_sim.launch.py puerta:=true` pone una puerta frente a Milo en vez de
+la mesa (`worlds/puerta_prueba.sdf`): hoja de 0.90 × 2.00 m en el plano x = 0.80 m que se abre
+**empujando** (alejándose de Milo, hasta 80°), bisagra a la izquierda de Milo (y = +0.45) y manija
+de **palanca** a la derecha (y = −0.38), a 1.0 m de altura. Hoja y manija tienen resorte: la puerta
+se cierra sola y despacio, y la manija vuelve a quedar horizontal (bajarla del todo cuesta
+~1.5 N·m). No tiene pestillo todavía: se puede empujar sin bajar la manija. Los ángulos reales de
+la bisagra y la manija salen en `/puerta/joint_states` (para medir los experimentos). La manija
+es metálica y brillante a propósito, como las reales que hacen fallar la profundidad.
+
+Para mirarla con la cámara de la pinza (a ~0.5 m, apuntando hacia la puerta):
+
+```bash
+ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped \
+  "{header: {frame_id: base_footprint}, pose: {position: {x: 0.28, y: -0.30, z: 1.10},
+    orientation: {x: 0.0, y: 0.0, z: 1.0, w: 0.0}}}"
+```
+
 ## Cámara de la pinza (Orbbec Gemini Plus)
 
 `./sim.sh brazo` monta la cámara sobre la pinza (`andesrobot_description/urdf/andesrobot.gripper_camera.xacro`,

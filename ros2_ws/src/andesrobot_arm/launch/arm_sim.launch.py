@@ -11,6 +11,9 @@ Orden de lo que pasa:
 Uso:  ros2 launch andesrobot_arm arm_sim.launch.py   [gui:=false] [rviz:=false]
                                                     [camara:=false] [mesa:=false]
                                                     [moveit:=false] [octomap:=false]
+                                                    [puerta:=true]
+Con puerta:=true pone la puerta de prueba (worlds/puerta_prueba.sdf: se abre empujando, manija de
+palanca a 1 m) en vez de la mesa.
 Con moveit:=true (default) arranca move_group (MoveIt 2) con la configuración de
 andesrobot_moveit_config y arm_moveit_node reemplaza a arm_ik_node: las poses de
 /arm_target_pose se planifican sin choques (robot, mesa y, con octomap:=true, lo que ve la
@@ -103,6 +106,9 @@ def launch_setup(context):
     urdf = robot_description_urdf(LaunchConfiguration('simple_collision').perform(context),
                                   LaunchConfiguration('camara').perform(context))
     moveit = LaunchConfiguration('moveit').perform(context) == 'true'
+    # Escenario: la puerta reemplaza a la mesa (las dos ocuparían el mismo lugar frente a Milo).
+    puerta = LaunchConfiguration('puerta').perform(context) == 'true'
+    con_mesa = LaunchConfiguration('mesa').perform(context) == 'true' and not puerta
 
     # robot_state_publisher: publica /robot_description y las TF, con el reloj de Gazebo.
     rsp = Node(
@@ -155,8 +161,7 @@ def launch_setup(context):
                           output='screen', parameters=[config.to_dict(), {'use_sim_time': True}])
         # Cliente: /arm_target_pose -> acción MoveGroup (y la mesa como obstáculo).
         mover = Node(package='andesrobot_arm', executable='arm_moveit_node', output='screen',
-                     parameters=[{'use_sim_time': True,
-                                  'mesa': LaunchConfiguration('mesa').perform(context) == 'true'}])
+                     parameters=[{'use_sim_time': True, 'mesa': con_mesa}])
         after_controllers = RegisterEventHandler(
             OnProcessExit(target_action=spawner, on_exit=[move_group, mover]))
         # RViz necesita el URDF/SRDF como parámetros para dibujar la escena y la trayectoria.
@@ -178,16 +183,17 @@ def launch_setup(context):
     # Mesa con tres objetos frente a Milo (worlds/mesa_prueba.sdf): algo que la cámara vea a
     # 0.6-1 m (en la arena no hay nada a menos de 2.5 m, el alcance de la profundidad) y que el
     # brazo alcance.
-    mesa = Node(
+    escenario = 'puerta_prueba' if puerta else 'mesa_prueba'
+    objetos = Node(
         package='gazebo_ros',
         executable='spawn_entity.py',
         arguments=['-file', os.path.join(get_package_share_directory('andesrobot_arm'),
-                                         'worlds', 'mesa_prueba.sdf'),
-                   '-entity', 'mesa_prueba'],
+                                         'worlds', escenario + '.sdf'),
+                   '-entity', escenario],
         output='screen',
-        condition=IfCondition(LaunchConfiguration('mesa')),
     )
-    return [rsp, spawn, controllers, after_controllers, marker, rviz, mesa]
+    extra = [objetos] if (puerta or con_mesa) else []
+    return [rsp, spawn, controllers, after_controllers, marker, rviz] + extra
 
 
 def generate_launch_description():
@@ -217,6 +223,8 @@ def generate_launch_description():
                               description='Cámara Orbbec Gemini Plus sobre la pinza'),
         DeclareLaunchArgument('mesa', default_value='true',
                               description='Mesa con objetos de prueba frente a Milo'),
+        DeclareLaunchArgument('puerta', default_value='false',
+                              description='Puerta de prueba (abre empujando) en vez de la mesa'),
         DeclareLaunchArgument('moveit', default_value='true',
                               description='true = MoveIt 2 planifica sin choques '
                                           '(arm_moveit_node); false = IK propia (arm_ik_node)'),

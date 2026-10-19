@@ -1,0 +1,151 @@
+<?xml version="1.0"?>
+<!-- Puerta de prueba para el desafío "abrir una puerta" (la pone arm_sim.launch.py con puerta:=true).
+
+     Milo aparece en (0, 0) mirando a +X. La puerta queda delante, en el plano x = 0.80 m, y se
+     abre EMPUJANDO: la hoja gira alejándose de Milo (hacia +X). La bisagra está a la izquierda de
+     Milo (y = +0.45) y la manija a la derecha (y = -0.38), a 1.0 m de altura: ahí el brazo tiene
+     alcance completo (el hombro va de 0.61 a 1.61 m con el lift) y la manija queda a ~0.7 m de la
+     base del brazo.
+
+     Piezas (cada <link> es un cuerpo; medidas en metros, ángulos en radianes):
+       marco    dos jambas, dintel y dos tramos de muro, anclados al mundo con un joint fijo
+       hoja     0.90 x 2.00 x 0.04 m, 15 kg, gira en "bisagra" (eje Z) de 0 a 1.4 rad (80°)
+       manija   palanca de 12 cm sobre una roseta, gira en "eje_manija" (eje X, la normal de la
+                puerta) de 0 a -0.7 rad (40° hacia abajo)
+     Resortes (Gazebo Classic: <spring_stiffness> + <spring_reference> en el joint):
+       - la hoja vuelve a cerrarse sola (3 N·m/rad) y despacio: con 8 N·m·s/rad de amortiguación
+         queda cerca del amortiguamiento crítico (la hoja tiene 4.05 kg·m² respecto de la
+         bisagra), como una puerta con cierrapuertas; con 2 cerraba de golpe en ~1 s;
+       - la manija vuelve a quedar casi horizontal (2 N·m/rad; con 0.6 su propio peso la dejaba
+         caída 0.19 rad). Bajarla del todo (0.7 rad) cuesta ~1.5 N·m.
+     Medido el 19-10-2026: abierta a 80° y soltada, la hoja vuelve a 0.60 rad en 1 s y a 0.17 rad
+     en 10 s; la manija en reposo queda a -0.04 rad. La verdad del simulador (ángulos de bisagra y
+     manija) sale en /puerta/joint_states.
+     No hay pestillo: la hoja se puede empujar sin bajar la manija. Para que bajar la manija sea
+     obligatorio haría falta un plugin de Gazebo; queda para después.
+     La manija es metálica y brillante a propósito: la cámara de profundidad real falla justo en
+     superficies así (sección 14 del informe). -->
+<sdf version="1.6">
+  <model name="puerta_prueba">
+    <static>false</static>
+
+    <!-- ================= Marco y muros: fijos al mundo ================= -->
+    <joint name="marco_fijo" type="fixed">
+      <parent>world</parent>
+      <child>marco</child>
+    </joint>
+    <link name="marco">
+      <pose>0.80 0 0 0 0 0</pose>
+      <inertial><mass>50.0</mass>
+        <inertia><ixx>10</ixx><iyy>10</iyy><izz>10</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <!-- Jambas a cada lado del vano de 0.91 m (5 mm de holgura por lado con la hoja). -->
+      <collision name="jamba_izq_c"><pose>0 0.505 1.025 0 0 0</pose>
+        <geometry><box><size>0.10 0.10 2.05</size></box></geometry></collision>
+      <visual name="jamba_izq_v"><pose>0 0.505 1.025 0 0 0</pose>
+        <geometry><box><size>0.10 0.10 2.05</size></box></geometry>
+        <material><ambient>0.45 0.32 0.2 1</ambient><diffuse>0.45 0.32 0.2 1</diffuse></material></visual>
+      <collision name="jamba_der_c"><pose>0 -0.505 1.025 0 0 0</pose>
+        <geometry><box><size>0.10 0.10 2.05</size></box></geometry></collision>
+      <visual name="jamba_der_v"><pose>0 -0.505 1.025 0 0 0</pose>
+        <geometry><box><size>0.10 0.10 2.05</size></box></geometry>
+        <material><ambient>0.45 0.32 0.2 1</ambient><diffuse>0.45 0.32 0.2 1</diffuse></material></visual>
+      <collision name="dintel_c"><pose>0 0 2.10 0 0 0</pose>
+        <geometry><box><size>0.10 1.11 0.10</size></box></geometry></collision>
+      <visual name="dintel_v"><pose>0 0 2.10 0 0 0</pose>
+        <geometry><box><size>0.10 1.11 0.10</size></box></geometry>
+        <material><ambient>0.45 0.32 0.2 1</ambient><diffuse>0.45 0.32 0.2 1</diffuse></material></visual>
+      <!-- Muros de 1 m a cada lado: así la puerta es la única forma de pasar. -->
+      <collision name="muro_izq_c"><pose>0 1.055 1.10 0 0 0</pose>
+        <geometry><box><size>0.10 1.0 2.20</size></box></geometry></collision>
+      <visual name="muro_izq_v"><pose>0 1.055 1.10 0 0 0</pose>
+        <geometry><box><size>0.10 1.0 2.20</size></box></geometry>
+        <material><ambient>0.85 0.85 0.8 1</ambient><diffuse>0.85 0.85 0.8 1</diffuse></material></visual>
+      <collision name="muro_der_c"><pose>0 -1.055 1.10 0 0 0</pose>
+        <geometry><box><size>0.10 1.0 2.20</size></box></geometry></collision>
+      <visual name="muro_der_v"><pose>0 -1.055 1.10 0 0 0</pose>
+        <geometry><box><size>0.10 1.0 2.20</size></box></geometry>
+        <material><ambient>0.85 0.85 0.8 1</ambient><diffuse>0.85 0.85 0.8 1</diffuse></material></visual>
+    </link>
+
+    <!-- ================= Hoja: el origen del link está EN la bisagra ================= -->
+    <link name="hoja">
+      <pose>0.80 0.45 0 0 0 0</pose>
+      <!-- Centro de masa en el medio de la hoja (0.45 m hacia -Y de la bisagra, a 1 m de alto).
+           Inercia de una placa de 0.04 x 0.90 x 2.00 m y 15 kg: m (a² + b²) / 12. -->
+      <inertial><pose>0 -0.45 1.0 0 0 0</pose><mass>15.0</mass>
+        <inertia><ixx>6.01</ixx><iyy>5.00</iyy><izz>1.01</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <collision name="hoja_c"><pose>0 -0.45 1.0 0 0 0</pose>
+        <geometry><box><size>0.04 0.90 1.99</size></box></geometry></collision>
+      <visual name="hoja_v"><pose>0 -0.45 1.0 0 0 0</pose>
+        <geometry><box><size>0.04 0.90 1.99</size></box></geometry>
+        <material><ambient>0.72 0.58 0.42 1</ambient><diffuse>0.72 0.58 0.42 1</diffuse></material></visual>
+    </link>
+    <!-- Bisagra vertical. Girar en +Z lleva el borde libre (y = -0.45) hacia +X: se abre empujando.
+         lower 0 = cerrada (no se abre hacia Milo); upper 1.4 rad = 80°. -->
+    <joint name="bisagra" type="revolute">
+      <parent>marco</parent>
+      <child>hoja</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit><lower>0</lower><upper>1.4</upper></limit>
+        <dynamics>
+          <damping>8.0</damping>
+          <friction>0.5</friction>
+          <spring_reference>0</spring_reference>
+          <spring_stiffness>3.0</spring_stiffness>
+        </dynamics>
+      </axis>
+    </joint>
+
+    <!-- ================= Manija de palanca, del lado de Milo (cara -X de la hoja) =================
+         El origen del link está en el eje de giro, sobre la roseta: x = 0.80 - 0.02 (cara de la
+         hoja) - 0.03 (roseta) = 0.75; y = -0.38 (7 cm del borde libre); z = 1.0. La palanca de 12 cm
+         apunta hacia la bisagra (+Y), como en una manija real. -->
+    <link name="manija">
+      <pose>0.75 -0.38 1.0 0 0 0</pose>
+      <inertial><pose>0 0.05 0 0 0 0</pose><mass>0.2</mass>
+        <inertia><ixx>3e-4</ixx><iyy>2e-5</iyy><izz>3e-4</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <!-- Roseta: cilindro de 2.5 cm de radio entre la manija y la hoja. -->
+      <collision name="roseta_c"><pose>0.015 0 0 0 1.5708 0</pose>
+        <geometry><cylinder><radius>0.025</radius><length>0.03</length></cylinder></geometry></collision>
+      <visual name="roseta_v"><pose>0.015 0 0 0 1.5708 0</pose>
+        <geometry><cylinder><radius>0.025</radius><length>0.03</length></cylinder></geometry>
+        <material><ambient>0.6 0.6 0.62 1</ambient><diffuse>0.7 0.7 0.72 1</diffuse>
+          <specular>0.9 0.9 0.9 1</specular></material></visual>
+      <!-- Palanca: barra de 12 x 2 x 2 cm (la pinza abre hasta 4.9 cm: cabe). -->
+      <collision name="palanca_c"><pose>-0.005 0.06 0 0 0 0</pose>
+        <geometry><box><size>0.02 0.12 0.02</size></box></geometry></collision>
+      <visual name="palanca_v"><pose>-0.005 0.06 0 0 0 0</pose>
+        <geometry><box><size>0.02 0.12 0.02</size></box></geometry>
+        <material><ambient>0.6 0.6 0.62 1</ambient><diffuse>0.7 0.7 0.72 1</diffuse>
+          <specular>0.9 0.9 0.9 1</specular></material></visual>
+    </link>
+    <!-- Eje de la manija: la normal de la puerta (X). Girar en -X baja la punta de la palanca. -->
+    <joint name="eje_manija" type="revolute">
+      <parent>hoja</parent>
+      <child>manija</child>
+      <axis>
+        <xyz>1 0 0</xyz>
+        <limit><lower>-0.7</lower><upper>0</upper></limit>
+        <dynamics>
+          <damping>0.05</damping>
+          <friction>0.02</friction>
+          <spring_reference>0</spring_reference>
+          <spring_stiffness>2.0</spring_stiffness>
+        </dynamics>
+      </axis>
+    </joint>
+
+    <!-- Ángulos de la bisagra y de la manija en /puerta/joint_states (30 Hz): es la "verdad" del
+         simulador para medir los experimentos (cuánto se abrió la puerta, si se bajó la manija). -->
+    <plugin name="puerta_joint_states" filename="libgazebo_ros_joint_state_publisher.so">
+      <ros><namespace>puerta</namespace></ros>
+      <update_rate>30</update_rate>
+      <joint_name>bisagra</joint_name>
+      <joint_name>eje_manija</joint_name>
+    </plugin>
+  </model>
+</sdf>

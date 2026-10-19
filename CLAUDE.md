@@ -153,7 +153,11 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   renamed with `<remapping>`. `ros2 run andesrobot_arm capturar_camara` saves one image per channel to
   `ros2_ws/capturas/` (gitignored). `arm_sim` also spawns `worlds/mesa_prueba.sdf` (arg `mesa`); its
   objects are links of one model, so it needs `<self_collide>true` or they fall through the table;
-  the table link is fixed to `world`.
+  the table link is fixed to `world`. `puerta:=true` spawns `worlds/puerta_prueba.sdf` instead of the
+  table (door-opening challenge, push only): leaf at x = 0.80 opening away from Milo, lever handle
+  at (0.75, −0.38, 1.0), springs on hinge and handle (Gazebo Classic `<spring_stiffness>` works;
+  verified), ground-truth angles on `/puerta/joint_states`, no latch yet. `ros2 service call
+  /apply_joint_effort` did not move it in tests; `gz joint -m puerta_prueba -j bisagra -f N` does.
 - Arm masses: gripper scaled from the CAD's steel to ABS (`gripper_mass_scale`); stepper motors and
   the gripper servo are fixed `motor_joint_N`/`gripper_servo_link` inertial-only links on the link
   before each joint. Sources in `docs/hardware/README.md` at the repo root (the docs there are
