@@ -108,6 +108,25 @@ RUN mkdir -p /opt/milo_drivers/src && cd /opt/milo_drivers \
  && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release \
  && rm -rf build log
 
+# Visión con YOLO (Ultralytics, PyTorch con CUDA): detectar y segmentar la manija de la puerta
+# con la cámara de la pinza. Con pip (no hay paquetes de apt). Cuidados, todos medidos:
+#   - "numpy<2": ROS Humble (cv_bridge, rclpy) está compilado con numpy 1.x; numpy 2 lo rompe.
+#   - El orden importa: ultralytics se instala con el pip de Ubuntu (22.0), que sí puede
+#     reemplazar paquetes de apt como sympy; el pip nuevo se niega ("distutils installed").
+#     Después se actualiza pip solo para CLIP: el pip 22.0 no lee su pyproject.toml y lo instala
+#     vacío ("UNKNOWN").
+#   - CLIP de Ultralytics: lo necesita YOLOE para recibir las clases como texto ("door handle").
+#   - setuptools: pip instala uno nuevo (>= 80) que colcon no acepta, y al desinstalarlo se
+#     lleva también el del sistema; por eso se reinstala python3-setuptools de apt al final.
+# Pesa varios GB (PyTorch con CUDA): va en su propia capa, después de lo de ROS.
+RUN apt-get update && apt-get install -y --no-install-recommends python3-pip \
+ && python3 -m pip install --no-cache-dir "numpy<2" ultralytics \
+ && python3 -m pip install --no-cache-dir --upgrade pip \
+ && python3 -m pip install --no-cache-dir "git+https://github.com/ultralytics/CLIP.git" \
+ && (python3 -m pip uninstall -y setuptools || true) \
+ && apt-get install -y --no-install-recommends --reinstall python3-setuptools python3-pkg-resources \
+ && rm -rf /var/lib/apt/lists/*
+
 # Usuario con tu mismo UID/GID (los archivos de build no quedan de root en tu PC)
 # 1) Si ya existe un grupo con tu GID, se renombra a "ros"; si no, se crea.
 # 2) Si ya existe un usuario con tu UID (la imagen base a veces trae uno), se renombra a "ros" y

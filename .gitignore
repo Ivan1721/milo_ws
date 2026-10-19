@@ -18,3 +18,8 @@ ros2_ws/capturas/
 # Artículos de la revisión de literatura (PDF de terceros, ~150 MB): solo en el PC. El índice con
 # el enlace de cada uno está en docs/literatura/README.md (sección 14) para volver a bajarlos.
 docs/literatura/pdf/
+# Pesos de los modelos de visión (YOLO, YOLOE, CLIP): se descargan solos la primera vez y pesan
+# decenas de MB cada uno.
+ros2_ws/modelos/
+# Imágenes etiquetadas que genera andesrobot_arm/scripts/generar_dataset_manija.py: datos, no código.
+ros2_ws/datasets/

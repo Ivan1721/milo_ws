@@ -158,6 +158,14 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   at (0.75, −0.38, 1.0), springs on hinge and handle (Gazebo Classic `<spring_stiffness>` works;
   verified), ground-truth angles on `/puerta/joint_states`, no latch yet. `ros2 service call
   /apply_joint_effort` did not move it in tests; `gz joint -m puerta_prueba -j bisagra -f N` does.
+- Vision: the image has Ultralytics (YOLOv8/11/YOLOE) + PyTorch CUDA + Ultralytics' CLIP, installed
+  with pip in a precise order (see the Dockerfile comment: `numpy<2` for ROS, Ubuntu's pip for
+  ultralytics because the new pip refuses to replace apt's sympy, new pip only for CLIP, then
+  apt's `python3-setuptools` reinstalled because colcon breaks with setuptools >= 80). Weights go
+  to `ros2_ws/modelos/` (gitignored). Pretrained YOLOE / YOLOv8-OIV7 localize the simulated handle
+  but misclassify it (conf < 0.06), so `scripts/generar_dataset_manija.py` auto-labels images
+  (box, polygon, 3 keypoints eje/agarre/punta) from the known door geometry + TF into
+  `ros2_ws/datasets/manija_sim/` (gitignored); goals go in `base_footprint` (MoveIt has no `odom`).
 - Arm masses: gripper scaled from the CAD's steel to ABS (`gripper_mass_scale`); stepper motors and
   the gripper servo are fixed `motor_joint_N`/`gripper_servo_link` inertial-only links on the link
   before each joint. Sources in `docs/hardware/README.md` at the repo root (the docs there are

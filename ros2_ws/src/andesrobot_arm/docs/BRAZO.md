@@ -116,6 +116,30 @@ ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped \
     orientation: {x: 0.0, y: 0.0, z: 1.0, w: 0.0}}}"
 ```
 
+### Detectar la manija (YOLO)
+
+La imagen trae Ultralytics (YOLOv8/11, YOLOE) con PyTorch y CUDA; los pesos se bajan solos a
+`ros2_ws/modelos/` (no va a git). Prueba del 19-10-2026 sobre la cámara simulada: YOLOE (texto
+«door handle») y YOLOv8s entrenado en Open Images (que trae la clase `Door handle`) **ubican y
+recortan bien la manija, pero no la reconocen** (clase equivocada, confianza < 0.06): la puerta
+simulada, de colores planos, es muy distinta de las fotos con que se entrenaron. Hay que afinar
+un modelo propio.
+
+Para eso, `scripts/generar_dataset_manija.py` genera imágenes **ya etiquetadas**: con la
+simulación de la puerta corriendo, mueve la pinza (MoveIt) a vistas al azar alrededor de la
+manija (0.35–0.8 m, ±40° a los lados, −15° a +45° en altura), toma la foto a color y proyecta la
+geometría conocida de la manija (TF + `/puerta/joint_states`) para escribir la caja, el polígono
+(máscara) y 3 keypoints (`eje` de la roseta, punto de `agarre` a 7 cm, `punta` de la palanca) en
+formato YOLO, en `ros2_ws/datasets/manija_sim/` (no va a git):
+
+```bash
+ros2 launch andesrobot_arm arm_sim.launch.py puerta:=true octomap:=false    # terminal 1
+python3 /ros2_ws/src/andesrobot_arm/scripts/generar_dataset_manija.py --n 200   # terminal 2
+```
+
+Medido: 12 imágenes en 15 vistas (3 que MoveIt no alcanzó se saltan), con las etiquetas
+calzando sobre la manija.
+
 ## Cámara de la pinza (Orbbec Gemini Plus)
 
 `./sim.sh brazo` monta la cámara sobre la pinza (`andesrobot_description/urdf/andesrobot.gripper_camera.xacro`,
