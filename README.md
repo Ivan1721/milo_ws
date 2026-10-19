@@ -242,7 +242,15 @@ canal:
 ros2 run andesrobot_arm capturar_camara     # quedan en ros2_ws/capturas/
 ```
 
-Mandar poses a mano, abrir/cerrar la pinza, la cámara, medidas y ecuaciones:
+**Puerta de prueba** (desafío de abrir una puerta), en vez de la mesa:
+
+```bash
+./sim.sh shell
+ros2 launch andesrobot_arm arm_sim.launch.py puerta:=true
+```
+
+Mandar poses a mano, abrir/cerrar la pinza, la cámara, la puerta y el detector de la manija
+(YOLO), medidas y ecuaciones:
 [`andesrobot_arm/docs/BRAZO.md`](ros2_ws/src/andesrobot_arm/docs/BRAZO.md).
 
 >  Los límites de las articulaciones del brazo son **provisorios**. No usar con el brazo real
@@ -328,7 +336,7 @@ milo_ws/
     ├── andesrobot_slam         filtro del lidar + slam_toolbox + mapas guardados
     ├── andesrobot_navigation   Nav2, lugares con nombre, ir_a / tour
     ├── andesrobot_safety       filtro de seguridad (no deja chocar)
-    ├── andesrobot_arm          cinemática inversa del brazo, cliente de MoveIt, cámara
+    ├── andesrobot_arm          brazo: cinemática, cliente de MoveIt, cámara, puerta y YOLO
     ├── andesrobot_moveit_config  configuración de MoveIt 2 del brazo
     └── drivers/                driver del hoverboard (ros2_control)
 ```

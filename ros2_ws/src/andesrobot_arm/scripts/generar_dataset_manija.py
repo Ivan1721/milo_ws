@@ -38,8 +38,22 @@ Deja todo en ros2_ws/datasets/manija_sim/ (no va a git). Para entrenar hace falt
 train/ y otra val/ (dos corridas con distinta --semilla, --salida .../train y .../val); después
 scripts/entrenar_manija.py arma las carpetas que pide Ultralytics y entrena.
 
-Supuestos: la puerta está en el origen del mundo (como la pone arm_sim) y la base de Milo no se
-mueve, así que el frame "odom" coincide con el mundo de Gazebo. Una vista que MoveIt rechaza o
+Cuidados con la base (medido el 19-10-2026: en una corrida de 300 imágenes la base se corrió
+0.41 m hacia atrás y giró 24°, y al final MoveIt fallaba 1 de cada 3 vistas porque la puerta
+quedaba lejos). En Gazebo el brazo mandado por posición no frena al chocar: empuja toda la base.
+Por eso el generador:
+  - salta, sin mandarla, una vista que deja el TCP a menos de --margen de la cara de la hoja;
+  - le pide a arm_moveit_node movimientos más suaves (--aceleracion, la fracción de la
+    aceleración máxima; los arranques bruscos de un brazo pesado sobre una base liviana también
+    la mueven);
+  - mide cuánto se movió la base desde el comienzo: avisa a los 5 cm o 3°, y PARA a --deriva_max
+    (hay que relanzar la simulación para que Milo vuelva a su lugar).
+Las etiquetas siguen bien aunque la base se mueva (todo se calcula con la TF del momento); el
+costo es que se alcanzan menos vistas.
+
+Supuestos: la puerta está en el origen del mundo (como la pone arm_sim) y el frame "odom"
+coincide con el mundo de Gazebo (el plugin diff_drive lo saca de la pose real del robot, por eso
+las etiquetas siguen calzando aunque la base resbale). Una vista que MoveIt rechaza o
 que no llega en 25 s se salta.
 """
 import argparse
@@ -54,6 +68,8 @@ from ament_index_python.packages import get_package_share_directory
 from gazebo_msgs.srv import DeleteEntity, GetModelList, SpawnEntity
 from geometry_msgs.msg import PoseStamped
 from PIL import Image as PILImage
+from rcl_interfaces.msg import Parameter, ParameterType, ParameterValue
+from rcl_interfaces.srv import SetParameters
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from rclpy.time import Time
@@ -201,6 +217,14 @@ def pose_manija(ang_bisagra, ang_manija):
     return t_hoja @ t_man
 
 
+def distancia_a_hoja(p, ang_bisagra):
+    """Distancia [m] del punto p (mundo) a la cara de la hoja del lado de Milo (+ = delante)."""
+    r = rot('z', ang_bisagra)
+    normal = r @ np.array([-1.0, 0.0, 0.0])            # la cara mira hacia Milo (-X)
+    punto = BISAGRA + r @ np.array([-0.02, 0.0, 0.0])  # la hoja mide 4 cm de espesor
+    return float(normal @ (p - punto))
+
+
 def tf_a_matriz(tf):
     m = np.eye(4)
     q = tf.transform.rotation
@@ -255,6 +279,7 @@ class Generador(Node):
         self.borrar = self.create_client(DeleteEntity, '/delete_entity')
         self.spawnear = self.create_client(SpawnEntity, '/spawn_entity')
         self.listar = self.create_client(GetModelList, '/get_model_list')
+        self.parametros = self.create_client(SetParameters, '/arm_moveit_node/set_parameters')
         with open(os.path.join(get_package_share_directory('andesrobot_arm'), 'worlds',
                                'puerta_prueba.sdf')) as f:
             self.sdf = f.read()
@@ -266,6 +291,25 @@ class Generador(Node):
         fut = cliente.call_async(req)
         self.esperar(seg, fut.done)
         return fut.result() if fut.done() else None
+
+    def suavizar_brazo(self):
+        """Bajar la aceleración de los movimientos de arm_moveit_node (parámetro en vivo)."""
+        valor = ParameterValue(type=ParameterType.PARAMETER_DOUBLE,
+                               double_value=self.args.aceleracion)
+        res = self.llamar(self.parametros, SetParameters.Request(
+            parameters=[Parameter(name='acceleration_scaling', value=valor)]), seg=5)
+        if res is None or not res.results[0].successful:
+            self.get_logger().warn('No pude cambiar acceleration_scaling de arm_moveit_node '
+                                   '(¿moveit:=false?): sigue con la de siempre.')
+
+    def deriva(self, t_inicio):
+        """Cuánto se movió la base desde t_inicio: (distancia en el piso [m], giro [grados])."""
+        t = self.lookup('odom', 'base_footprint')
+        if t is None:
+            return 0.0, 0.0
+        d = np.linalg.norm(t[:2, 3] - t_inicio[:2, 3])
+        giro = math.atan2(t[1, 0], t[0, 0]) - math.atan2(t_inicio[1, 0], t_inicio[0, 0])
+        return float(d), abs(math.degrees(math.atan2(math.sin(giro), math.cos(giro))))
 
     def modelos_puerta(self):
         """Nombres de los modelos de Gazebo que son una puerta (puerta_prueba, puerta_v...)."""
@@ -352,7 +396,13 @@ class Generador(Node):
         # Partir siempre de la puerta original: una corrida anterior pudo dejar una variante.
         if a.variar and not self.nueva_variante(original=True):
             return
-        hechas = intentos = 0
+        self.suavizar_brazo()
+        t_base0 = None
+        while t_base0 is None:
+            t_base0 = self.lookup('odom', 'base_footprint')
+            self.esperar(0.2)
+        avisado = False
+        hechas = intentos = cerca = 0
         meta = open(os.path.join(a.salida, 'meta.csv'), 'a')
         while hechas < a.n and intentos < a.n * 3:
             intentos += 1
@@ -361,9 +411,27 @@ class Generador(Node):
                 if not self.nueva_variante():
                     break
                 self.variante_hecha = True
+            d, giro = self.deriva(t_base0)
+            if d > a.deriva_max or giro > 3 * a.deriva_max / 0.05:
+                log.error(f'La base se movió {d:.2f} m y {giro:.0f}° desde el comienzo: paro. '
+                          'Relanzar la simulación (vuelve a su lugar) y seguir con --inicio '
+                          f'{a.inicio + hechas}.')
+                break
+            if not avisado and (d > 0.05 or giro > 3):
+                log.warn(f'La base se movió {d:.2f} m y {giro:.0f}° desde el comienzo.')
+                avisado = True
             t_man = pose_manija(self.ang['bisagra'], self.ang['eje_manija'])
             t_cam_deseada = self.vista_al_azar(t_man)
             t_tcp = t_cam_deseada @ np.linalg.inv(t_tcp_cam)
+            if distancia_a_hoja(t_tcp[:3, 3], self.ang['bisagra']) < a.margen:
+                # El TCP quedaría casi tocando la hoja: ni se intenta (y no cuenta como intento,
+                # no cuesta nada sortear otra).
+                intentos -= 1
+                cerca += 1
+                if cerca > 50 * a.n:
+                    log.error('Casi todas las vistas quedan pegadas a la hoja: bajar --margen.')
+                    break
+                continue
             # La meta va en base_footprint: la escena de MoveIt no conoce "odom".
             t_bf_odom = self.lookup('base_footprint', 'odom')
             if t_bf_odom is None:
@@ -427,7 +495,8 @@ class Generador(Node):
             self.variante_hecha = False
             log.info(f'{nombre}: distancia {np.linalg.norm(t_cam[:3, 3] - t_man[:3, 3]):.2f} m')
         meta.close()
-        log.info(f'Listo: {hechas} imágenes en {a.salida} ({intentos} vistas intentadas).')
+        log.info(f'Listo: {hechas} imágenes en {a.salida} ({intentos} vistas intentadas, '
+                 f'{cerca} descartadas por quedar pegadas a la hoja).')
 
 
 def envolvente(p):
@@ -459,6 +528,12 @@ def main():
     ap.add_argument('--semilla', type=int, default=0)
     ap.add_argument('--variar', type=int, default=0,
                     help='cada cuántas imágenes poner otra variante de la puerta (0 = nunca)')
+    ap.add_argument('--margen', type=float, default=0.12,
+                    help='distancia mínima del TCP a la cara de la hoja [m]')
+    ap.add_argument('--aceleracion', type=float, default=0.2,
+                    help='fracción de la aceleración máxima del brazo (en el nodo: 0.5)')
+    ap.add_argument('--deriva_max', type=float, default=0.15,
+                    help='parar si la base se movió más que esto [m] (o 3° por cada 5 cm)')
     ap.add_argument('--inicio', type=int, default=0,
                     help='número de la primera imagen (para agregar a un dataset que ya existe)')
     args = ap.parse_args()

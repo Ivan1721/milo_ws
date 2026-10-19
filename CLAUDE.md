@@ -169,7 +169,11 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   no `odom`). `--variar K` respawns a randomized door every K images (`sdf_variante` edits
   `puerta_prueba.sdf` with ElementTree: materials, lever size, a dim point light, spring
   references for hinge/handle angles; unique model names; first batch is always the original;
-  brighter lights wash the image out). `scripts/entrenar_manija.py --tarea pose|seg|det` hard-links
+  brighter lights wash the image out). The base slips ~1 mm per arm move even in free air
+  (Gazebo friction; base belongs to another team, not fixed): a 300-image run drifted 0.41 m/24°
+  and MoveIt then failed 1/3 of views. The generator therefore sets `acceleration_scaling` 0.2 on
+  `arm_moveit_node` at runtime, skips views with the TCP < 12 cm from the leaf, and stops at 15 cm
+  drift (relaunch the sim, continue with `--inicio`). `scripts/entrenar_manija.py --tarea pose|seg|det` hard-links
   the split into Ultralytics' images/labels layout and fine-tunes yolov8s-* into
   `ros2_ws/modelos/entrenamientos/`.
 - Arm masses: gripper scaled from the CAD's steel to ABS (`gripper_mass_scale`); stepper motors and
@@ -198,7 +202,8 @@ report's figure B, the arm's closed-loop block diagram; `fig_lazo_moveit.py` reu
 figure C (the same loop with MoveIt 2, what runs with `moveit:=true`). The Markdown report links
 the images in `andesrobot_arm/docs/figuras/` (and the arena PNG in `andesrobot_gazebo/worlds/`)
 directly; `docs/informe/img/` keeps only images that exist nowhere else (camera captures, range
-plot). The claude.ai artifact has its own uploaded copies. Arm limits are **provisional** (`arm_lower/arm_upper/arm_effort/arm_velocity`
+plot, and figures 9/10: handle labels and model predictions, copied from the gitignored
+`ros2_ws/capturas/` and the training run). The claude.ai artifact has its own uploaded copies. Arm limits are **provisional** (`arm_lower/arm_upper/arm_effort/arm_velocity`
 properties: ±π, 20 N·m, 1 rad/s); don't use them for real hardware.
 
 Known sim behaviors: the own IK (`moveit:=false`) has no collision checking. `arm_controller` has goal tolerances

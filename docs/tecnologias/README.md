@@ -54,7 +54,7 @@ están al final.
 | IMU en la pinza | MPU-9250 (por montar) | MPU-9250 si ya está; **BNO085** o **ICM-20948** si se compra | el MPU-9250 está discontinuado; el BNO085 entrega la orientación ya calculada |
 | Simulación | Gazebo Classic 11 | seguir; migrar a **Gazebo Harmonic** cuando se amplíe | Classic ya no recibe actualizaciones desde enero de 2025 |
 | Cámara | Gemini Plus simulada | **verificar el driver** antes de conectarla | el driver actual de Orbbec no la lista; puede necesitar la versión antigua |
-| Detección | nada | **OpenCV** (color, ArUco) → **YOLO** | de lo simple a lo general |
+| Detección | YOLO (Ultralytics) en la imagen de Docker; `yolov8s-pose` afinado para la manija de la puerta, probado solo en simulación | **OpenCV** (color, ArUco) → **YOLO** | de lo simple a lo general |
 | Plano eléctrico | nada | **KiCad** (o Fritzing para un primer borrador) | gratis, estándar y versionable en git |
 
 ---

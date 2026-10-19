@@ -195,6 +195,13 @@ Ordenado de lo general a lo específico. La última columna dice dónde aparece 
 | <a id="g-slam"></a>SLAM | *Simultaneous Localization and Mapping*: el robot arma un mapa mientras se ubica en él. | slam_toolbox (base, otro equipo). |
 | <a id="g-odometria"></a>Odometría | Estimar cuánto se movió el robot contando las vueltas de las ruedas. | `/odom`. |
 | <a id="g-monte-carlo"></a>Monte Carlo | Método que prueba miles de casos al azar y mira los resultados, en vez de calcular la respuesta exacta. | Así se dibujó el espacio de trabajo. |
+| <a id="g-yolo"></a>YOLO | *You Only Look Once*: familia de redes neuronales que, en una sola pasada por la foto, dicen qué objetos hay y dónde. La librería Ultralytics las trae ya entrenadas. | Detector de la manija (sección 14). |
+| <a id="g-dataset"></a>Dataset y etiqueta | Conjunto de fotos con la respuesta correcta anotada (la etiqueta: dónde está el objeto). La red aprende comparando lo que predice con la etiqueta. | Las fotos de la manija; las etiqueta el simulador. |
+| <a id="g-keypoint"></a>Keypoint | Punto con nombre que la red aprende a ubicar en la foto, como las articulaciones de una persona en un detector de poses. | Eje, agarre y punta de la manija. |
+| <a id="g-afinar"></a>Afinar (*fine-tuning*) | Partir de una red ya entrenada con muchas fotos y enseñarle solo lo nuevo. Necesita cientos de fotos y minutos, no millones y días. | `yolov8s-pose` afinado para la manija. |
+| <a id="g-domain-randomization"></a>Variación al azar (*domain randomization*) | Cambiar al azar colores, luces y formas en el simulador, para que la red aprenda la forma del objeto y no los detalles de una escena. | Variantes de la puerta cada 5 fotos. |
+| <a id="g-map"></a>mAP50 | Medida de qué tan bien detecta una red: 1.0 significa que encontró todos los objetos sin falsas alarmas (contando como acierto una caja que coincide al menos en 50 %). | 0.995 para la manija. |
+| <a id="g-control-visual"></a>Control visual (*visual servoing*) | Mover el robot corrigiendo con lo que ve la cámara en cada instante, en vez de calcular un destino una vez y moverse a ciegas. | Plan para los últimos centímetros hasta la manija. |
 
 # Parte I · El proyecto
 
@@ -212,6 +219,7 @@ Milo (`andesrobot`) es un manipulador móvil: una base diferencial con ruedas y 
 
 - **Base:** teleoperación con teclado, filtro de seguridad que frena ante obstáculos y mapeo 2D con slam_toolbox. En simulación y en el robot real.
 - **Brazo:** cinemática directa e inversa (con el lift), control de brazo, lift y pinza en Gazebo, planificación sin choques con **MoveIt 2** (desde el 18 de octubre) y un marcador en RViz para moverlo con el mouse. **Solo en simulación**: aún no hay driver del brazo real.
+- **Desafío de la puerta** (en curso): una puerta de prueba en Gazebo que se abre empujando, y un detector de la manija (YOLO) entrenado con imágenes simuladas que se etiquetan solas (sección 14). Falta probarlo con una puerta real y hacer el movimiento de abrir.
 
 La documentación del repositorio está en español y pensada para estudiantes: cada launch, xacro, YAML y script explica sus conceptos en comentarios. El `README.md` es un paso a paso; los detalles por paquete están en `andesrobot_description/docs/ROBOT.md` y `andesrobot_arm/docs/BRAZO.md`.
 
@@ -233,7 +241,11 @@ La documentación del repositorio está en español y pensada para estudiantes: 
 | `2619d5b` | Repasos de literatura (`docs/literatura/`) y de tecnologías (`docs/tecnologias/`, con diagramas de lazo cerrado y análisis de NBV) |
 | `bb67df7` | Revisión completa del proyecto: 5 pruebas unitarias nuevas, prueba de humo en Gazebo, mesa de prueba anclada al mundo, figura B del lazo cerrado; validación repetida en Gazebo (sección 21) |
 | `3015097` | **MoveIt 2 integrado**: paquete `andesrobot_moveit_config`, nodo `arm_moveit_node`, `arm_sim` planifica sin choques por defecto (`moveit:=true`), mesa y OctoMap de la cámara en la escena; figura C pasa de propuesta a lo que corre |
-| (este cambio) | Se integra `main` (casa RoboCup@Home, Nav2, informe de navegación del otro equipo) y se limpia la rama: el informe enlaza las figuras de `andesrobot_arm/docs/figuras/` en vez de guardar copias |
+| `a2206b2` | Se integra `main` (casa RoboCup@Home, Nav2, informe de navegación del otro equipo) y se limpia la rama: el informe enlaza las figuras de `andesrobot_arm/docs/figuras/` en vez de guardar copias |
+| `d781403` | Puerta de prueba para el desafío de abrir una puerta (`puerta:=true`): se abre empujando, manija de palanca, resortes, ángulos reales en `/puerta/joint_states` |
+| `24b4c82` | YOLO (Ultralytics) en la imagen de Docker; los detectores ya entrenados no reconocen la manija simulada; generador de imágenes etiquetadas |
+| `44ee336` | Variantes al azar de la puerta (colores, luz, medidas, ángulos) y script para entrenar el detector |
+| (este cambio) | Protecciones del generador contra el resbalón de la base, primer detector de la manija entrenado (sección 14) y revisión de la documentación |
 
 La rama está en GitHub: `github.com/Ivan1721/milo_ws`, rama `brazo` (repositorio público; el remoto usa SSH). En la raíz, `docs/` guarda lo que no es código: `docs/informe/`, este informe, y `docs/hardware/`, los manuales y modelos de las piezas (de terceros: solo su índice va a git). `ros2_ws/src/` queda solo para paquetes de ROS.
 
@@ -859,7 +871,7 @@ flowchart LR
 | Controlador | `arm_controller`, un punto | el mismo `arm_controller`, con la trayectoria completa (N puntos) por `FollowJointTrajectory` |
 | Vigilancia | el nodo solo imprime el resultado | MoveIt sigue la ejecución: si el controlador no llega a tiempo o fuera de tolerancia, aborta y puede replanificar |
 | Lazo de posición | sensores → controlador, 100 Hz | **igual**; sigue cerrándose sobre la orden en Gazebo y necesita encoders en el robot real |
-| Cámara | solo imágenes; detección pendiente | la nube alimenta el OctoMap (obstáculos) en forma continua; la detección del objeto sigue pendiente |
+| Cámara | solo imágenes; detección pendiente | la nube alimenta el OctoMap (obstáculos) en forma continua; ya hay un detector de la manija entrenado (sección 14), pero todavía no cierra el lazo |
 | nodo cliente | `arm_ik_node` hace la IK y manda la trayectoria | `arm_moveit_node` traduce `/arm_target_pose` a la acción `MoveGroup` y publica la mesa en la escena; avisa en español por qué no se movió |
 
 **Se lee así**, comparando con la figura B:
@@ -1034,9 +1046,9 @@ La imagen IR real muestra el patrón de puntos del proyector sobre la escena, y 
 
 ```mermaid
 flowchart LR
-  GZ["Gazeboprofundidad ideal"] -- "/gripper_camera/ideal/depth/ideal/ir · /depth/color_sim" --> RN["gemini_realista(nodo nuevo)"]
-  RN -- "/gripper_camera/depth/image_raw (16UC1)/depth/points · /ir/image_raw" --> APP["detector, capturar_camara,RViz"]
-  REAL["Gemini Plus realOrbbecSDK_ROS2"] -- "mismos topics" --> APP
+  GZ["Gazebo<br/>profundidad ideal"] -- "/gripper_camera/ideal/depth<br/>/ideal/ir · /depth/color_sim" --> RN["gemini_realista<br/>(nodo nuevo)"]
+  RN -- "/gripper_camera/depth/image_raw (16UC1)<br/>/depth/points · /ir/image_raw" --> APP["detector, capturar_camara,<br/>RViz"]
+  REAL["Gemini Plus real<br/>OrbbecSDK_ROS2"] -- "mismos topics" --> APP
 ```
 
 1. Los plugins de Gazebo publican en `/gripper_camera/ideal/…`.
@@ -1044,7 +1056,7 @@ flowchart LR
 3. Cada efecto tiene sus parámetros con los valores de arriba como punto de partida.
 4. **Ajustarlos con la cámara real:** capturar con `capturar_camara` una pared plana a 0.3, 0.6, 1.0, 1.5 y 2.0 m, y una escena con objetos. Medir el error en cada distancia, el porcentaje de huecos y el ancho de las sombras, y repetir lo mismo en Gazebo hasta que coincidan.
 
-**Si la cámara se usa para detectar objetos**, además del realismo del sensor conviene variar la escena en cada prueba: posición y orientación de los objetos, colores y texturas, iluminación y objetos que distraigan. Un detector que solo vio el cubo rojo siempre en el mismo lugar no sirve en el robot real. La mesa de prueba se puede generar con valores al azar en cada lanzamiento.
+**Si la cámara se usa para detectar objetos**, además del realismo del sensor conviene variar la escena en cada prueba: posición y orientación de los objetos, colores y texturas, iluminación y objetos que distraigan. Un detector que solo vio el cubo rojo siempre en el mismo lugar no sirve en el robot real. Esto ya se hace con la puerta de prueba (ver «Detectar la manija», más abajo); la mesa podría hacerlo igual.
 
 ### Usarla
 
@@ -1058,6 +1070,43 @@ ros2 run andesrobot_arm capturar_camara   # -> ~/milo_ws/ros2_ws/capturas/<fecha
 ```
 
 Deja `color.png`, `ir.png`, `profundidad_mm.png` (16 bits en mm, como la real), `profundidad_vista.png`, `nube.ply` y `resumen.txt`. Los topics son parámetros, así sirve igual con la cámara real. En RViz están los paneles *Camara color / profundidad / infrarrojo* y la nube de puntos; sin la cámara (`camara:=false`) esos paneles quedan vacíos.
+
+<a id="manija"></a>
+
+### Detectar la manija de una puerta (desafío en curso)
+
+> **En palabras simples:** Uno de los desafíos de Milo es abrir una puerta: encontrar la manija con la cámara, llevar la pinza hasta ella y empujar. Para «encontrar la manija» se usa una red neuronal ([YOLO](#g-yolo)) que, mirando una foto, marca dónde está la manija y tres puntos sobre ella. Las redes ya entrenadas con fotos de internet no reconocieron la manija simulada, así que hubo que enseñarle una propia. En vez de marcar a mano cientos de fotos, el simulador las marca solo, porque sabe exactamente dónde está la manija; y para que no aprenda una sola puerta, cada pocas fotos le cambia los colores, la luz y las medidas. Resultado: en puertas simuladas que nunca vio la encuentra siempre, con un error de 2 a 3 píxeles. Falta probarla con una puerta real.
+
+**La puerta de prueba** (`ros2 launch andesrobot_arm arm_sim.launch.py puerta:=true`, archivo `worlds/puerta_prueba.sdf`) va en lugar de la mesa: hoja de 0.90 × 2.00 m a 0.80 m frente a Milo, que se abre **empujando** (alejándose del robot), con bisagra a la izquierda y manija de palanca a la derecha a 1 m de altura. La hoja y la manija tienen resortes, como una puerta real con cierrapuertas, y el simulador publica sus ángulos verdaderos en `/puerta/joint_states` para medir los experimentos. Por ahora solo se empuja: tirar y el pestillo quedan para después.
+
+**Por qué entrenar un modelo propio.** Se probaron dos detectores ya entrenados (19 de octubre): YOLOE, al que se le escribe qué buscar («door handle»), y YOLOv8 entrenado con Open Images, que trae la clase «manija de puerta». Los dos recortan bien la zona de la manija, pero la confunden con otra cosa (una pinza de robot, un avión) con confianza menor a 6 %. La puerta simulada, de colores planos, es muy distinta de las fotos con que se entrenaron.
+
+**Imágenes que se etiquetan solas.** `scripts/generar_dataset_manija.py` mueve la pinza (con MoveIt) a vistas al azar alrededor de la manija (de 0.35 a 0.8 m, hasta 40° a los lados y de −15° a +45° en altura) y saca una foto. Como el simulador conoce la forma de la manija, el ángulo de la bisagra y dónde está la cámara (TF), proyecta la manija sobre la foto con la misma matriz de la cámara de la sección 14 y escribe tres [etiquetas](#g-dataset): la caja que la encierra, su contorno (máscara) y tres [keypoints](#g-keypoint): **eje** (centro de la roseta, donde gira), **agarre** (a 7 cm sobre la palanca, donde cerrar la pinza) y **punta**. Con eje → punta se sabe hacia dónde apunta la palanca y, por lo tanto, hacia dónde bajarla.
+
+**Variar la escena** ([domain randomization](#g-domain-randomization)). Si todas las fotos muestran la misma puerta café con la misma luz, el modelo aprende *esa* puerta. Por eso, cada 5 fotos el generador cambia la puerta por una variante al azar: colores y texturas (madera, ladrillo, pintura), manija plateada, dorada, negra o blanca, largo de la palanca entre 10 y 14 cm, una luz extra, y la hoja entreabierta o la manija bajada.
+
+![Ocho imágenes generadas, cada una con una variante distinta de la puerta. Sobre cada foto, la etiqueta que escribió el simulador: el contorno de la manija en verde, la caja en amarillo y los tres puntos (eje en rojo, agarre en azul, punta en magenta). Abajo se ven los dedos de la pinza y, en dos fotos, el propio brazo de Milo.](img/fig_manija_etiquetas.jpg)
+
+**Figura 9.** Imágenes del generador con sus etiquetas automáticas. Cada una es una variante distinta de la puerta.
+
+**Entrenamiento.** `scripts/entrenar_manija.py` [afina](#g-afinar) `yolov8s-pose` (una red que entrega la caja y los keypoints) a partir de los pesos entrenados con COCO. Con 267 fotos de entrenamiento y 60 de validación (generadas con otra semilla, o sea **puertas que el modelo nunca vio**), 100 pasadas tardaron 6 minutos en la GPU del PC (RTX 3070):
+
+| Medida | Resultado |
+| --- | --- |
+| Manijas encontradas | 60 de 60 |
+| [mAP50](#g-map) de la caja / de los keypoints | 0.995 / 0.995 |
+| Error de los keypoints (imagen de 640 × 480) | 2 a 3 píxeles de media; el peor, 9.5 píxeles |
+| Tiempo por imagen | 12 ms (unas 80 imágenes por segundo) |
+
+![Predicciones del modelo sobre ocho fotos de validación: una caja azul con la palabra manija y la confianza (0.9 a 1.0), y los tres puntos encontrados sobre la palanca.](img/fig_manija_prediccion.jpg)
+
+**Figura 10.** Lo que predice el modelo en fotos de validación (puertas que no vio al entrenar).
+
+**Cuidado al leer estos números:** miden simulación contra simulación. Una puerta real tiene reflejos, sombras, desenfoque y fondos que el simulador no tiene; el siguiente paso es fotografiar una puerta real (30 a 50 fotos), medir ahí y, si hace falta, sumarlas al entrenamiento.
+
+**Un hallazgo de la simulación: la base resbala.** Cada movimiento del brazo hace retroceder la base cerca de 1 mm en Gazebo, aunque el brazo no toque nada (el brazo es pesado y la base liviana). En una corrida de 300 fotos la base terminó 41 cm atrás y girada 24°, y el brazo ya no alcanzaba la manija. Las etiquetas seguían correctas, porque se calculan con la posición del momento, pero se perdía tiempo. El generador ahora mueve el brazo con menos aceleración, no intenta vistas pegadas a la puerta y se detiene si la base se corrió más de 15 cm. Para abrir la puerta de verdad importa más: la fuerza que haga el brazo al empujar también puede mover la base.
+
+**Cómo sigue** (el plan acordado): con la profundidad, que funciona de 0.25 m hacia afuera, fijar la posición 3D de la manija mientras se acerca; cuando la cámara queda demasiado cerca y la profundidad se pierde, seguir guiando la pinza solo con la imagen a color y los keypoints ([control visual](#g-control-visual)); y por último bajar la manija y empujar. El control de fuerza (impedancia) y la IMU de la pinza quedan para después de saber si esto funciona.
 
 <a id="aplicaciones"></a>
 
@@ -1096,14 +1145,14 @@ Nada de lo que usa el brazo de Milo es exclusivo de un proyecto de curso: son la
 
 ```mermaid
 flowchart LR
-  KB["teleopteclado"] -- "/cmd_vel_teleop" --> SF["safety_filter"]
-  LID["lidarGazebo o RPLIDAR C1"] -- "/scan" --> SF
+  KB["teleop<br/>teclado"] -- "/cmd_vel_teleop" --> SF["safety_filter"]
+  LID["lidar<br/>Gazebo o RPLIDAR C1"] -- "/scan" --> SF
   LID -- "/scan" --> LF["laser_filters"]
   LF -- "/scan_filtered" --> SLAM["slam_toolbox"]
-  SF -- "/cmd_vel (sim)/diff_drive_controller/cmd_vel_unstamped (real)" --> BASE["diff driveplugin de Gazebo oros2_control + hoverboard"]
+  SF -- "/cmd_vel (sim)<br/>/diff_drive_controller/cmd_vel_unstamped (real)" --> BASE["diff drive<br/>plugin de Gazebo o<br/>ros2_control + hoverboard"]
   BASE -- "/odom + TF odom→base_footprint" --> SLAM
   SLAM -- "/map + TF map→odom" --> RV["RViz"]
-  SF -- "/safety/state/safety/stop_zone" --> RV
+  SF -- "/safety/state<br/>/safety/stop_zone" --> RV
 ```
 
 En simulación los sensores y la tracción los dan plugins de Gazebo declarados en `andesrobot.sim.xacro`. En el robot real, `sllidar_ros2` publica `/scan` y ros2_control con el driver del hoverboard publica `/odom` y la TF. Por encima de esa capa (seguridad, SLAM, RViz) todo es idéntico.
@@ -1376,6 +1425,8 @@ El robot físico (hoverboard, lidar y mapeo real) no se probó como parte de est
 - **Sin driver del brazo real**: el control existe solo en Gazebo. El EB300 se controla con un Arduino MEGA 2560 y 6 drivers TB6600; el camino natural es un plugin de ros2_control que hable por serie con el Arduino, como el del hoverboard.
 - **Choques**: con MoveIt 2 (el default) se evitan antes de mover (sección 13); con `moveit:=false` la IK propia puede atravesar la base, la columna o la mesa, y Gazebo **no la frena** con el mando por posición (sección 21). Pendiente en MoveIt: TRAC-IK (falla menos cerca de los límites que KDL), los objetos de la mesa como objetos conocidos (hoy el OctoMap los vuelve obstáculos y no se pueden agarrar), afinar el OctoMap (resolución, filtrado del propio robot) y, si la base se moviera, pasar la escena a un frame fijo al mundo.
 - **Giros largos cerca de ±π**: con los límites provisorios una articulación no puede pasar de ±π, así que un objetivo «al otro lado» obliga a casi una vuelta completa (medido: `joint_1` recorre 6.08 rad en 12.2 s en vez de 0.2 rad). Se arregla con los topes reales.
+- **Desafío de la puerta** (sección 14): probar el detector con fotos de una puerta real y sumarlas al entrenamiento; fijar la posición de la manija con la profundidad y guiar los últimos centímetros con la imagen a color; el movimiento de bajar la manija y empujar; después, tirar y el pestillo.
+- **La base resbala en Gazebo** (~1 mm por movimiento del brazo, sección 14): la física de la base es del otro equipo; afecta a cualquier tarea larga del brazo y al empujar la puerta.
 - **Mando por posición**: Gazebo coloca las articulaciones en el ángulo pedido como si fueran infinitamente rígidas. Agarrar objetos no será realista, y un choque mueve al robot entero en vez de frenar el brazo (medido el 17 de octubre: 3° de inclinación de la base). La alternativa es mando por esfuerzo con PID por articulación.
 
 ### Robot físico (según `ROBOT.md`)
@@ -1414,6 +1465,19 @@ ros2 action send_goal /gripper_controller/follow_joint_trajectory control_msgs/a
   "{trajectory: {joint_names: [right_finger_joint], points: [{positions: [0.016], time_from_start: {sec: 1}}]}}"
 ```
 
+### Puerta y detector de la manija
+
+```bash
+./sim.sh shell            # terminal 1: la puerta en vez de la mesa
+ros2 launch andesrobot_arm arm_sim.launch.py puerta:=true octomap:=false
+
+./sim.sh shell            # terminal 2: generar fotos etiquetadas (~10 s cada una)
+cd /ros2_ws/src/andesrobot_arm/scripts
+python3 generar_dataset_manija.py --n 300 --variar 5 --semilla 1 --salida /ros2_ws/datasets/manija_sim/train
+python3 generar_dataset_manija.py --n 60 --variar 5 --semilla 2 --salida /ros2_ws/datasets/manija_sim/val
+python3 entrenar_manija.py --tarea pose       # con la simulación apagada; ~6 min
+```
+
 ### Milo físico
 
 ```bash
@@ -1434,4 +1498,4 @@ cd /ros2_ws/src/andesrobot_arm && python3 scripts/figuras.py docs/figuras   # tr
 
 ---
 
-*La figura A se dibuja con `andesrobot_arm/scripts/fig_articulaciones.py` a partir del URDF y las mallas STL. Las figuras B y C son esquemas dibujados con `andesrobot_arm/scripts/fig_lazo_cerrado.py` y `fig_lazo_moveit.py`. Figuras 1–5 generadas con `andesrobot_arm/scripts/figuras.py` a partir del URDF procesado y las mallas STL; la figura 6 y las distancias de la sección 5 se calcularon con `ArmKinematics` sobre el mismo URDF; la figura 7 son capturas de la cámara simulada (`capturar_camara`); la figura 8 es `andesrobot_gazebo/worlds/andesrobot_arena.png`. Masas leídas del URDF procesado. Medidas en metros y radianes salvo que se indique otra unidad.*
+*La figura A se dibuja con `andesrobot_arm/scripts/fig_articulaciones.py` a partir del URDF y las mallas STL. Las figuras B y C son esquemas dibujados con `andesrobot_arm/scripts/fig_lazo_cerrado.py` y `fig_lazo_moveit.py`. Figuras 1–5 generadas con `andesrobot_arm/scripts/figuras.py` a partir del URDF procesado y las mallas STL; la figura 6 y las distancias de la sección 5 se calcularon con `ArmKinematics` sobre el mismo URDF; la figura 7 son capturas de la cámara simulada (`capturar_camara`); la figura 8 es `andesrobot_gazebo/worlds/andesrobot_arena.png`; las figuras 9 y 10 son fotos de la cámara simulada con las etiquetas de `generar_dataset_manija.py` y las predicciones del modelo entrenado con `entrenar_manija.py`. Masas leídas del URDF procesado. Medidas en metros y radianes salvo que se indique otra unidad.*

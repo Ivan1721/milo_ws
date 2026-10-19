@@ -9,7 +9,7 @@ funciona **solo en simulación**.
 
 ```bash
 cd ~/milo_ws
-./sim.sh brazo          # Gazebo + Milo con el brazo controlado + IK + marcador + RViz
+./sim.sh brazo          # Gazebo + Milo con el brazo controlado + MoveIt + cámara + mesa + RViz
 ```
 
 En RViz: herramienta **Interact** (tecla `i`), arrastra la esfera naranja y suelta. MoveIt busca un
@@ -34,14 +34,19 @@ ros2 action send_goal /gripper_controller/follow_joint_trajectory control_msgs/a
 
 Sin Docker (ROS Humble instalado en el PC): `ros2 launch andesrobot_arm arm_sim.launch.py`
 (`gui:=false` sin ventana de Gazebo, `rviz:=false` sin RViz, `camara:=false` sin la cámara de la
-pinza, `mesa:=false` sin la mesa de prueba, `moveit:=false` con la cinemática inversa propia en vez
-de MoveIt, `octomap:=false` sin el mapa de la cámara en la escena).
+pinza, `mesa:=false` sin la mesa de prueba, `puerta:=true` la puerta de prueba en vez de la mesa,
+`moveit:=false` con la cinemática inversa propia en vez de MoveIt, `octomap:=false` sin el mapa de
+la cámara en la escena). `./sim.sh brazo` no pasa argumentos: para cambiarlos, `./sim.sh shell` y
+el `ros2 launch` directo.
 
-Tests (sin ROS corriendo): `source install/setup.bash && cd src/andesrobot_arm && python3 -m pytest -q test`
+Tests (sin ROS corriendo, dentro de `./sim.sh shell`):
+`source /ros2_ws/install/setup.bash && cd /ros2_ws/src/andesrobot_arm && python3 -m pytest -q test`
 
 Prueba de humo en Gazebo, sin ventanas (~2 min, con el contenedor levantado y sin otra simulación
 andando): `bash /ros2_ws/src/andesrobot_arm/scripts/prueba_gazebo.sh`. Comprueba controladores,
-`/joint_states`, los 4 canales de la cámara, una pose alcanzable y la pinza, y apaga todo al final.
+`/joint_states`, los 4 canales de la cámara, una pose alcanzable, y con MoveIt que la mesa está en
+la escena, que una pose dentro de la mesa se rechaza y que el OctoMap se llena; después la pinza, y
+apaga todo al final. `MOVEIT=false bash .../prueba_gazebo.sh` la corre con `arm_ik_node`.
 
 ## MoveIt 2: planificar sin choques
 
@@ -130,7 +135,7 @@ simulación de la puerta corriendo, mueve la pinza (MoveIt) a vistas al azar alr
 manija (0.35–0.8 m, ±40° a los lados, −15° a +45° en altura), toma la foto a color y proyecta la
 geometría conocida de la manija (TF + `/puerta/joint_states`) para escribir la caja, el polígono
 (máscara) y 3 keypoints (`eje` de la roseta, punto de `agarre` a 7 cm, `punta` de la palanca) en
-formato YOLO, en `ros2_ws/datasets/manija_sim/` (no va a git):
+formato YOLO, en `ros2_ws/datasets/manija_sim/` (no va a git).
 
 Si todas las fotos muestran la misma puerta café con la misma luz, el modelo aprende *esa*
 puerta y no reconoce otra. Por eso, con `--variar K`, cada K fotos el generador borra la puerta de
@@ -156,7 +161,36 @@ python3 entrenar_manija.py --tarea pose     # caja + keypoints; o --tarea seg (m
 «Afinar» (fine-tuning) es partir de un modelo ya entrenado con miles de fotos (COCO) y enseñarle
 solo la clase nueva: necesita cientos de imágenes y minutos, no millones y días.
 
-Medido: unos 9 s por foto (≈ 1 hora las 360); una vista que MoveIt no alcanza se salta.
+Medido: de 9 a 11 s por foto; una vista que MoveIt no alcanza se salta.
+
+Probar el modelo con lo que ve la cámara (con la puerta en la simulación y la pinza apuntando a
+la manija; en otra terminal, `./sim.sh shell`):
+
+```bash
+ros2 run andesrobot_arm capturar_camara --ros-args -p carpeta:=/ros2_ws/capturas/prueba && \
+yolo pose predict model=/ros2_ws/modelos/entrenamientos/manija_pose/weights/best.pt \
+  source=/ros2_ws/capturas/prueba/color.png project=/ros2_ws/capturas name=yolo exist_ok=True
+# -> ~/milo_ws/ros2_ws/capturas/yolo/color.jpg con la caja y los 3 keypoints
+```
+
+Si `capturar_camara` dice «No llegó nada por /gripper_camera/...», no hay simulación corriendo.
+Todavía no hay un nodo que detecte en vivo: es una foto a la vez.
+
+**Primer resultado (19-10-2026)**, `yolov8s-pose` con 267 fotos de entrenamiento y 60 de
+validación (puertas que no vio), 100 épocas en 6 minutos (RTX 3070): encuentra la manija en las
+60 (mAP50 0.995), los keypoints caen a ~2–3 px del punto verdadero (peor: 9.5 px en una imagen
+de 640×480) y tarda 12 ms por imagen. Ojo: eso mide *simulación contra simulación*; con una
+puerta real todavía no está probado (siguiente paso: fotos de una puerta real).
+
+**La base resbala.** En la simulación, cada movimiento del brazo (pesado, sobre una base liviana)
+hace retroceder la base ~1 mm, **aunque no toque nada** (medido moviendo el brazo en el aire: 1.4
+cm en 12 movimientos). En una corrida de 300 fotos la base terminó 0.41 m atrás y girada 24°, y
+MoveIt fallaba 1 de cada 3 vistas porque la puerta quedaba lejos. Las etiquetas siguen bien (se
+calculan con la TF del momento), pero se pierde tiempo. Por eso el generador baja la aceleración
+del brazo (`--aceleracion 0.2`), no intenta vistas que dejen el TCP a menos de 12 cm de la hoja
+(`--margen`), avisa cuando la base se movió 5 cm y **para a los 15 cm** (`--deriva_max`): se
+relanza la simulación y se sigue con `--inicio N` (lo dice el mensaje). Esto también importa para
+empujar la puerta de verdad: la fuerza del brazo puede mover la base.
 
 ## Cámara de la pinza (Orbbec Gemini Plus)
 
@@ -204,15 +238,16 @@ imagen gris. Gazebo publica además `/gripper_camera/depth/color_sim/*`, que no 
 
 ![Lazo cerrado del brazo](figuras/fig_lazo_cerrado.png)
 
-Lazo de control, de la orden al movimiento y de vuelta: la IK parte de `/joint_states`, el
-controlador compara la posición pedida con la medida a 100 Hz, y la cámara (pendiente) cerrará el
+Lazo de control con la IK propia (`moveit:=false`), de la orden al movimiento y de vuelta: la IK
+parte de `/joint_states`, el controlador compara la posición pedida con la medida a 100 Hz, y la
+cámara (pendiente: el detector de la manija ya existe, pero todavía no cierra el lazo) cerrará el
 lazo de percepción. En Gazebo la posición medida es la orden misma (mando por posición): ver
-«Limitaciones». Se genera con `scripts/fig_lazo_cerrado.py` (solo matplotlib). Cómo quedaría el mismo lazo con
-MoveIt 2 (planificación con revisión de choques): figura C del informe, `scripts/fig_lazo_moveit.py`.
+«Limitaciones». Se genera con `scripts/fig_lazo_cerrado.py` (solo matplotlib). El mismo lazo con
+MoveIt 2, que es lo que corre por defecto: figura C del informe, `scripts/fig_lazo_moveit.py`.
 
 | Pieza | Qué hace |
 |---|---|
-| `arm_sim.launch.py` | xacro con `lock_arm:=false arm_control:=true gripper_camera:=true` → Gazebo, spawn de Milo y la mesa, controladores, MoveIt (`moveit:=true`), nodos, RViz |
+| `arm_sim.launch.py` | xacro con `lock_arm:=false arm_control:=true gripper_camera:=true` → Gazebo, spawn de Milo y la mesa (o la puerta), controladores, MoveIt (`moveit:=true`), nodos, RViz |
 | `move_group` | MoveIt 2: escena de planificación (robot + mesa + OctoMap), IK (KDL), planificador (OMPL) y ejecución vigilada; configuración en `andesrobot_moveit_config` |
 | `arm_moveit_node` | escucha `/arm_target_pose` y se lo pide a MoveIt (acción `/move_action`); publica la mesa en la escena |
 | `arm_controller` | `JointTrajectoryController`: `vertical_lift_joint` + `joint_1..6` en una sola trayectoria, con tolerancias de meta (aborta si una articulación no llega; ver «Limitaciones») |
@@ -220,6 +255,10 @@ MoveIt 2 (planificación con revisión de choques): figura C del informe, `scrip
 | `arm_ik_node` | (con `moveit:=false`) escucha `/arm_target_pose`, resuelve la IK propia y manda la trayectoria, sin revisión de choques |
 | `arm_marker_node` | marcador en RViz sobre `gripper_tcp`; al soltar publica en `/arm_target_pose` (frame `base_footprint`) |
 | `capturar_camara` | guarda una imagen de cada canal de la cámara de la pinza (`ros2 run andesrobot_arm capturar_camara`) |
+| `scripts/prueba_gazebo.sh` | prueba de humo sin ventanas (ver «Usarlo») |
+| `scripts/generar_dataset_manija.py` | fotos de la manija ya etiquetadas, con variantes al azar de la puerta |
+| `scripts/entrenar_manija.py` | afina YOLO (pose, máscara o caja) con esas fotos |
+| `scripts/figuras.py`, `fig_*.py` | figuras de la geometría y de los lazos de control (ver «Geometría») |
 
 Parámetros de `arm_ik_node`:
 
@@ -308,8 +347,8 @@ python3 scripts/figuras.py docs/figuras
   al milímetro, y la base queda inclinada 3° y corrida 3.5 cm hacia atrás. El abort del 9 de octubre
   (la mesa frenó la pinza a 6 mm) fue un caso afortunado. Las tolerancias quedan como red de
   seguridad para el robot real con encoders; la protección de verdad es planificar con revisión de
-  choques (MoveIt 2, ver `docs/tecnologias/` en la raíz del repo). La pinza no tiene tolerancia a
-  propósito: al agarrar, los dedos quedan frenados.
+  choques, que es lo que hace MoveIt 2 (el default). La pinza no tiene tolerancia a propósito: al
+  agarrar, los dedos quedan frenados.
 - **Muñeca distinta al EB300**: el DH oficial del fabricante tiene d₄ = 122, d₅ = 99 y d₆ = 57 mm; el
   URDF (del CAD del equipo), 89.6, 89.5 y 41 mm. El brazo y el antebrazo sí coinciden. Hay que medir
   el brazo real antes de confiar en la posición de la pinza al centímetro.
@@ -320,6 +359,8 @@ python3 scripts/figuras.py docs/figuras
 - **Mando por posición**: Gazebo pone las articulaciones en el ángulo pedido como si fueran
   infinitamente rígidas; para agarrar objetos de verdad (y para que un choque frene el brazo en vez
   de inclinar la base) habría que pasar a esfuerzo con PID.
+- **La base resbala** ~1 mm con cada movimiento del brazo (ver «Detectar la manija»): en tareas
+  largas Milo se va corriendo de su lugar.
 - `simple_collision:=true` deja al brazo sin colisión propia (y una caja fija donde estaría el brazo
   bloqueado): por eso `arm_sim.launch.py` usa las mallas por defecto.
 - `gazebo_ros2_control` (Humble) no puede leer un URDF con comentarios XML: `arm_sim.launch.py` los
