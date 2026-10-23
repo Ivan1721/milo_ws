@@ -199,7 +199,9 @@ drawings, workspace and `medidas.json`) from the URDF + STL meshes; rerun it aft
 report's notation figure A (joint_2 and the lift over translucent URDF meshes, with every formula
 symbol) into `docs/figuras/`. `scripts/fig_lazo_cerrado.py` (matplotlib only) draws the
 report's figure B, the arm's closed-loop block diagram; `fig_lazo_moveit.py` reuses its helpers for
-figure C (the same loop with MoveIt 2, what runs with `moveit:=true`). The Markdown report links
+figure C (the same loop with MoveIt 2, what runs with `moveit:=true`). `fig_actualizacion.py` draws the two
+update figures for team messages (camera-to-motors flow colored by already-there/new/pending, and a
+before/after table); edit its `FILAS`/`PENDIENTES` when the state changes. The Markdown report links
 the images in `andesrobot_arm/docs/figuras/` (and the arena PNG in `andesrobot_gazebo/worlds/`)
 directly; `docs/informe/img/` keeps only images that exist nowhere else (camera captures, range
 plot, and figures 9/10: handle labels and model predictions, copied from the gitignored

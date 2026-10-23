@@ -449,24 +449,6 @@ Un nodo nuevo, `nbv_planner`, en `andesrobot_arm`:
 El repositorio de [N4] (`ethz-asl/active_grasp`) implementa este lazo con ROS y sirve de
 referencia directa.
 
-### Ajustes tras el proyecto hermano (23 de octubre)
-
-El proyecto de percepción activa con el Piper, que usa a Milo como plantilla y como segundo robot,
-avanzó desde que se escribió este diseño. Lo que cambia aquí (detalle y precauciones en la sección
-15 de `docs/informe/README.md`):
-
-- **Tres variantes de puntaje, no una.** Además de la ganancia de información (A), la fracción
-  visible del objeto calculada con lo observado (B-real) y con la geometría verdadera de la
-  escena (B-oráculo, un techo que solo existe en simulación).
-- **Paso 2:** el radio de 0.4–0.6 m debe descontar lo que sobresale la pinza por delante de la
-  cámara; con el OctoMap activo el objeto mismo es obstáculo.
-- **Paso 3:** se puede resolver la IK directo para el frame óptico (`ArmKinematics` acepta
-  cualquier frame del URDF como punta) y verificar la pose lograda con la cinemática directa.
-- **Paso 4:** el costo articular se pondera por articulación (el lift ya pesa 10 en `arm_ik_node`).
-- **Paso 6:** parar por visibilidad medida, ganancia menor que ε o máximo de vistas, y guardar una
-  fila por vista en un CSV.
-- **Falta antes de empezar:** un topic con la geometría verdadera de la mesa de prueba.
-
 ### Referencias de esta sección
 
 - [N1] C. I. Connolly, "The determination of next best views", *ICRA*, 1985.
