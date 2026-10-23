@@ -4,7 +4,7 @@
 
 Informe técnico de `milo_ws` centrado en el brazo de Milo: su modelo, su hardware real, la cinemática, el control en Gazebo y la cámara de la pinza. También explica cómo se ejecuta el workspace (Docker y scripts) y resume, como contexto, la base móvil, que desarrolla otro equipo. Todos los valores están tomados del código y de pruebas corridas sobre él.
 
-**Fecha:** 19 de octubre de 2026 · **Alcance:** los 9 paquetes de `ros2_ws/src`, Docker y los scripts · **Rama:** `brazo` (base: `72fc3a1 Workspace de Milo`)
+**Fecha:** 23 de octubre de 2026 · **Alcance:** los 9 paquetes de `ros2_ws/src`, Docker y los scripts · **Rama:** `brazo` (base: `72fc3a1 Workspace de Milo`)
 
 | Dato | Qué es |
 | ---: | --- |
@@ -246,6 +246,8 @@ La documentación del repositorio está en español y pensada para estudiantes: 
 | `24b4c82` | YOLO (Ultralytics) en la imagen de Docker; los detectores ya entrenados no reconocen la manija simulada; generador de imágenes etiquetadas |
 | `44ee336` | Variantes al azar de la puerta (colores, luz, medidas, ángulos) y script para entrenar el detector |
 | `45ef778` | Protecciones del generador contra el resbalón de la base, primer detector de la manija entrenado (sección 14) y revisión de la documentación |
+| `8e521f4` | Informe al día con la rama (fecha, paquetes, comando del brazo) |
+| *23-oct* | Sección 15 con las ideas de los proyectos hermanos (percepción activa con el Piper), contrato común por robot y pendientes del `nbv_planner` |
 
 La rama está en GitHub: `github.com/Ivan1721/milo_ws`, rama `brazo` (repositorio público; el remoto usa SSH). En la raíz, `docs/` guarda lo que no es código: `docs/informe/`, este informe, y `docs/hardware/`, los manuales y modelos de las piezas (de terceros: solo su índice va a git). `ros2_ws/src/` queda solo para paquetes de ROS.
 
@@ -1129,6 +1131,62 @@ Nada de lo que usa el brazo de Milo es exclusivo de un proyecto de curso: son la
 
 **Qué cambiaría al llevar Milo a un uso real:** se reemplazaría la IK propia por un planificador que además evite choques (MoveIt 2 con el mismo URDF), y la cámara alimentaría un detector entrenado con escenas variadas. Las piezas de este workspace (URDF, controladores, nombres de topics de la cámara) ya están hechas de forma compatible con eso.
 
+### Ideas de los proyectos hermanos: percepción activa con el Piper
+
+> **En palabras simples:** Ivan investiga cómo un brazo con la cámara en la mano elige desde dónde mirar una fruta tapada (*next-best-view*, NBV). Lo hace primero con otro brazo (un Piper con una pinza Pika, en simulación) y usa a Milo como plantilla y como segundo robot. Desde el 19 de octubre ese proyecto avanzó bastante; aquí está lo que aprendió y que le sirve al brazo de Milo, sobre todo para el `nbv_planner` que está diseñado en `docs/tecnologias/` (sección 11) y todavía no existe.
+
+Los proyectos son tres: `Next-Best-View` (código y documentación de la simulación del Piper, privado), `ActivePerceptionArms` (revisión sistemática de la literatura y manuscrito, privado) y `pika_ros` (el fork del hardware Pika, base del primero). Este repositorio es público, así que **no se copian** sus resultados ni su bibliografía: solo las ideas de método que aplican a Milo.
+
+**Qué le toca a Milo.** El proyecto hermano ya decidió que el código de percepción activa no nombra a ningún robot: recibe parámetros (el «contrato» de la tabla de abajo). Milo cumple dos papeles: *plantilla* (su cámara en la pinza, MoveIt 2 + OctoMap y su generador de imágenes etiquetadas son el modelo de los pasos que le faltan al Piper) y *segundo robot* (el mismo planificador, sin cambiar código, con otro brazo y otra cámara, para mostrar que el método no depende del robot).
+
+| Parámetro | Milo (hoy) | Piper + Pika (proyecto hermano) |
+| --- | --- | --- |
+| Nube de puntos | `/gripper_camera/depth/points` | `/gripper/camera/depth/color/points` |
+| Frame óptico de la cámara | `gripper_camera_depth_optical_frame` | `pika_d405_optical_frame` |
+| Grupo de MoveIt | `brazo`: `base_footprint` → `gripper_tcp`, 7 ejes (lift + 6) | por definir, 6 ejes |
+| Rango útil de la cámara | 0.25–2.5 m (mejor entre 0.3 y 0.8 m) | ~0.07–0.5 m |
+| Radio de las vistas candidatas | 0.4–0.6 m | ~0.15–0.35 m |
+| Alcance del brazo | ~0.85 m más el lift | ~0.63 m |
+| Mando | MoveIt → `FollowJointTrajectory` | igual (modo `control:=moveit`) |
+| Verdad de la escena | mesa y puerta en un SDF; ángulos de la puerta en `/puerta/joint_states` | `/escena/verdad` (JSON) y `/escena/frutas` (`MarkerArray`) |
+
+Lo último de la tabla es lo que **falta en Milo** para compartir el código: un topic con la geometría verdadera de lo que hay sobre la mesa.
+
+**Lo aprendido y qué significa para Milo.**
+
+| Lo que aprendieron | Qué significa para el brazo de Milo |
+| --- | --- |
+| **Tres variantes de política, no dos.** A: ganancia de información sobre un mapa 3D de celdas libres, ocupadas y desconocidas. B-real: fracción visible de la fruta, calculada con lo que el robot ya observó. B-oráculo: la misma fracción, pero con la geometría verdadera de la escena; es un techo que solo existe en simulación y dice cuánto falta para llegar a lo mejor posible. | El diseño del `nbv_planner` (sección 11 de `docs/tecnologias/`) solo tiene la política A. Agregar la B-oráculo es barato en Milo: el generador del detector de la manija ya conoce la geometría de la puerta y la mesa. Comparar las tres separa «el planificador es malo» de «el mapa que ve la cámara es pobre». |
+| **La visibilidad se mide con rayos sobre la geometría conocida**, no con una cámara de segmentación (Gazebo Classic no trae una). Es la fracción del área de la fruta en la imagen que no queda tapada, y se validó comparándola con la imagen real de Gazebo. | Es lo que se necesita para etiquetar «qué parte del objeto se ve» en Milo. `generar_dataset_manija.py` ya proyecta cajas y puntos desde la geometría y el TF; esa misma proyección, con el chequeo de rayos, da la visibilidad. Conviene validarla contra la imagen antes de confiar en ella. |
+| **Publicar la verdad de la escena como un topic** (posición y radio de cada objeto), para que el oráculo, las etiquetas y las métricas lean de la misma fuente. | Hoy la verdad de la puerta está en `/puerta/joint_states` y la de la mesa solo en el SDF. Un topic equivalente para los objetos de `mesa_prueba.sdf` evitaría duplicar la geometría en cada script. |
+| **El radio de las vistas debe contar lo que sobresale por delante de la cámara.** Con la pinza Pika las garras llegan ~15 cm más adelante que la cámara; a 0.22 m quedaban a 3 cm de la fruta y casi todas las vistas chocaban; a 0.30 m dejó de pasar. | En Milo la cámara va *sobre* la pinza. Antes de fijar los 0.4–0.6 m, medir con el URDF cuánto sobresalen los dedos (`gripper_tcp` está a 0.102 m de `link_6_1`) respecto del frame óptico. Además, con el OctoMap activo el objeto mismo es un obstáculo (sección 13), así que acercar la pinza para ver mejor puede ser rechazado por MoveIt. |
+| **Criterios para aceptar una vista:** la IK converge con error menor a 5 mm y 3° (verificado con la cinemática directa, no solo con el solver), hay margen a los límites articulares, no hay autocolisión, no hay choque con el mapa y la muñeca no está cerca de su singularidad. | Milo ya es más estricto en la tolerancia (0.1 mm y 1e-3 rad por defecto, `kinematics.py`) y verifica una pose alcanzable por TF en la prueba de humo. Falta el margen a la singularidad: por la misma razón geométrica (joint_4 ∥ joint_6, sección 10), `joint_5` ≈ 0 es la candidata; hay que confirmarlo con el Jacobiano (sección 9) antes de usarla como filtro. |
+| **Costo de moverse ponderado por articulación:** puntaje = ganancia − λ·‖q_vista − q_actual‖ con pesos mayores en las articulaciones grandes, que mueven más masa y tardan más. | `arm_ik_node` ya pesa el lift con 10 para que prefiera mover el brazo. El `nbv_planner` puede reutilizar esos pesos; añadir que el lift es lento (hay que contar el tiempo, no solo el ángulo). |
+| **Una lección de IK que en Milo no aplica.** Allá la IK regularizaba hacia la postura cero, y eso dejaba ~9 mm y ~8° de error aunque «convergiera»; para apuntar una cámara es demasiado (8° a 25 cm son ~3.5 cm de desvío). | Se revisó `kinematics.py`: el amortiguamiento (0.01) frena el *paso*, no tira hacia `q = 0`, y `arm_ik_node` la hace partir de `/joint_states`. El problema no está, pero vale dejar escrito que el costo debe ser `‖q − q_actual‖²` si algún día se agrega un término de postura. |
+| **Resolver la IK directamente para el frame óptico de la cámara**, en vez de pasar de la pose de la cámara a la del TCP. | El paso 3 del diseño de `nbv_planner` hace la conversión con la transformación fija del URDF. Es equivalente; la alternativa es pasar el frame óptico como punta de `ArmKinematics`, que ya acepta cualquier frame del URDF. Decidir al implementarlo. |
+| **Parar** cuando la visibilidad *medida* tras moverse pasa un umbral (se propone 70 %), cuando la mejor ganancia es menor que ε o al llegar a un máximo de vistas (6). Las mejoras se concentran en las primeras vistas. | Coincide con la expectativa de 2–4 vistas de la sección 11 de `docs/tecnologias/`. Fijar el umbral con datos, no de antemano. |
+| **Registrar una fila por vista** (CSV): articulaciones, pose de la cámara, ganancia prevista, visibilidad prevista, visibilidad de YOLO, visibilidad real, tiempo y recorrido articular. | Falta en el brazo. El patrón existe en el otro equipo: `./sim.sh tour` escribe un CSV en `ros2_ws/resultados/`. |
+| **Experimentos por nivel de oclusión** (visibilidad 25, 50, 70, 75 y 100 %) contra dos controles fijos: una vista frontal y una órbita fija. | Se puede armar con `mesa_prueba.sdf` moviendo los objetos para variar la oclusión; los controles fijos son dos listas de poses para `/arm_target_pose`. |
+| **Cosas de Gazebo Classic que ya costaron tiempo:** no dibuja la cara trasera de un triángulo; la cámara de profundidad ignora la transparencia; con la interfaz gráfica abierta y escenas pesadas las cámaras bajan de 25 Hz, así que para grabar conviene correr sin ventanas. | Aplican si Milo agrega follaje o mallas finas. La prueba de humo sin ventanas (`prueba_gazebo.sh`) ya mide las tasas de la cámara; falta medirlas también con `gzclient` abierto. |
+| **La profundidad real llega en milímetros (`16UC1`) y la simulada en metros (`32FC1`).** Allá se resolvió con un nodo que republica la simulada en milímetros para que las herramientas de grabación funcionen igual. | Es la misma brecha que ya documenta `capturar_camara` en Milo. Si se graba o se entrena con datos de los dos mundos, conviene un solo nodo que convierta, en vez de convertir en cada script. |
+| **Análisis de estabilidad del mando por esfuerzo con gravedad.** Con un par de gravedad *constante*, la gravedad suma una rigidez negativa (∂g/∂q) y la pose solo es estable si `kp·I + ∂g/∂q` es definida positiva; con ganancias bajas el brazo se escapa. | Sirve para el pendiente «mando por esfuerzo con PID por articulación» (sección 23): el PID necesita la gravedad recalculada con la postura actual. Solo aplica a la simulación; el EB300 real usa motores paso a paso en lazo abierto, sin mando por par. |
+| **El humano en el lazo:** el kit Pika permite teleoperar y grabar *desde dónde mira una persona experta*. | Milo tiene su versión simple: el marcador interactivo (`arm_marker_node`). Registrar las poses del marcador junto con la visibilidad daría una línea base humana contra la que comparar el planificador. Es una idea, no algo probado. |
+
+**Precauciones al reutilizar.**
+
+- Las cifras de la demostración del Piper (cuántas vistas son alcanzables y cuánto mejora la visibilidad) son ilustrativas: una fruta, 20 vistas y un solo radio. «Alcanzable» es una cota superior porque no revisa choques con las hojas. No sirven como resultado de Milo.
+- Allá la cámara mira a lo largo del eje de la herramienta; en Milo está sobre la pinza. Las vistas «apuntando a la fruta» se calculan igual, pero la geometría de choques es distinta.
+- Los repositorios hermanos son privados y cambian cada día; los enlaces de esta sección apuntan a nombres, no a archivos.
+
+**Orden sugerido para el `nbv_planner`** (ajusta el diseño de `docs/tecnologias/`, sección 11):
+
+1. Publicar la verdad de la escena de la mesa de prueba como topic.
+2. Visibilidad por rayos sobre esa verdad, validada contra la imagen de la cámara de la pinza.
+3. Vistas candidatas en un casquete, con el radio revisado por lo que sobresale la pinza, filtradas con la IK y MoveIt.
+4. Política B-oráculo, luego B-real, luego A (ganancia sobre el OctoMap que ya existe).
+5. Criterio de parada, registro por vista en CSV y los dos controles fijos.
+
+
 # Parte III · Base móvil
 
 *Desarrollada por otro equipo. Se resume como contexto: simulación, masas, robot real, seguridad y mapeo.*
@@ -1427,6 +1485,7 @@ El robot físico (hoverboard, lidar y mapeo real) no se probó como parte de est
 - **Giros largos cerca de ±π**: con los límites provisorios una articulación no puede pasar de ±π, así que un objetivo «al otro lado» obliga a casi una vuelta completa (medido: `joint_1` recorre 6.08 rad en 12.2 s en vez de 0.2 rad). Se arregla con los topes reales.
 - **Desafío de la puerta** (sección 14): probar el detector con fotos de una puerta real y sumarlas al entrenamiento; fijar la posición de la manija con la profundidad y guiar los últimos centímetros con la imagen a color; el movimiento de bajar la manija y empujar; después, tirar y el pestillo.
 - **La base resbala en Gazebo** (~1 mm por movimiento del brazo, sección 14): la física de la base es del otro equipo; afecta a cualquier tarea larga del brazo y al empujar la puerta.
+- **`nbv_planner`**: sigue solo diseñado (`docs/tecnologias/`, sección 11). El orden sugerido, el contrato común con el proyecto hermano y lo que falta (verdad de la escena como topic, visibilidad por rayos, registro por vista) están en la sección 15.
 - **Mando por posición**: Gazebo coloca las articulaciones en el ángulo pedido como si fueran infinitamente rígidas. Agarrar objetos no será realista, y un choque mueve al robot entero en vez de frenar el brazo (medido el 17 de octubre: 3° de inclinación de la base). La alternativa es mando por esfuerzo con PID por articulación.
 
 ### Robot físico (según `ROBOT.md`)
