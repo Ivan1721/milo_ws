@@ -204,7 +204,7 @@ update figures for team messages (camera-to-motors flow colored by already-there
 before/after table); edit its `FILAS`/`PENDIENTES` when the state changes. The Markdown report links
 the images in `andesrobot_arm/docs/figuras/` (and the arena PNG in `andesrobot_gazebo/worlds/`)
 directly; `docs/informe/img/` keeps only images that exist nowhere else (camera captures, range
-plot, and figures 9/10: handle labels and model predictions, copied from the gitignored
+plot, and figures 8/9: handle labels and model predictions, copied from the gitignored
 `ros2_ws/capturas/` and the training run). The claude.ai artifact has its own uploaded copies. Arm limits are **provisional** (`arm_lower/arm_upper/arm_effort/arm_velocity`
 properties: ±π, 20 N·m, 1 rad/s); don't use them for real hardware.
 

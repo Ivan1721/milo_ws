@@ -1,4 +1,4 @@
-*milo_ws · ROS 2 Humble · Gazebo classic 11 · Docker*
+*milo_ws · ROS 2 Humble · Gazebo Classic 11 · Docker*
 
 # Milo: el brazo y su workspace
 
@@ -416,7 +416,7 @@ El eje en el mundo difiere del local por la corrección de 180° en Z de la base
 
 ![Dos paneles. Izquierda: Milo de perfil con la cadena del brazo dibujada en tres alturas del lift, la carrera del lift de 1.000 m y cotas de altura del TCP de 1.376, 1.776 y 2.376 m; arriba, el desplazamiento total del lift al TCP, ΔX 0.3251 y ΔZ 0.9236. Derecha: detalle de la cadena con lift en 0 y una etiqueta por tramo con ΔX, ΔZ y distancia, desde vertical_lift_joint hasta el TCP.](../../ros2_ws/src/andesrobot_arm/docs/figuras/fig_cadena.png)
 
-**Figura 4.** Cadena de 7 ejes con el brazo en cero, proyectada en X-Z. **Izquierda:** la cadena en las tres alturas del lift (−0.4, 0 y +0.6 m), la carrera de 1.000 m medida en el origen de `vertical_lift_joint`, la altura del TCP sobre el suelo en cada caso y el desplazamiento total lift → TCP, que no cambia con la altura. **Derecha:** cada tramo con ΔX, ΔZ y su distancia; entre paréntesis, el eje de giro en el marco del mundo. Con el brazo en cero todos los ΔY son 0. Generada por `scripts/figuras.py`.
+**Figura 4.** Cadena de 7 ejes con el brazo en cero, proyectada en X-Z. **Izquierda:** la cadena en las tres alturas del lift (−0.4, 0 y +0.6 m), la carrera de 1.000 m medida en el origen de `vertical_lift_joint`, la altura del TCP sobre el suelo en cada caso y el desplazamiento total lift → TCP, que no cambia con la altura. **Derecha:** cada tramo con ΔX, ΔZ y su distancia; entre paréntesis, el eje de giro en el frame del mundo. Con el brazo en cero todos los ΔY son 0. Generada por `scripts/figuras.py`.
 
 - Con joint_1 = 0, los ejes de joint_2, 3, 4 y 6 son paralelos a X: el brazo se dobla en el plano Y-Z (hacia los lados). Para trabajar al frente, joint_1 tiene que girar.
 - La muñeca **no es esférica**: joint_4 y joint_6 son paralelos y están a unos 9 cm. No hay solución cerrada de la cinemática inversa; se usa un método numérico (sección 10).
@@ -501,16 +501,16 @@ Masas: el datasheet del NEMA23 de 82 mm (23HS32-4004S, que coincide en 2.4 N·m 
 
 > **Solo los motores pesan más que todo el brazo del URDF (4.42 kg),** y faltan los reductores EBA. Los NEMA23 van en las tres primeras articulaciones, las que más cargan.
 
-### Gripper real: EBG-20 de Toolbox Robotics
+### Pinza real: EBG-20 de Toolbox Robotics
 
-Pinza paralela de piñón y cremalleras, movida por un servo MG99x (en la lista de materiales: "MG99 or +"). Sus planos y mallas confirman que es el gripper del URDF: el cuerpo mide 85 × 65 × 52 mm, igual que `link_6_1` (85 × 65 mm en Y-Z), y las piezas de cada dedo suman 21.1 cm³, exactamente el volumen de cada dedo del URDF.
+Pinza paralela de piñón y cremalleras, movida por un servo MG99x (en la lista de materiales: "MG99 or +"). Sus planos y mallas confirman que es la pinza del URDF: el cuerpo mide 85 × 65 × 52 mm, igual que `link_6_1` (85 × 65 mm en Y-Z), y las piezas de cada dedo suman 21.1 cm³, exactamente el volumen de cada dedo del URDF.
 
 | EBG-20 | Valor | Cómo sale |
 | --- | ---: | --- |
 | Piezas impresas (15) | 156 cm³ | volumen de sus mallas STL |
 | Masa impresa en ABS, maciza | 0.17 kg | 156 cm³ × 1.06 g/cm³; con relleno parcial pesa menos |
 | Servo MG99x + tornillos e insertos M3/M4 | ≈ 0.07 kg | servo MG996R típico ≈ 55 g |
-| **Gripper completo, estimado** | **≤ 0.23 kg** | **máximo, con piezas macizas; contra **1.07 kg** en el URDF** |
+| **Pinza completa, estimada** | **≤ 0.23 kg** | **máximo, con piezas macizas; contra **1.07 kg** en el URDF** |
 
 ### Con qué densidad calculó Fusion las masas
 
@@ -519,7 +519,7 @@ Dividiendo la masa de cada link por el volumen de su malla se ve qué material t
 | Links | Densidad | Material que corresponde | Consecuencia |
 | --- | ---: | --- | --- |
 | base, columna, ruedas, carro del lift, `arm_base_link_1`, `link_1_1` … `link_5_1` | 1.06 g/cm³ | ABS, **macizo** (100 % de relleno) | Las piezas impresas con relleno parcial pesan menos; los tubos, perfiles y metales no están representados |
-| `link_6_1` y los dos dedos (el gripper) | 7.85 g/cm³ | **acero**: el material por defecto de Fusion | El gripper pesa 1.07 kg en el URDF; impreso en ABS pesa menos de 0.23 kg |
+| `link_6_1` y los dos dedos (la pinza) | 7.85 g/cm³ | **acero**: el material por defecto de Fusion | La pinza pesa 1.07 kg en el URDF; impreso en ABS pesa menos de 0.23 kg |
 
 ### Masas corregidas en el URDF
 
@@ -536,7 +536,7 @@ Las tablas de arriba son las masas originales del CAD. En `andesrobot.urdf.xacro
 | **Brazo completo** | **4.42 kg** | **8.05 kg** |
 | **Robot completo** | **30.39 kg** | **34.02 kg** |
 
-Con las masas nuevas la cadena de la IK no cambia, las 6 pruebas pasan, y en Gazebo la pinza sigue llegando a las poses de prueba con menos de 0.1 mm de error. Queda pendiente pesar las piezas impresas reales y recalcular los torques de joint_2 y joint_3 para reemplazar el límite provisorio de 20 N·m.
+Con las masas nuevas la cadena de la IK no cambia, las 6 pruebas de ese momento pasan (hoy el brazo tiene 11), y en Gazebo la pinza sigue llegando a las poses de prueba con menos de 0.1 mm de error. Queda pendiente pesar las piezas impresas reales y recalcular los torques de joint_2 y joint_3 para reemplazar el límite provisorio de 20 N·m.
 
 <a id="fk"></a>
 
@@ -544,7 +544,7 @@ Con las masas nuevas la cadena de la IK no cambia, las 6 pruebas pasan, y en Gaz
 
 > **En palabras simples:** La [cinemática directa](#g-cinematica-directa) responde: *«si cada motor está en tal ángulo, ¿dónde queda la pinza?»*. Se calcula encadenando, desde el suelo hasta la pinza, el desplazamiento y el giro que aporta cada pieza. Es como seguir instrucciones: «sube 0.75 m, avanza 9 cm, gira 20°, sube 35 cm…». Los símbolos están dibujados en la [figura A](#fig-articulaciones).
 
-**Para qué:** calcular dónde queda la pinza dados los ángulos. La usan la inversa, el Jacobiano, las mediciones y las figuras.
+**Para qué:** calcular dónde queda la pinza dados los ángulos. La usan la inversa, el jacobiano, las mediciones y las figuras.
 
 **Método:** producto de transformaciones homogéneas leídas del URDF procesado (`ArmKinematics` en `kinematics.py`, solo numpy). No hay tabla Denavit-Hartenberg: el código recorre el URDF desde la punta hasta la base, así que un cambio en el xacro se refleja solo. Lee el xacro **instalado** con `lock_arm:=false`.
 
@@ -598,9 +598,9 @@ Con todo en cero, el TCP queda en $`(-0.2326,\ 0,\ 0.8561)`$ m respecto a `arm_b
 
 > **En palabras simples:** Cuando se le pide al robot «lleva la pinza aquí», hay que decidir qué punto exacto de la pinza es el que va «aquí». Ese punto es el [TCP](#g-tcp): se eligió el centro entre los dedos, donde queda el objeto al agarrarlo.
 
-Cuando se manda una pose, lo que llega a ella es el TCP. El origen de `link_6_1` está 10 cm detrás de los dedos; el TCP es el centro de la zona de agarre. Se midió colocando las mallas de los dedos en el marco de `link_6_1` y analizándolas por cortes a lo largo de X.
+Cuando se manda una pose, lo que llega a ella es el TCP. El origen de `link_6_1` está 10 cm detrás de los dedos; el TCP es el centro de la zona de agarre. Se midió colocando las mallas de los dedos en el frame de `link_6_1` y analizándolas por cortes a lo largo de X.
 
-| Resultado (marco link_6_1) | Valor |
+| Resultado (frame link_6_1) | Valor |
 | --- | ---: |
 | Dirección en la que apunta la pinza | −X |
 | Punta de los dedos | x = −0.1224 m |
@@ -628,14 +628,14 @@ En el xacro, `gripper_tcp` es un eslabón sin masa unido a `link_6_1` por una ar
 
 > **En palabras simples:** El [jacobiano](#g-jacobiano) responde: *«si muevo un poquito este motor, ¿cuánto y hacia dónde se mueve la pinza?»*. Es una tabla con una columna por motor. Es la herramienta que usa la cinemática inversa para saber qué motor conviene mover en cada paso. Los símbolos están dibujados en la [figura A](#fig-articulaciones).
 
-Relaciona velocidades articulares con la velocidad del TCP; la cinemática inversa lo usa en cada iteración. Es el Jacobiano geométrico, calculado a partir de los marcos de cada articulación.
+Relaciona velocidades articulares con la velocidad del TCP; la cinemática inversa lo usa en cada iteración. Es el jacobiano geométrico, calculado a partir de los frames de cada articulación.
 
 ```math
 J = \begin{bmatrix} J_v \\ J_\omega \end{bmatrix} \in \mathbb R^{6\times n}, \qquad
        J_i = \begin{cases} \begin{bmatrix} \mathbf z_i \times (\mathbf p_e - \mathbf p_i) \\ \mathbf z_i \end{bmatrix} & \text{rotativa} \\[10pt] \begin{bmatrix} \mathbf z_i \\ \mathbf 0 \end{bmatrix} & \text{prismática} \end{cases}
 ```
 
-$`\mathbf z_i = R_i\,\mathbf k_i`$ es el eje de la articulación $`i`$ en el marco base, $`\mathbf p_i`$ su posición y $`\mathbf p_e`$ la del TCP.
+$`\mathbf z_i = R_i\,\mathbf k_i`$ es el eje de la articulación $`i`$ en el frame base, $`\mathbf p_i`$ su posición y $`\mathbf p_e`$ la del TCP.
 
 **Se lee así:** el jacobiano $`J`$ tiene 6 filas (3 de velocidad lineal de la pinza, $`J_v`$, y 3 de velocidad de giro, $`J_\omega`$) y una columna por motor. La columna $`i`$ es la velocidad de la pinza si solo el motor $`i`$ se mueve a 1 rad/s (o 1 m/s el lift).
 
@@ -859,7 +859,7 @@ flowchart LR
 
 ### Con MoveIt 2 (el default desde el 18 de octubre)
 
-![Diagrama de bloques del lazo de control del brazo con MoveIt 2, con la misma disposición que la figura B. En el lugar de la cinemática inversa hay un bloque verde, move_group: la escena de planificación (URDF, SRDF, estado actual, OctoMap de la cámara y la mesa), el solver de IK (KDL o TRAC-IK), el planificador OMPL que revisa choques en cada tramo y la parametrización en el tiempo (TOTG o Ruckig); entrega una trayectoria completa al controlador. Vuelven a MoveIt el estado actual de las articulaciones, TF, el resultado de la ejecución y, desde la cámara, la nube de puntos convertida en OctoMap. En naranja punteado sigue pendiente la detección del objeto que daría el nuevo objetivo. Un recuadro resume qué cambia respecto a la figura B.](../../ros2_ws/src/andesrobot_arm/docs/figuras/fig_lazo_moveit.png)
+![Diagrama de bloques del lazo de control del brazo con MoveIt 2, con la misma disposición que la figura B. En el lugar de la cinemática inversa hay un bloque verde, move_group: la escena de planificación (URDF, SRDF, estado actual, OctoMap de la cámara y la mesa), el solver de IK (KDL; TRAC-IK queda pendiente), el planificador OMPL que revisa choques en cada tramo y la parametrización en el tiempo (TOTG; Ruckig queda pendiente); entrega una trayectoria completa al controlador. Vuelven a MoveIt el estado actual de las articulaciones, TF, el resultado de la ejecución y, desde la cámara, la nube de puntos convertida en OctoMap. En naranja punteado sigue pendiente la detección del objeto que daría el nuevo objetivo. Un recuadro resume qué cambia respecto a la figura B.](../../ros2_ws/src/andesrobot_arm/docs/figuras/fig_lazo_moveit.png)
 
 **Figura C.** Lazo cerrado del brazo con MoveIt 2, lo que corre con `moveit:=true`: misma disposición que la figura B. Azul: igual que sin MoveIt; verde: lo que agrega MoveIt 2; naranja punteado: pendiente. Generada con `andesrobot_arm/scripts/fig_lazo_moveit.py`.
 
@@ -867,9 +867,9 @@ flowchart LR
 | --- | --- | --- |
 | Objetivo | pose de la pinza en `/arm_target_pose` | igual; además MoveIt acepta metas en articulaciones y poses con restricciones (por ejemplo, «mantener la pinza horizontal») |
 | Qué sabe del entorno | nada: la IK no conoce la base, la columna ni la mesa | la **escena de planificación**: el robot (URDF + SRDF con los pares de piezas que nunca chocan), la mesa como objeto conocido y lo que ve la cámara como **OctoMap** (celdas ocupadas) |
-| Cinemática inversa | DLS propio, una pose final | KDL o TRAC-IK, dentro del planificador; la solución se descarta si choca |
+| Cinemática inversa | DLS propio, una pose final | KDL, dentro del planificador (TRAC-IK queda pendiente); la solución se descarta si choca |
 | Camino | va directo en el espacio de articulaciones | **planificado** (OMPL, RRT-Connect): cada tramo se revisa contra la escena; se suaviza |
-| Tiempo | velocidad constante, duración común | TOTG o Ruckig: límites de velocidad, aceleración y tirón por articulación; apto para motores paso a paso |
+| Tiempo | velocidad constante, duración común | TOTG: límites de velocidad y aceleración por articulación (limitar también el tirón con Ruckig queda pendiente; haría falta para motores paso a paso) |
 | Controlador | `arm_controller`, un punto | el mismo `arm_controller`, con la trayectoria completa (N puntos) por `FollowJointTrajectory` |
 | Vigilancia | el nodo solo imprime el resultado | MoveIt sigue la ejecución: si el controlador no llega a tiempo o fuera de tolerancia, aborta y puede replanificar |
 | Lazo de posición | sensores → controlador, 100 Hz | **igual**; sigue cerrándose sobre la orden en Gazebo y necesita encoders en el robot real |
@@ -894,7 +894,7 @@ Cómo quedó hecho (paquete `andesrobot_moveit_config`): el grupo `brazo` es la 
 
 ### Nodo `arm_ik_node`
 
-Recibe `geometry_msgs/PoseStamped` en `/arm_target_pose`, en cualquier marco de TF. La transforma al marco base de la cadena, resuelve la IK desde la posición actual (`/joint_states`) y manda una trayectoria de un punto a `/arm_controller/follow_joint_trajectory`. La duración la marca la articulación más lenta:
+Recibe `geometry_msgs/PoseStamped` en `/arm_target_pose`, en cualquier frame de TF. La transforma al frame base de la cadena, resuelve la IK desde la posición actual (`/joint_states`) y manda una trayectoria de un punto a `/arm_controller/follow_joint_trajectory`. La duración la marca la articulación más lenta:
 
 ```math
 T = \max\!\left(T_{\min},\ \max_i \frac{\lvert q_i^{\text{nuevo}} - q_i^{\text{actual}} \rvert}{v_i}\right), \qquad v_{\text{brazo}} = 0.5\ \text{rad/s},\ \ v_{\text{lift}} = 0.1\ \text{m/s},\ \ T_{\min} = 1\ \text{s}
@@ -1089,7 +1089,7 @@ Deja `color.png`, `ir.png`, `profundidad_mm.png` (16 bits en mm, como la real), 
 
 ![Ocho imágenes generadas, cada una con una variante distinta de la puerta. Sobre cada foto, la etiqueta que escribió el simulador: el contorno de la manija en verde, la caja en amarillo y los tres puntos (eje en rojo, agarre en azul, punta en magenta). Abajo se ven los dedos de la pinza y, en dos fotos, el propio brazo de Milo.](img/fig_manija_etiquetas.jpg)
 
-**Figura 9.** Imágenes del generador con sus etiquetas automáticas. Cada una es una variante distinta de la puerta.
+**Figura 8.** Imágenes del generador con sus etiquetas automáticas. Cada una es una variante distinta de la puerta.
 
 **Entrenamiento.** `scripts/entrenar_manija.py` [afina](#g-afinar) `yolov8s-pose` (una red que entrega la caja y los keypoints) a partir de los pesos entrenados con COCO. Con 267 fotos de entrenamiento y 60 de validación (generadas con otra semilla, o sea **puertas que el modelo nunca vio**), 100 pasadas tardaron 6 minutos en la GPU del PC (RTX 3070):
 
@@ -1102,7 +1102,7 @@ Deja `color.png`, `ir.png`, `profundidad_mm.png` (16 bits en mm, como la real), 
 
 ![Predicciones del modelo sobre ocho fotos de validación: una caja azul con la palabra manija y la confianza (0.9 a 1.0), y los tres puntos encontrados sobre la palanca.](img/fig_manija_prediccion.jpg)
 
-**Figura 10.** Lo que predice el modelo en fotos de validación (puertas que no vio al entrenar).
+**Figura 9.** Lo que predice el modelo en fotos de validación (puertas que no vio al entrenar).
 
 **Cuidado al leer estos números:** miden simulación contra simulación. Una puerta real tiene reflejos, sombras, desenfoque y fondos que el simulador no tiene; el siguiente paso es fotografiar una puerta real (30 a 50 fotos), medir ahí y, si hace falta, sumarlas al entrenamiento.
 
@@ -1121,7 +1121,7 @@ Nada de lo que usa el brazo de Milo es exclusivo de un proyecto de curso: son la
 | Método en Milo | Para qué se usa hoy | Ejemplos |
 | --- | --- | --- |
 | **Cinemática leída del URDF**, sin tabla DH escrita a mano (secciones 5 y 7) | Un solo archivo describe el robot para visualizarlo, simularlo, planificar y controlarlo. Si cambia una pieza, todo se actualiza. | MoveIt 2, KDL y Pinocchio arman la cadena cinemática desde el URDF; es lo estándar en ROS. |
-| **Cinemática inversa numérica** por mínimos cuadrados amortiguados, con reinicios aleatorios (sección 10) | Brazos sin solución cerrada: muñecas no esféricas, cobots impresos, humanoides. El amortiguamiento evita movimientos bruscos cerca de singularidades. | KDL trae un solver Levenberg-Marquardt (la misma idea). TRAC-IK combina Newton con reinicios aleatorios. MoveIt Servo usa el Jacobiano para teleoperar en tiempo real y frena cerca de singularidades. |
+| **Cinemática inversa numérica** por mínimos cuadrados amortiguados, con reinicios aleatorios (sección 10) | Brazos sin solución cerrada: muñecas no esféricas, cobots impresos, humanoides. El amortiguamiento evita movimientos bruscos cerca de singularidades. | KDL trae un solver Levenberg-Marquardt (la misma idea). TRAC-IK combina Newton con reinicios aleatorios. MoveIt Servo usa el jacobiano para teleoperar en tiempo real y frena cerca de singularidades. |
 | **Redundancia con pesos**: el lift como séptimo eje que se mueve solo si hace falta (sección 11) | Manipuladores móviles con torso que sube y baja, y brazos industriales montados sobre un riel (séptimo eje lineal). Con más ejes que restricciones, los pesos eligen la postura. | Fetch y TIAGo (torso elevable + brazo), Hello Robot Stretch (lift + brazo telescópico), celdas con riel lineal. En humanoides se generaliza como *whole-body control*. |
 | **Espacio de trabajo por muestreo** (Monte Carlo, sección 12) | Diseñar una celda, elegir el robot, o decidir dónde estacionar la base móvil para alcanzar un objeto. | Mapas de alcanzabilidad (por ejemplo, el paquete Reuleaux de ROS) y herramientas de diseño de celdas. |
 | **ros2_control + Gazebo**: el mismo controlador en simulación y en el robot (sección 13) | Probar trayectorias y lógica antes de mover el hardware, y correr pruebas automáticas con simulación. | La mayoría de los robots con ROS 2 (brazos UR, Franka, Kinova) traen su descripción y su interfaz de ros2_control. |
@@ -1140,7 +1140,7 @@ Esa investigación vive en repositorios privados (`Next-Best-View` y `ActivePerc
 | Idea | Qué significa para el brazo de Milo |
 | --- | --- |
 | **Aceptar una pose solo si la pose lograda coincide con la pedida**, verificada con la cinemática directa y no solo con lo que dice el solver (allá, error menor a 5 mm y 3°). | Milo ya es más estricto (0.1 mm y 1e-3 rad por defecto en `kinematics.py`) y la prueba de humo comprueba una pose alcanzable por TF. |
-| **Margen a los límites articulares y a la singularidad de la muñeca.** | Por la misma razón geométrica (joint_4 ∥ joint_6, sección 10), `joint_5` ≈ 0 es la candidata a singularidad; falta confirmarlo con el Jacobiano (sección 9) antes de usarla como filtro de alcanzabilidad. |
+| **Margen a los límites articulares y a la singularidad de la muñeca.** | Por la misma razón geométrica (joint_4 ∥ joint_6, sección 10), `joint_5` ≈ 0 es la candidata a singularidad; falta confirmarlo con el jacobiano (sección 9) antes de usarla como filtro de alcanzabilidad. |
 | **No regularizar la IK hacia la postura cero:** allá dejaba ~9 mm y ~8° de error aunque «convergiera». | En Milo no ocurre: el amortiguamiento (0.01) frena el *paso*, no tira hacia `q = 0`, y `arm_ik_node` parte de `/joint_states`. Si algún día se agrega un término de postura, que sea `‖q − q_actual‖²`. |
 | **Costo articular ponderado** (las articulaciones grandes pesan más). | `arm_ik_node` ya pesa el lift con 10 para que prefiera mover el brazo. |
 | **Medir qué parte de un objeto se ve** con rayos sobre la geometría conocida, porque Gazebo Classic no trae cámara de segmentación. | Es la misma idea con que `generar_dataset_manija.py` proyecta la manija sobre la foto desde la geometría y el TF. |
@@ -1194,7 +1194,7 @@ Fricción de las ruedas μ = 1.2 con contacto rígido (kp = 10⁶, kd = 100); la
 
 ![Plano de la arena de 24 por 18 metros con cinco zonas: oficina, bodega con tres pasillos, hall central, zona colapsada con escombros y zona de pilares; una línea roja marca el recorrido sugerido desde el spawn en el centro.](../../ros2_ws/src/andesrobot_gazebo/worlds/andesrobot_arena.png)
 
-**Figura 8.** `andesrobot_arena.world`: 24 × 18 m, muros de 1.5 m. Zonas de oficina, bodega, hall, zona colapsada y pilares. En verde, donde cabe Milo girando en el lugar; en rojo, el recorrido sugerido para mapear (unos 203 m). Puertas de al menos 2.2 m y obstáculos de al menos 0.5 m de alto (el lidar escanea a 0.36 m). Milo aparece en (0, 0) mirando a +X.
+**Figura 10.** `andesrobot_arena.world`: 24 × 18 m, muros de 1.5 m. Zonas de oficina, bodega, hall, zona colapsada y pilares. En verde, donde cabe Milo girando en el lugar; en rojo, el recorrido sugerido para mapear (unos 203 m). Puertas de al menos 2.2 m y obstáculos de al menos 0.5 m de alto (el lidar escanea a 0.36 m). Milo aparece en (0, 0) mirando a +X.
 
 <a id="masas-base"></a>
 
@@ -1360,7 +1360,7 @@ El mapa se guarda con `./sim.sh mapa nombre` (o `./robot.sh mapa`), que llama a 
 
 ### Pruebas automáticas (pytest, sin ROS corriendo)
 
-Corridas dentro del contenedor (la última vez el 17 de octubre de 2026, en la revisión completa): **11 de 11** en `andesrobot_arm` y **9 de 9** en `andesrobot_safety`. Las cinco últimas del brazo se agregaron en esa revisión.
+Corridas dentro del contenedor (la última vez el 17 de octubre de 2026, en la revisión completa): **11 de 11** en `andesrobot_arm` y **11 de 11** en `andesrobot_safety` (estas últimas se volvieron a correr el 24 de octubre de 2026 fuera del contenedor, con `pytest` y numpy). Las cinco últimas del brazo se agregaron en esa revisión.
 
 | Prueba | Qué comprueba | Resultado |
 | --- | --- | --- |
@@ -1381,6 +1381,8 @@ Corridas dentro del contenedor (la última vez el 17 de octubre de 2026, en la r
 | `pasa_puerta_de_1m` | los marcos de una puerta de 1 m quedan fuera del corredor | ✅ pasa |
 | `giro_bloqueado… / giro_permitido…` | bloquea el giro si hay algo dentro del radio de giro, lo permite si hay espacio | ✅ pasa |
 | `ignora_columna_propia` | los puntos de la columna no cuentan como obstáculo | ✅ pasa |
+| `nav_curva_en_puerta_permitida` | en modo navegación (`turn_check_only_in_place`), una curva suave entre dos paredes a 0.45 m a cada lado (una puerta) no se bloquea | ✅ pasa |
+| `nav_giro_en_el_lugar_en_puerta_bloqueado` | en ese mismo modo, girar en el lugar dentro de la puerta sigue bloqueado (la esquina pegaría en el marco) | ✅ pasa |
 
 ### Pruebas en Gazebo
 

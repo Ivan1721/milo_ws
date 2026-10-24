@@ -24,8 +24,12 @@ OUT = sys.argv[1] if len(sys.argv) > 1 else 'figuras'
 
 # Misma paleta que figuras.py: brazo azul, pinza naranja, grises para lo demás.
 SURF, INK, MUTED = '#fcfcfb', '#2b2b29', '#6b6a63'
-C_ARM, C_GRIP, C_BASE = '#2a78d6', '#eb6834', '#a9a8a0'
+C_ARM, C_GRIP, C_BASE = '#2a78d6', '#eb6834', '#8a8982'   # bordes y flechas (>= 3:1)
 C_FILL, C_FILL2, C_NOTE = '#eef3fa', '#f3f3f1', '#fff4e5'
+# Texto: los colores de los bordes no alcanzan 4.5:1 como letra, así que cada uno tiene una
+# variante más oscura para títulos (TEXT) y etiquetas de las flechas (LABEL).
+TEXT = {C_ARM: '#1c5fb0', C_GRIP: '#b8430f', C_BASE: INK}
+LABEL = {C_ARM: '#1c5fb0', C_GRIP: '#b8430f', C_BASE: '#6b6a63'}
 plt.rcParams.update({'font.family': 'DejaVu Sans', 'font.size': 9, 'text.color': INK,
                      'figure.facecolor': SURF, 'axes.facecolor': SURF,
                      'savefig.facecolor': SURF})
@@ -37,7 +41,7 @@ def caja(ax, cx, cy, w, h, titulo, texto, color=C_ARM, fill=C_FILL, ls='-'):
                                 boxstyle='round,pad=0.02,rounding_size=0.12',
                                 fc=fill, ec=color, lw=1.6, ls=ls, zorder=2))
     ax.text(cx, cy + h / 2 - 0.22, titulo, ha='center', va='top', fontsize=9.5,
-            fontweight='bold', color=color if color != C_BASE else INK, zorder=3)
+            fontweight='bold', color=TEXT.get(color, color), zorder=3)
     ax.text(cx, cy + h / 2 - 0.50, texto, ha='center', va='top', fontsize=8.3, color=INK,
             linespacing=1.35, zorder=3)
     return cx - w / 2, cx + w / 2, cy - h / 2, cy + h / 2
@@ -63,7 +67,7 @@ def flecha(ax, pts, etiqueta=None, color=INK, ls='-', lw=1.5, pos=0.5, dx=0.0, d
                 x, y = p[i] + t * (p[i + 1] - p[i])
                 break
             d -= s
-        ax.text(x + dx, y + dy, etiqueta, ha=ha, va='bottom', fontsize=size, color=color,
+        ax.text(x + dx, y + dy, etiqueta, ha=ha, va='bottom', fontsize=size, color=LABEL.get(color, color),
                 zorder=5, bbox=dict(boxstyle='round,pad=0.15', fc=SURF, ec='none', alpha=0.9))
 
 

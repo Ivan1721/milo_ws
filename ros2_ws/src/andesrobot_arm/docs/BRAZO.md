@@ -270,7 +270,7 @@ Parámetros de `arm_ik_node`:
 | `max_joint_velocity` / `max_lift_velocity` | 0.5 rad/s / 0.1 m/s | para calcular la duración |
 | `min_duration` | 1.0 s | duración mínima de cada movimiento |
 
-## Geometría (del URDF, marco `base_footprint`)
+## Geometría (del URDF, frame `base_footprint`)
 
 | | |
 |---|---|
