@@ -21,10 +21,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import matplotlib.pyplot as plt  # noqa: E402
 
 from fig_lazo_cerrado import (  # noqa: E402
-    C_ARM, C_BASE, C_FILL, C_FILL2, C_GRIP, C_NOTE, INK, MUTED, caja, flecha)
+    C_ARM, C_BASE, C_FILL, C_FILL2, C_GRIP, C_NOTE, INK, LABEL, MUTED, TEXT, caja, flecha)
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else 'figuras'
-C_NEW, C_FILL_NEW = '#1baf7a', '#e9f7f1'   # verde: lo que agrega MoveIt 2
+C_NEW, C_FILL_NEW = '#14915f', '#e9f7f1'   # verde: lo que agrega MoveIt 2
+TEXT[C_NEW] = LABEL[C_NEW] = '#0f7a52'   # variante oscura para letra (4.8:1)
 
 
 def main():
@@ -46,9 +47,9 @@ def main():
     M = caja(ax, 5.35, Y, 4.9, 2.4, 'MOVEIT 2 (move_group)',
              'Escena: URDF + SRDF (pares que no chocan) + estado actual\n'
              '+ OctoMap de la cámara + la mesa\n'
-             'IK: KDL o TRAC-IK  ·  Planificador: OMPL (RRT-Connect),\n'
+             'IK: KDL (TRAC-IK pendiente)  ·  Planificador: OMPL (RRT-Connect),\n'
              'revisa choques en cada tramo del camino\n'
-             'Tiempo: TOTG / Ruckig (velocidad, aceleración y tirón)\n'
+             'Tiempo: TOTG (velocidad y aceleración; Ruckig pendiente)\n'
              '→ trayectoria completa (N puntos) sin choques',
              color=C_NEW, fill=C_FILL_NEW)
     C = caja(ax, 9.6, Y, 2.7, 1.7, 'CONTROLADOR',
@@ -113,7 +114,7 @@ def main():
             'la mesa y lo que ve la cámara (OctoMap); el planificador descarta todo tramo que '
             'choque.\n'
             '2. Se planifica el camino completo, no solo la pose final, y se le pone tiempo con '
-            'rampas de aceleración (Ruckig): apto para motores paso a paso.\n'
+            'rampas de aceleración (TOTG; limitar el tirón con Ruckig queda pendiente).\n'
             '3. MoveIt vigila la ejecución: si el controlador no llega a tiempo o fuera de '
             'tolerancia, aborta y puede replanificar.\n'
             '4. El lazo de posición no cambia: en Gazebo sigue cerrándose sobre la orden y en '

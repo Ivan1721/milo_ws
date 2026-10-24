@@ -166,7 +166,7 @@ ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose \
 ```
 
 Nav2 no recibe el `yaw` directo sino como cuaternión: **`z = sin(yaw/2)`, `w = cos(yaw/2)`**.
-Mientras Nav2 maneja, no toques el teleop (los dos escriben en el mismo tópico).
+Mientras Nav2 maneja, no toques el teleop (los dos escriben en el mismo topic).
 
 **b) La forma completa** (mapa guardado + AMCL, sin SLAM):
 
