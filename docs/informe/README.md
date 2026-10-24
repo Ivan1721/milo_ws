@@ -680,13 +680,13 @@ El error de orientación es el vector de rotación (eje × ángulo) que lleva la
 **Ejemplo:** si el objetivo está 10 cm más arriba y la pinza tiene que girar 30° alrededor de Z, $`\mathbf e_p`$ = (0, 0, 0.10) m y $`\mathbf e_R`$ = (0, 0, 0.524) rad.
 
 ```math
-\theta = \arccos\!\left(\frac{\operatorname{tr} R - 1}{2}\right), \qquad
+\theta = \arccos\!\left(\frac{\mathrm{tr}\,R - 1}{2}\right), \qquad
        \log(R)^\vee = \frac{\theta}{2\sin\theta}\begin{bmatrix} R_{32}-R_{23} \\ R_{13}-R_{31} \\ R_{21}-R_{12} \end{bmatrix}
 ```
 
 Si $`\theta \approx 0`$ el resultado es cero; si $`\theta \approx \pi`$ el eje se obtiene de la parte simétrica de $`R`$, porque la fórmula se indefine.
 
-**Se lee así:** receta para sacar de una matriz de rotación el ángulo girado ($`\theta`$) y el eje. La traza ($`\operatorname{tr}`$, suma de la diagonal) da el ángulo; las diferencias entre elementos opuestos de la matriz dan el eje.
+**Se lee así:** receta para sacar de una matriz de rotación el ángulo girado ($`\theta`$) y el eje. La traza ($`\mathrm{tr}`$, suma de la diagonal) da el ángulo; las diferencias entre elementos opuestos de la matriz dan el eje.
 
 **Ejemplo:** un giro de 90° alrededor de Z tiene diagonal (0, 0, 1): traza 1, $`(1-1)/2 = 0`$, $`\arccos 0`$ = 90°. Los casos 0° y 180° se tratan aparte porque la fórmula divide por $`\sin\theta`$, que ahí vale 0.
 
@@ -696,7 +696,7 @@ Si $`\theta \approx 0`$ el resultado es cero; si $`\theta \approx \pi`$ el eje s
 \Delta\mathbf q = W^{-1} J^\top \left( J\,W^{-1} J^\top + \lambda^2 I \right)^{-1} \mathbf e
 ```
 
-Solución de $`\min_{\Delta\mathbf q}\ \lVert J\Delta\mathbf q - \mathbf e\rVert^2 + \lambda^2\,\Delta\mathbf q^\top W \Delta\mathbf q`$. $`\lambda`$ evita pasos enormes cerca de singularidades. $`W = \operatorname{diag}(w_i)`$ da un costo a cada articulación: una con más peso se mueve menos.
+Solución de $`\min_{\Delta\mathbf q}\ \lVert J\Delta\mathbf q - \mathbf e\rVert^2 + \lambda^2\,\Delta\mathbf q^\top W \Delta\mathbf q`$. $`\lambda`$ evita pasos enormes cerca de singularidades. $`W = \mathrm{diag}(w_i)`$ da un costo a cada articulación: una con más peso se mueve menos.
 
 **Se lee así:** el corazón de la cinemática inversa. Dado lo que falta ($`\mathbf e`$) y la sensibilidad de la pinza a cada motor ($`J`$), calcula cuánto mover cada motor ($`\Delta\mathbf q`$) para acercarse. Busca el movimiento que mejor reduce el error *sin* mover demasiado los motores.
 
@@ -707,15 +707,15 @@ Solución de $`\min_{\Delta\mathbf q}\ \lVert J\Delta\mathbf q - \mathbf e\rVert
 **Ejemplo:** para subir la pinza 1 cm con el brazo en una postura cómoda, el paso sale casi todo en los motores del brazo; si el brazo ya está estirado hacia arriba y no puede subir más, solo el lift sirve y la fórmula lo usa.
 
 ```math
-\Delta\mathbf q \leftarrow \Delta\mathbf q \cdot \min\!\left(1,\ \frac{\Delta_{\max}}{\lVert \Delta\mathbf q \rVert}\right), \qquad \mathbf q \leftarrow \operatorname{lim}(\mathbf q + \Delta\mathbf q)
+\Delta\mathbf q \leftarrow \Delta\mathbf q \cdot \min\!\left(1,\ \frac{\Delta_{\max}}{\lVert \Delta\mathbf q \rVert}\right), \qquad \mathbf q \leftarrow \mathrm{lim}(\mathbf q + \Delta\mathbf q)
 ```
 
-**Se lee así:** si el paso calculado es muy grande (más de $`\Delta_{\max}`$ = 0.5 rad en total), se achica manteniendo su dirección. Después se suma a la postura actual y se respetan los límites de cada motor ($`\operatorname{lim}`$).
+**Se lee así:** si el paso calculado es muy grande (más de $`\Delta_{\max}`$ = 0.5 rad en total), se achica manteniendo su dirección. Después se suma a la postura actual y se respetan los límites de cada motor ($`\mathrm{lim}`$).
 
 **Ejemplo:** un paso de largo 1.2 rad se multiplica por 0.5/1.2 = 0.42 y queda de 0.5 rad.
 
 ```math
-\operatorname{lim}(q_i) = \begin{cases} \big((q_i - q_i^{\min}) \bmod 2\pi\big) + q_i^{\min} & \text{rotativa con } q_i^{\max} - q_i^{\min} \ge 2\pi \\ \operatorname{clip}(q_i,\ q_i^{\min},\ q_i^{\max}) & \text{otra con límites} \end{cases}
+\mathrm{lim}(q_i) = \begin{cases} \big((q_i - q_i^{\min}) \bmod 2\pi\big) + q_i^{\min} & \text{rotativa con } q_i^{\max} - q_i^{\min} \ge 2\pi \\ \mathrm{clip}(q_i,\ q_i^{\min},\ q_i^{\max}) & \text{otra con límites} \end{cases}
 ```
 
 Con rangos de vuelta completa (los ±π provisorios) el ángulo da la vuelta en vez de recortarse; si no, una solución cerca de −π se quedaba pegada al límite.
@@ -741,7 +741,7 @@ R(x,y,z,w) = \begin{bmatrix} 1-2(y^2+z^2) & 2(xy - zw) & 2(xz + yw) \\ 2(xy + zw
 ```
 
 ```math
-w = \tfrac12\sqrt{1+R_{11}+R_{22}+R_{33}},\quad x = \operatorname{sgn}(R_{32}-R_{23})\,\tfrac12\sqrt{1+R_{11}-R_{22}-R_{33}},\ \ldots
+w = \tfrac12\sqrt{1+R_{11}+R_{22}+R_{33}},\quad x = \mathrm{sgn}(R_{32}-R_{23})\,\tfrac12\sqrt{1+R_{11}-R_{22}-R_{33}},\ \ldots
 ```
 
 Conversión entre cuaterniones de ROS y matrices. El cuaternión se normaliza antes. Se verifica con 50 rotaciones aleatorias (ida y vuelta, error < $`10^{-9}`$).
@@ -1295,7 +1295,7 @@ Cada scan se pasa a puntos $`(x, y)`$ en `base_footprint` con la TF del lidar (s
 Solo cuentan los puntos dentro del corredor (ancho del robot + `side_margin` a cada lado) y en la dirección de avance. Si va hacia adelante, solo importa lo de adelante; si retrocede, lo de atrás. Así siempre puede alejarse de un obstáculo.
 
 ```math
-s(d) = \begin{cases} 0 & d \le d_{\text{stop}} \\ \dfrac{d - d_{\text{stop}}}{d_{\text{slow}} - d_{\text{stop}}} & d_{\text{stop}} < d < d_{\text{slow}} \\ 1 & d \ge d_{\text{slow}} \end{cases} \qquad v_{\text{out}} = s(d)\cdot \operatorname{clip}(v, \pm v_{\max})
+s(d) = \begin{cases} 0 & d \le d_{\text{stop}} \\ \dfrac{d - d_{\text{stop}}}{d_{\text{slow}} - d_{\text{stop}}} & d_{\text{stop}} < d < d_{\text{slow}} \\ 1 & d \ge d_{\text{slow}} \end{cases} \qquad v_{\text{out}} = s(d)\cdot \mathrm{clip}(v, \pm v_{\max})
 ```
 
 $`d`$ es la distancia libre desde el borde del robot (frente en x = 0.44 m, cola en x = −0.12 m) hasta el punto más cercano del corredor. Con $`d_{\text{stop}} = 0.30`$ m y $`d_{\text{slow}} = 0.70`$ m, a 0.5 m va a la mitad de la velocidad pedida.

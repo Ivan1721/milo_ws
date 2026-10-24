@@ -379,7 +379,7 @@ $`(x, y, z, w)`$. Cuando el giro es solo en el plano, como el de Milo, queda:
 ```math
 q = \big(0,\ 0,\ \sin\tfrac{\psi}{2},\ \cos\tfrac{\psi}{2}\big)
 \qquad\Longleftrightarrow\qquad
-\psi = \operatorname{atan2}\!\big(2(wz + xy),\ 1 - 2(y^2 + z^2)\big)
+\psi = \mathrm{atan2}\!\big(2(wz + xy),\ 1 - 2(y^2 + z^2)\big)
 ```
 
 **Se lee así:** para mandar a Milo mirando con $`\psi = -1.55`$ rad (el sofá),
