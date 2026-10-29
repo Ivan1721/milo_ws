@@ -100,7 +100,22 @@ Limitaciones de esta integración: la escena de MoveIt solo conoce los frames de
 la mesa y el OctoMap van en `base_footprint` (vale mientras la base no se mueva); los objetos de la
 mesa que ve la cámara entran como obstáculos, así que una pose que los toque se rechaza (para
 agarrar uno hay que quitarlo de la escena o apagar el OctoMap); y la IK es KDL, que cerca de los
-límites de las articulaciones falla más que TRAC-IK (no hay binario para Humble).
+límites de las articulaciones falla más que otros solvers. TRAC-IK no tiene paquete para ROS 2
+Humble (no está en el índice oficial de rosdistro); el reemplazo que sí hay es pick_ik.
+
+**Dos opciones para probar** (con los valores por defecto todo queda como siempre; **ninguna de
+las dos se ha probado todavía en la simulación**):
+
+| Argumento | Qué cambia | Cómo se ve si funciona |
+| --- | --- | --- |
+| `ik:=pick_ik` | el solver de cinemática inversa pasa de KDL a pick_ik (`config/kinematics_pick_ik.yaml`; el paquete `ros-humble-pick-ik` está en el Dockerfile, hay que reconstruir la imagen) | `prueba_gazebo.sh` sigue pasando y resuelve igual o más poses que con KDL, sin tardar mucho más |
+| `suavizado:=ruckig` | agrega el adaptador `AddRuckigTrajectorySmoothing` después de TOTG: la trayectoria acota también el tirón (jerk) | los movimientos arrancan y frenan sin golpes; el brazo sigue llegando a la pose |
+
+Dentro del contenedor (`./sim.sh shell`; `./sim.sh brazo` no pasa argumentos):
+`ros2 launch andesrobot_arm arm_sim.launch.py ik:=pick_ik suavizado:=ruckig`.
+Si `move_group` se queja de un parámetro de pick_ik, comparar `kinematics_pick_ik.yaml` con el README
+de la versión instalada. La lógica que no depende de ROS está en `andesrobot_arm/moveit_opciones.py`
+(con pruebas); un módulo o archivo `.yaml` nuevo necesita `./sim.sh build`.
 
 ## Puerta de prueba (desafío: abrir una puerta empujando)
 

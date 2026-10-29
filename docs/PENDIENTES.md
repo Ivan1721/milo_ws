@@ -18,7 +18,7 @@ Cómo usarla:
 | P05 | Pesar reductores y piezas impresas; recalcular masas y torques | brazo, hardware | P01 |
 | P06 | Driver del brazo real (firmware Arduino + ros2_control) | brazo, hardware | P01, P03, P04 |
 | P07 | Cámara: profundidad realista y Gemini Plus real | brazo, simulación | — |
-| P08 | MoveIt 2: TRAC-IK, objetos conocidos, OctoMap y Ruckig | brazo, simulación | — |
+| P08 | MoveIt 2: probar pick_ik y Ruckig, objetos conocidos y afinar el OctoMap | brazo, simulación | — |
 | P09 | Desafío de la puerta: del detector a empujar | brazo, simulación | — |
 | P10 | Simulación con mando por esfuerzo, PID y gravedad | brazo, simulación | — |
 | P11 | CI etapa 2: pruebas del brazo con ROS en GitHub Actions (la etapa 1 ya está) | ci | — |
@@ -74,11 +74,13 @@ Cómo usarla:
 **Listo cuando:** `capturar_camara` y los topics funcionan igual con la cámara simulada y la real; queda en el informe §14.
 **Dónde mirar:** informe §14 («Cómo hacer realista la profundidad»); `BRAZO.md`; `andesrobot.gripper_camera.xacro`.
 
-## P08 · MoveIt 2: TRAC-IK, objetos conocidos, OctoMap y Ruckig
-**Contexto:** MoveIt 2 ya planifica sin choques (KDL + OMPL + TOTG + OctoMap).
-**Qué hacer:** TRAC-IK en lugar de KDL (falla menos cerca de los límites); objetos de la mesa como objetos conocidos (hoy el OctoMap los vuelve obstáculos y no se pueden agarrar); afinar el OctoMap (resolución, filtrar el propio robot); limitar el tirón con Ruckig (hará falta para los motores paso a paso); si la base se llegara a mover, un frame de escena distinto de `base_footprint`.
-**Listo cuando:** cada punto se verifica con `prueba_gazebo.sh` (con MoveIt) y la Figura C y la sección 13 dejan de marcarlo como pendiente.
-**Dónde mirar:** informe §13; `BRAZO.md`; `andesrobot_moveit_config/`; `arm_moveit_node.py`.
+## P08 · MoveIt 2: probar pick_ik y Ruckig, objetos conocidos y afinar el OctoMap
+**Contexto:** MoveIt 2 ya planifica sin choques (KDL + OMPL + TOTG + OctoMap). **TRAC-IK no tiene paquete para ROS 2 Humble** (comprobado en el índice oficial de rosdistro, 29-oct-2026), así que el reemplazo de KDL es **pick_ik**, que sí lo tiene.
+**Ya hecho (sin probar en la simulación):** dos argumentos de `arm_sim.launch.py` que no cambian nada por defecto. `ik:=pick_ik` usa `config/kinematics_pick_ik.yaml` (`ros-humble-pick-ik` agregado al Dockerfile: hay que reconstruir la imagen). `suavizado:=ruckig` agrega el adaptador `AddRuckigTrajectorySmoothing` después de TOTG. La lógica sin ROS está en `moveit_opciones.py` (6 pruebas). Detalle y cómo lanzarlo: `BRAZO.md`, sección MoveIt 2.
+**Falta (tú, en el contenedor):** (1) reconstruir la imagen; (2) `ros2 launch andesrobot_arm arm_sim.launch.py ik:=pick_ik` y `prueba_gazebo.sh`: ¿resuelve igual o más poses que KDL, sin tardar mucho más? Si `move_group` se queja de un parámetro, ajustar `kinematics_pick_ik.yaml` con el README de la versión instalada; (3) lo mismo con `suavizado:=ruckig`: ¿los movimientos arrancan y frenan sin golpes?
+**Falta (diseño, requiere simulación):** objetos de la mesa como objetos conocidos (hoy el OctoMap los vuelve obstáculos y no se pueden agarrar: habría que publicarlos como `CollisionObject` con permiso de colisión con la pinza y sacarlos del OctoMap); afinar el OctoMap (resolución de `sensors_3d.yaml`; el filtrado del propio robot ya está con `padding_offset`); si la base se llegara a mover, un frame de escena distinto de `base_footprint`.
+**Listo cuando:** pick_ik y Ruckig probados (por defecto si mejoran, descartados si no) y documentados en el informe §13 y la Figura C, y los objetos conocidos resueltos o descartados con una razón.
+**Dónde mirar:** `BRAZO.md` (MoveIt 2); `andesrobot_moveit_config/config/`; `arm_sim.launch.py`; `arm_moveit_node.py`.
 
 ## P09 · Desafío de la puerta: del detector a empujar
 **Contexto:** hay una puerta de prueba que se abre empujando y un detector YOLO de la manija entrenado (60 de 60 en validación, simulación contra simulación). Todavía no cierra el lazo con el brazo.
@@ -100,7 +102,7 @@ Cómo usarla:
 
 ## P12 · Documentación: artifact, `docs/tecnologias` y referencias
 **Qué hacer:**
-1. Actualizar el artifact de claude.ai para que coincida con el informe (figuras 8/9/10, sección 15, TRAC-IK y Ruckig como pendientes, 11 pruebas, fórmulas con `\mathrm`).
+1. Actualizar el artifact de claude.ai para que coincida con el informe (figuras 8/9/10, sección 15, pick_ik y Ruckig como opciones sin probar, pruebas, fórmulas con `\mathrm`).
 2. `docs/tecnologias/README.md` (~línea 409) dice que llegar a cada vista sin chocar «requiere MoveIt 2», que ya está integrado.
 3. Verificar las 56 referencias de `docs/literatura` y `docs/tecnologias`: 16 ya verificadas por búsqueda web; faltan 37 y confirmar L12 (Chan–Dubey), L49 (TIAGo) y L50 (Fetch & Freight). Requiere habilitar `api.openalex.org`, `export.arxiv.org`, `arxiv.org` y `doi.org` en Network access del entorno.
 4. Skill propio `.claude/skills/actualizar-informe` que, después de cada avance, revise qué documentos quedaron desactualizados (cifras, figuras, pendientes), con las reglas del `CLAUDE.md`.

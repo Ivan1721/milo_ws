@@ -43,7 +43,8 @@ jobs:
       - name: andesrobot_arm (las que no necesitan ROS)
         run: |
           cd ros2_ws/src/andesrobot_arm
-          python -m pytest -q test/test_torques.py test/test_medidas.py test/test_revisar_docs.py
+          python -m pytest -q test/test_torques.py test/test_medidas.py test/test_revisar_docs.py \
+            test/test_moveit_opciones.py
 
   estilo:
     runs-on: ubuntu-latest

@@ -86,12 +86,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3-vcstool
 #   moveit-setup-assistant  el asistente gráfico y "collisions_updater", que calcula qué pares de
 #                           piezas nunca chocan (para el SRDF)
 #   moveit-configs-utils    MoveItConfigsBuilder, con el que el launch arma los parámetros
+#   pick-ik                 solver de cinemática inversa alternativo a KDL (arm_sim ik:=pick_ik);
+#                           TRAC-IK no tiene paquete para Humble
 # También en un RUN aparte: así agregar MoveIt no obliga a reinstalar todo lo de arriba.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ros-humble-moveit \
       ros-humble-moveit-ros-perception \
       ros-humble-moveit-setup-assistant \
       ros-humble-moveit-configs-utils \
+      ros-humble-pick-ik \
     && rm -rf /var/lib/apt/lists/*
 
 # Drivers externos (por ahora el del RPLIDAR C1 de Slamtec), listados con su versión exacta en

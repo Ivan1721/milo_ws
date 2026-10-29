@@ -47,9 +47,9 @@ def main():
     M = caja(ax, 5.35, Y, 4.9, 2.4, 'MOVEIT 2 (move_group)',
              'Escena: URDF + SRDF (pares que no chocan) + estado actual\n'
              '+ OctoMap de la cámara + la mesa\n'
-             'IK: KDL (TRAC-IK pendiente)  ·  Planificador: OMPL (RRT-Connect),\n'
+             'IK: KDL (pick_ik opcional)  ·  Planificador: OMPL (RRT-Connect),\n'
              'revisa choques en cada tramo del camino\n'
-             'Tiempo: TOTG (velocidad y aceleración; Ruckig pendiente)\n'
+             'Tiempo: TOTG (velocidad y aceleración; Ruckig opcional)\n'
              '→ trayectoria completa (N puntos) sin choques',
              color=C_NEW, fill=C_FILL_NEW)
     C = caja(ax, 9.6, Y, 2.7, 1.7, 'CONTROLADOR',
@@ -114,7 +114,7 @@ def main():
             'la mesa y lo que ve la cámara (OctoMap); el planificador descarta todo tramo que '
             'choque.\n'
             '2. Se planifica el camino completo, no solo la pose final, y se le pone tiempo con '
-            'rampas de aceleración (TOTG; limitar el tirón con Ruckig queda pendiente).\n'
+            'rampas de aceleración (TOTG; limitar también el tirón con Ruckig es opcional).\n'
             '3. MoveIt vigila la ejecución: si el controlador no llega a tiempo o fuera de '
             'tolerancia, aborta y puede replanificar.\n'
             '4. El lazo de posición no cambia: en Gazebo sigue cerrándose sobre la orden y en '

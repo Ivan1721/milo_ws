@@ -81,7 +81,7 @@ There are no ament_lint tests; keep Python within 99 columns (flake8) to match t
 
 CI (`.github/workflows/ci.yml`, GitHub Actions on every push to `brazo`/`main` and every PR) runs
 three jobs without ROS or Docker: `pytest` of `andesrobot_safety` plus the arm tests that need no
-ROS (`test_torques.py`, `test_medidas.py`, `test_revisar_docs.py`), `flake8 --max-line-length=99`
+ROS (`test_torques.py`, `test_medidas.py`, `test_revisar_docs.py`, `test_moveit_opciones.py`), `flake8 --max-line-length=99`
 on `andesrobot_arm`, `andesrobot_description` and `andesrobot_moveit_config`, and
 `scripts/revisar_docs.py` (broken links/anchors across every `.md`, informe figures and sections in
 order, `\operatorname` forbidden because GitHub rejects it, and every "**N de N** en `X`" test count
@@ -149,7 +149,9 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   `robot_state_publisher`. The planning scene only knows robot frames (`Unknown frame: odom`), so
   the test table (two boxes published by `arm_moveit_node` on `/planning_scene`) and the OctoMap
   (`octomap_frame`) use `base_footprint`; fine while the base doesn't move. `octomap:=false`
-  disables `sensors_3d.yaml`. Objects seen by the camera become obstacles, so a pose touching them
+  disables `sensors_3d.yaml`. Untested options (defaults unchanged, logic in `moveit_opciones.py`): `ik:=pick_ik`
+  (`config/kinematics_pick_ik.yaml`; TRAC-IK has no Humble package, pick_ik is in the Dockerfile) and
+  `suavizado:=ruckig` (adds `AddRuckigTrajectorySmoothing` before TOTG in the OMPL adapters). Objects seen by the camera become obstacles, so a pose touching them
   is rejected. Regenerate the SRDF `<disable_collisions>` pairs after geometry changes with
   `ros2 run moveit_setup_assistant collisions_updater` (command in `docs/BRAZO.md`); the SRDF keeps
   its hand-written header, so merge the generated pairs instead of overwriting the file. RViz uses
