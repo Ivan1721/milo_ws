@@ -536,7 +536,7 @@ Las tablas de arriba son las masas originales del CAD. En `andesrobot.urdf.xacro
 | **Brazo completo** | **4.42 kg** | **8.05 kg** |
 | **Robot completo** | **30.39 kg** | **34.02 kg** |
 
-Con las masas nuevas la cadena de la IK no cambia, las 6 pruebas de ese momento pasan (hoy el brazo tiene 11), y en Gazebo la pinza sigue llegando a las poses de prueba con menos de 0.1 mm de error. Queda pendiente pesar las piezas impresas reales y recalcular los torques de joint_2 y joint_3 para reemplazar el límite provisorio de 20 N·m.
+Con las masas nuevas la cadena de la IK no cambia, las 6 pruebas de ese momento pasan (hoy el brazo tiene 11), y en Gazebo la pinza sigue llegando a las poses de prueba con menos de 0.1 mm de error. Queda pendiente pesar las piezas impresas reales y recalcular los torques de joint_2 y joint_3 para reemplazar el límite provisorio de 20 N·m. Un cálculo preliminar con las masas de hoy (`andesrobot_arm/scripts/calcular_torques.py`, estático, barrido de posturas al azar) da un torque máximo de unos 23 N·m en joint_2 y 8 N·m en joint_3, sin carga en la pinza: joint_2 ya supera el límite provisorio. Es un resultado preliminar: las piezas impresas están como ABS macizo (pesan de más) y faltan los reductores (pesan de menos).
 
 <a id="fk"></a>
 
@@ -1360,7 +1360,7 @@ El mapa se guarda con `./sim.sh mapa nombre` (o `./robot.sh mapa`), que llama a 
 
 ### Pruebas automáticas (pytest, sin ROS corriendo)
 
-Corridas dentro del contenedor (la última vez el 17 de octubre de 2026, en la revisión completa): **11 de 11** en `andesrobot_arm` y **11 de 11** en `andesrobot_safety` (estas últimas se volvieron a correr el 24 de octubre de 2026 fuera del contenedor, con `pytest` y numpy). Las cinco últimas del brazo se agregaron en esa revisión.
+Corridas dentro del contenedor (la última vez el 17 de octubre de 2026, en la revisión completa): **11 de 11** en `andesrobot_arm` (desde entonces se agregaron 5 pruebas en `test_torques.py`, que se corrieron el 29 de octubre fuera del contenedor y pasan) y **11 de 11** en `andesrobot_safety` (estas últimas se volvieron a correr el 24 de octubre de 2026 fuera del contenedor, con `pytest` y numpy). Las cinco últimas del brazo se agregaron en esa revisión.
 
 | Prueba | Qué comprueba | Resultado |
 | --- | --- | --- |

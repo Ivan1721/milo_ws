@@ -208,7 +208,7 @@ before/after table); edit its `FILAS`/`PENDIENTES` when the state changes. The M
 the images in `andesrobot_arm/docs/figuras/` (and the arena PNG in `andesrobot_gazebo/worlds/`)
 directly; `docs/informe/img/` keeps only images that exist nowhere else (camera captures, range
 plot, and figures 8/9: handle labels and model predictions, copied from the gitignored
-`ros2_ws/capturas/` and the training run). The claude.ai artifact has its own uploaded copies. Arm limits are **provisional** (`arm_lower/arm_upper/arm_effort/arm_velocity`
+`ros2_ws/capturas/` and the training run). The claude.ai artifact has its own uploaded copies. `andesrobot_arm/torques.py` (pure numpy, tested in `test/test_torques.py`) and `scripts/calcular_torques.py` compute the static gravity torque per joint from the URDF masses (`--pesaje` prints the table of parts to weigh); a new module needs `./sim.sh build`. Arm limits are **provisional** (`arm_lower/arm_upper/arm_effort/arm_velocity`
 properties: ±π, 20 N·m, 1 rad/s); don't use them for real hardware.
 
 Known sim behaviors: the own IK (`moveit:=false`) has no collision checking. `arm_controller` has goal tolerances

@@ -53,9 +53,11 @@ Cómo usarla:
 
 ## P05 · Pesar reductores y piezas impresas; recalcular masas y torques
 **Contexto:** las masas ya incluyen motores y pinza en ABS (8.05 kg el brazo completo). Faltan los reductores y las piezas impresas reales.
-**Qué hacer:** pesar los reductores (EBA e impresos) y las piezas; actualizar el URDF; recalcular los torques de `joint_2` y `joint_3`.
-**Listo cuando:** la tabla de masas de la sección 6 tiene los valores medidos, el URDF los usa y las pruebas pasan.
-**Dónde mirar:** informe §6 («Masas corregidas en el URDF»); `docs/hardware/README.md`.
+**Ya hecho:** `andesrobot_arm/scripts/calcular_torques.py` calcula el torque estático de cada articulación con las masas del URDF (`andesrobot_arm/torques.py`, 5 pruebas en `test/test_torques.py`) y `--pesaje` imprime la tabla de piezas para pesar. Resultado preliminar, sin carga en la pinza (20 000 posturas al azar): `joint_2` ≈ 23 N·m, `joint_3` ≈ 8 N·m, `joint_4` ≈ 0.9 N·m, `joint_5` ≈ 0.3 N·m. `joint_2` ya supera el límite provisorio de 20 N·m. Con 0.5 kg en la pinza sube a ≈ 27 y 10 N·m. Ante la retención de los motores (2.4 / 1.85 / 0.65 N·m) pide reductores de al menos ≈ 19:1 en `joint_2` y ≈ 9:1 en `joint_3` con margen 2.
+**Falta (tú):** (1) pesar las piezas con `calcular_torques.py --pesaje` y anotar el peso real; (2) pesar los reductores EBA-23 y EBA-17 y averiguar su relación de reducción (no está en los documentos del repo).
+**Falta (después de pesar):** poner las masas medidas en `andesrobot.urdf.xacro` (los reductores van como masa extra en el link del motor), volver a correr el script y reemplazar `arm_effort` por el torque calculado.
+**Listo cuando:** la tabla de masas de la sección 6 tiene los valores medidos, el URDF los usa, `arm_effort` sale del cálculo y las pruebas pasan.
+**Dónde mirar:** informe §6 («Masas corregidas en el URDF»); `docs/hardware/README.md`; `andesrobot_arm/scripts/calcular_torques.py`.
 
 ## P06 · Driver del brazo real (firmware Arduino + ros2_control)
 **Contexto:** el control del brazo existe solo en simulación. El camino natural es un plugin de ros2_control que hable por serie con el Arduino, como el del hoverboard.
