@@ -66,7 +66,8 @@ def generate_launch_description():
         DeclareLaunchArgument('sim_lidar', default_value='true'),
         DeclareLaunchArgument('sim_imu', default_value='true'),
         DeclareLaunchArgument('use_hardware', default_value='false',
-                              description='true = agrega ros2_control del hoverboard (Milo físico)'),
+                              description='true = agrega ros2_control del hoverboard '
+                                          '(Milo físico)'),
         DeclareLaunchArgument('hoverboard_port', default_value='/dev/hoverboard'),
         # El nodo robot_state_publisher con el URDF generado como parámetro.
         Node(

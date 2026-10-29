@@ -1360,7 +1360,7 @@ El mapa se guarda con `./sim.sh mapa nombre` (o `./robot.sh mapa`), que llama a 
 
 ### Pruebas automáticas (pytest, sin ROS corriendo)
 
-Corridas dentro del contenedor (la última vez el 17 de octubre de 2026, en la revisión completa): **11 de 11** en `andesrobot_arm` (desde entonces se agregaron 5 pruebas en `test_torques.py`, que se corrieron el 29 de octubre fuera del contenedor y pasan) y **11 de 11** en `andesrobot_safety` (estas últimas se volvieron a correr el 24 de octubre de 2026 fuera del contenedor, con `pytest` y numpy). Las cinco últimas del brazo se agregaron en esa revisión.
+Corridas dentro del contenedor (la última vez el 17 de octubre de 2026, en la revisión completa): **11 de 11** en `test_kinematics.py` (desde entonces se agregaron 5 pruebas en `test_torques.py`, 4 en `test_medidas.py` y 6 en `test_revisar_docs.py`, que no necesitan ROS y se corrieron el 29 de octubre fuera del contenedor y pasan) y **11 de 11** en `andesrobot_safety` (estas últimas se volvieron a correr el 24 de octubre de 2026 fuera del contenedor, con `pytest` y numpy). Las cinco últimas del brazo se agregaron en esa revisión.
 
 | Prueba | Qué comprueba | Resultado |
 | --- | --- | --- |

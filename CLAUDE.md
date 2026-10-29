@@ -79,6 +79,15 @@ OctoMap filled; gripper open/close, clean shutdown). `MOVEIT=false` runs it with
 
 There are no ament_lint tests; keep Python within 99 columns (flake8) to match the code.
 
+CI (`.github/workflows/ci.yml`, GitHub Actions on every push to `brazo`/`main` and every PR) runs
+three jobs without ROS or Docker: `pytest` of `andesrobot_safety` plus the arm tests that need no
+ROS (`test_torques.py`, `test_medidas.py`, `test_revisar_docs.py`), `flake8 --max-line-length=99`
+on `andesrobot_arm`, `andesrobot_description` and `andesrobot_moveit_config`, and
+`scripts/revisar_docs.py` (broken links/anchors across every `.md`, informe figures and sections in
+order, `\operatorname` forbidden because GitHub rejects it, and every "**N de N** en `X`" test count
+in the docs must match the tests in the code). `test_kinematics.py` (needs ROS) and the Gazebo smoke
+test stay manual inside the container; when you add or remove tests, update the counts in the report.
+
 **Never run `colcon build` natively inside `~/milo_ws/ros2_ws`.** The container reuses
 `ros2_ws/install/`, and host-built paths break it. For native (non-Docker) runs, build elsewhere:
 `colcon build --symlink-install --build-base /tmp/milo_build --install-base /tmp/milo_install`

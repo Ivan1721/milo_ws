@@ -34,7 +34,8 @@ setup(
     zip_safe=True,
     maintainer='Aleja',
     maintainer_email='m.pinzonfarfan@uandresbello.edu',
-    description='Modelo URDF/xacro del robot AndesRobot (base diferencial, columna elevadora, brazo 6DOF, RPLIDAR C1, IMU).',
+    description=('Modelo URDF/xacro del robot AndesRobot (base diferencial, columna elevadora, '
+                 'brazo 6DOF, RPLIDAR C1, IMU).'),
     license='Apache-2.0',
     # Ejecutables: 'nombre = modulo:funcion' crea el comando que se usa con
     # ros2 run <paquete> <nombre>. Vacío = este paquete no tiene programas propios.

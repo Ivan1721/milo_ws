@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.patches import FancyBboxPatch  # noqa: E402
 
 from fig_lazo_cerrado import (  # noqa: E402
-    C_ARM, C_BASE, C_FILL, C_FILL2, C_GRIP, C_NOTE, INK, LABEL, MUTED, SURF, TEXT, flecha)
+    C_ARM, C_FILL, C_GRIP, C_NOTE, INK, LABEL, MUTED, TEXT, flecha)
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else 'figuras'
 C_NEW, C_FILL_NEW = '#14915f', '#e9f7f1'     # verde: lo nuevo (el mismo de la figura C)

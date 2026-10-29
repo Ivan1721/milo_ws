@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import matplotlib.pyplot as plt  # noqa: E402
 
 from fig_lazo_cerrado import (  # noqa: E402
-    C_ARM, C_BASE, C_FILL, C_FILL2, C_GRIP, C_NOTE, INK, LABEL, MUTED, TEXT, caja, flecha)
+    C_ARM, C_BASE, C_FILL2, C_GRIP, C_NOTE, INK, LABEL, MUTED, TEXT, caja, flecha)
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else 'figuras'
 C_NEW, C_FILL_NEW = '#14915f', '#e9f7f1'   # verde: lo que agrega MoveIt 2

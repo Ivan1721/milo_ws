@@ -67,7 +67,8 @@ def flecha(ax, pts, etiqueta=None, color=INK, ls='-', lw=1.5, pos=0.5, dx=0.0, d
                 x, y = p[i] + t * (p[i + 1] - p[i])
                 break
             d -= s
-        ax.text(x + dx, y + dy, etiqueta, ha=ha, va='bottom', fontsize=size, color=LABEL.get(color, color),
+        ax.text(x + dx, y + dy, etiqueta, ha=ha, va='bottom', fontsize=size,
+                color=LABEL.get(color, color),
                 zorder=5, bbox=dict(boxstyle='round,pad=0.15', fc=SURF, ec='none', alpha=0.9))
 
 
