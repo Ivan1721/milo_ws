@@ -328,6 +328,7 @@ milo_ws/
 │   ├── navegacion/           informe de mapeo y navegación
 │   ├── literatura/           repaso de literatura del brazo (métodos y referencias)
 │   ├── tecnologias/          repaso de tecnologías del brazo (herramientas, lazos, NBV)
+│   ├── PENDIENTES.md         lo que falta del brazo, un pendiente por sección (para no leer todo el informe)
 │   └── hardware/             datasheets y manuales (solo el índice va al repo)
 └── ros2_ws/src/
     ├── andesrobot_description  URDF del robot (base, lift, brazo, pinza, sensores)

@@ -25,6 +25,9 @@ EBG-20 gripper, motors and Orbbec camera; third-party, so only its `README.md` i
 `docs/literatura/README.md` is the literature review (methods per pending task, with references;
 open-access PDFs in the gitignored `docs/literatura/pdf/`) and `docs/tecnologias/README.md` the
 technology review (tools per layer, closed-loop diagrams, NBV feasibility).
+`docs/PENDIENTES.md` is the backlog of what is left on the arm, one short self-contained entry per
+task (context, what to do, done-when, where to look): read it first and open only the files the
+entry names, instead of the whole report. Update it when a task closes or a new one appears.
 Keep `ros2_ws/src/` for ROS packages only.
 
 ## Commands

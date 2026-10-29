@@ -1433,6 +1433,8 @@ El robot físico (hoverboard, lidar y mapeo real) no se probó como parte de est
 
 ## 23. Pendientes
 
+La lista corta y ordenada, con lo mínimo para empezar cada tarea, está en [`docs/PENDIENTES.md`](../PENDIENTES.md); esta sección tiene el contexto largo.
+
 > **En palabras simples:** Lo que falta. Lo más importante: medir el brazo real (topes, piezas) y escribir el programa que mueva los motores reales.
 
 ### Repositorio
