@@ -21,7 +21,7 @@ Cómo usarla:
 | P08 | MoveIt 2: TRAC-IK, objetos conocidos, OctoMap y Ruckig | brazo, simulación | — |
 | P09 | Desafío de la puerta: del detector a empujar | brazo, simulación | — |
 | P10 | Simulación con mando por esfuerzo, PID y gravedad | brazo, simulación | — |
-| P11 | CI con GitHub Actions | ci, documentación | — |
+| P11 | CI etapa 2: pruebas del brazo con ROS en GitHub Actions (la etapa 1 ya está) | ci | — |
 | P12 | Documentación: artifact, `docs/tecnologias` y referencias | documentación | — |
 | P13 | La base resbala en Gazebo (coordinar con el equipo de la base) | otro-equipo, simulación | — |
 
@@ -92,11 +92,11 @@ Cómo usarla:
 **Listo cuando:** una pose se mantiene estable y un choque con la mesa frena el brazo en vez de empujar la base.
 **Dónde mirar:** informe §13 («Control en Gazebo»), §21 (prueba de choque) y §15.
 
-## P11 · CI con GitHub Actions
-**Contexto:** el repo no tiene CI; las pruebas se corren a mano dentro del contenedor.
-**Qué hacer:** `.github/workflows/ci.yml` con tres jobs: (1) `pytest` de `andesrobot_safety` (basta `pip install pytest numpy`); (2) `flake8 --max-line-length=99` (hay líneas de más de 99 columnas en `fig_lazo_cerrado.py` y otros: arreglarlas o configurar excepciones); (3) un script de revisión de documentos: enlaces y anclas rotos, orden de las figuras y que un «N de N pruebas» del informe coincida con el conteo del código. Etapa 2, opcional: pruebas de `andesrobot_arm` en un contenedor `ros:humble`. No incluir la prueba de humo de Gazebo.
-**Listo cuando:** el workflow queda verde en un PR, se documenta en `CLAUDE.md` y se quita el pendiente de la sección 23.
-**Dónde mirar:** informe §23 («Repositorio»); `CLAUDE.md` («Tests»).
+## P11 · CI etapa 2: pruebas del brazo con ROS en GitHub Actions
+**Ya hecho (etapa 1):** `.github/workflows/ci.yml` corre en cada push a `brazo`/`main` y en cada PR, sin ROS ni Docker: `pytest` de `andesrobot_safety` y de las pruebas del brazo sin ROS (`test_torques`, `test_medidas`, `test_revisar_docs`), `flake8` a 99 columnas en el brazo, y `scripts/revisar_docs.py` (enlaces y anclas rotos, figuras y secciones en orden, `\operatorname` y conteo de pruebas del informe contra el código). Probado: pasa en verde en el PR #3.
+**Falta (opcional):** `test_kinematics.py` (11 pruebas) necesita ROS: importa `geometry_msgs` y lee el xacro instalado de `andesrobot_description`. Un job con contenedor `ros:humble` que haga `colcon build` de `andesrobot_description` y `andesrobot_arm` y corra `pytest`. La prueba de humo de Gazebo no entra (necesita la imagen completa de Docker).
+**Listo cuando:** el job queda verde en un PR y `CLAUDE.md` lo menciona (hoy dice que `test_kinematics.py` se corre a mano).
+**Dónde mirar:** `.github/workflows/ci.yml`; `CLAUDE.md` («Tests» y «CI»).
 
 ## P12 · Documentación: artifact, `docs/tecnologias` y referencias
 **Qué hacer:**

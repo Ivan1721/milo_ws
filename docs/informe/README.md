@@ -1439,7 +1439,7 @@ La lista corta y ordenada, con lo mínimo para empezar cada tarea, está en [`do
 
 ### Repositorio
 
-- Integración continua: correr las pruebas de `pytest` en GitHub Actions en cada cambio subido (hoy se corren a mano dentro del contenedor).
+- Integración continua: desde el 29 de octubre GitHub Actions corre en cada cambio las pruebas que no necesitan ROS (`andesrobot_safety`, `test_torques.py`, `test_medidas.py`, `test_revisar_docs.py`), `flake8` a 99 columnas en el brazo y la revisión de documentos (`scripts/revisar_docs.py`). Falta correr también `test_kinematics.py`, que necesita ROS, con un contenedor `ros:humble`; la prueba de humo de Gazebo se sigue corriendo a mano.
 
 ### Brazo
 
