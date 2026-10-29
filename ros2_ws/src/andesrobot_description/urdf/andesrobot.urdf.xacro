@@ -545,15 +545,32 @@
      Las articulaciones del brazo son "revolute" con límites PROVISORIOS: ±π (una vuelta completa,
      o sea sin restringir el rango), 20 N·m y 1 rad/s. Sirven para simular y para la cinemática
      inversa, pero NO son los topes reales: antes de mover el brazo real (o usar MoveIt), medir los
-     topes físicos y los motores y cambiar estas 4 propiedades. Con lock_arm:=true son "fixed". -->
+     topes físicos y los motores y cambiar estas propiedades. Con lock_arm:=true son "fixed".
+
+     Cada articulación tiene sus propios topes (joint_N_lower / joint_N_upper, en radianes, medidos
+     desde la pose cero del URDF y con el sentido positivo del eje de esa articulación). Mientras no
+     se midan, todos valen arm_lower / arm_upper (±π). Para poner un tope real basta cambiar el
+     número de la articulación que se midió; hoja de medición: docs/medicion_brazo.md. -->
 <xacro:property name="arm_lower" value="${-pi}"/>
 <xacro:property name="arm_upper" value="${pi}"/>
 <xacro:property name="arm_effort" value="20.0"/>
 <xacro:property name="arm_velocity" value="1.0"/>
+<xacro:property name="joint_1_lower" value="${arm_lower}"/>   <!-- [rad] provisorio -->
+<xacro:property name="joint_1_upper" value="${arm_upper}"/>
+<xacro:property name="joint_2_lower" value="${arm_lower}"/>
+<xacro:property name="joint_2_upper" value="${arm_upper}"/>
+<xacro:property name="joint_3_lower" value="${arm_lower}"/>
+<xacro:property name="joint_3_upper" value="${arm_upper}"/>
+<xacro:property name="joint_4_lower" value="${arm_lower}"/>
+<xacro:property name="joint_4_upper" value="${arm_upper}"/>
+<xacro:property name="joint_5_lower" value="${arm_lower}"/>
+<xacro:property name="joint_5_upper" value="${arm_upper}"/>
+<xacro:property name="joint_6_lower" value="${arm_lower}"/>
+<xacro:property name="joint_6_upper" value="${arm_upper}"/>
 <!-- Límite de cada articulación del brazo (las "fixed" no llevan límite). -->
-<xacro:macro name="arm_limit">
+<xacro:macro name="arm_limit" params="lower upper">
   <xacro:unless value="${lock_arm}">
-    <limit lower="${arm_lower}" upper="${arm_upper}" effort="${arm_effort}" velocity="${arm_velocity}"/>
+    <limit lower="${lower}" upper="${upper}" effort="${arm_effort}" velocity="${arm_velocity}"/>
   </xacro:unless>
 </xacro:macro>
 
@@ -649,7 +666,7 @@
   <axis xyz="0.0 0.0 1.0"/>
   <!-- Amortiguación y roce de la articulación (solo para la simulación). -->
   <dynamics damping="0.08" friction="0.02"/>
-  <xacro:arm_limit/>
+  <xacro:arm_limit lower="${joint_1_lower}" upper="${joint_1_upper}"/>
 </joint>
 
 <!-- Brazo 2 (hombro): gira alrededor de X. -->
@@ -659,7 +676,7 @@
   <child link="link_2_1"/>
   <axis xyz="-1.0 0.0 0.0"/>
   <dynamics damping="0.12" friction="0.03"/>
-  <xacro:arm_limit/>
+  <xacro:arm_limit lower="${joint_2_lower}" upper="${joint_2_upper}"/>
 </joint>
 
 <!-- Brazo 3 (codo): gira alrededor de X. -->
@@ -669,7 +686,7 @@
   <child link="link_3_1"/>
   <axis xyz="1.0 0.0 0.0"/>
   <dynamics damping="0.12" friction="0.03"/>
-  <xacro:arm_limit/>
+  <xacro:arm_limit lower="${joint_3_lower}" upper="${joint_3_upper}"/>
 </joint>
 
 <!-- Brazo 4 (muñeca): gira alrededor de X. -->
@@ -679,7 +696,7 @@
   <child link="link_4_1"/>
   <axis xyz="-1.0 0.0 0.0"/>
   <dynamics damping="0.06" friction="0.02"/>
-  <xacro:arm_limit/>
+  <xacro:arm_limit lower="${joint_4_lower}" upper="${joint_4_upper}"/>
 </joint>
 
 <!-- Brazo 5 (muñeca): gira alrededor de Z. -->
@@ -689,7 +706,7 @@
   <child link="link_5_1"/>
   <axis xyz="0.0 0.0 1.0"/>
   <dynamics damping="0.05" friction="0.02"/>
-  <xacro:arm_limit/>
+  <xacro:arm_limit lower="${joint_5_lower}" upper="${joint_5_upper}"/>
 </joint>
 
 <!-- Brazo 6 (muñeca): gira alrededor de X. -->
@@ -699,7 +716,7 @@
   <child link="link_6_1"/>
   <axis xyz="-1.0 0.0 0.0"/>
   <dynamics damping="0.05" friction="0.02"/>
-  <xacro:arm_limit/>
+  <xacro:arm_limit lower="${joint_6_lower}" upper="${joint_6_upper}"/>
 </joint>
 
 <!-- Dedo derecho: se desliza en Y entre -7 mm y +16 mm. -->

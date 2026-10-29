@@ -332,7 +332,8 @@ python3 scripts/figuras.py docs/figuras
 ## Limitaciones
 
 - **Límites provisorios** (±π, 20 N·m, 1 rad/s): la IK puede devolver posturas que el brazo real no hace.
-  Cambiar `arm_lower`/`arm_upper`/`arm_effort`/`arm_velocity` en `andesrobot.urdf.xacro`.
+  Cambiar `arm_effort`/`arm_velocity` y los topes de cada articulación (`joint_N_lower`/`joint_N_upper`, que
+  por defecto valen `arm_lower`/`arm_upper`) en `andesrobot.urdf.xacro`. Cómo medirlos: `docs/medicion_brazo.md`.
 - **Giros largos cerca de ±π**: una articulación no puede pasar de ±π, así que si el objetivo queda
   "al otro lado" da casi una vuelta completa. Ejemplo medido: `joint_1` de 3.05 a −3.03 rad recorre
   6.08 rad en 12.2 s en vez de 0.2 rad. Se arregla con los topes reales.

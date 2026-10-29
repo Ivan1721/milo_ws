@@ -412,7 +412,7 @@ La cadena va de `arm_base_link_1` a `gripper_tcp`. Cada articulación tiene un d
 | `joint_6` | rotativa | `(−0.041, 0, 0.0495)` | 0.064 m | `−X` | `+X` | ±π (provisorio) |
 | `gripper_tcp_joint` | fija | `(−0.102, 0, 0)` | 0.102 m | — | — | — |
 
-El eje en el mundo difiere del local por la corrección de 180° en Z de la base. El brazo mide 0.350 m (joint_2 → joint_3) y el antebrazo 0.325 m (joint_3 → joint_4). Los límites provisorios están en las propiedades `arm_lower`, `arm_upper`, `arm_effort` (20 N·m) y `arm_velocity` (1 rad/s).
+El eje en el mundo difiere del local por la corrección de 180° en Z de la base. El brazo mide 0.350 m (joint_2 → joint_3) y el antebrazo 0.325 m (joint_3 → joint_4). Los límites provisorios están en las propiedades `arm_lower`, `arm_upper`, `arm_effort` (20 N·m) y `arm_velocity` (1 rad/s); los topes de cada articulación (`joint_N_lower`, `joint_N_upper`) parten de `arm_lower` y `arm_upper` y se cambian uno por uno cuando se miden (hoja de medición: `docs/medicion_brazo.md`).
 
 ![Dos paneles. Izquierda: Milo de perfil con la cadena del brazo dibujada en tres alturas del lift, la carrera del lift de 1.000 m y cotas de altura del TCP de 1.376, 1.776 y 2.376 m; arriba, el desplazamiento total del lift al TCP, ΔX 0.3251 y ΔZ 0.9236. Derecha: detalle de la cadena con lift en 0 y una etiqueta por tramo con ΔX, ΔZ y distancia, desde vertical_lift_joint hasta el TCP.](../../ros2_ws/src/andesrobot_arm/docs/figuras/fig_cadena.png)
 

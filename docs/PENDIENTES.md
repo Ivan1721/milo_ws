@@ -47,9 +47,12 @@ Cómo usarla:
 
 ## P04 · Medir el brazo real: topes, muñeca y ejes
 **Contexto:** los límites son provisorios (±π, 20 N·m, 1 rad/s) y la IK puede devolver posturas que el brazo real no hace. La muñeca del CAD (d₄, d₅, d₆) difiere 10–32 mm del DH oficial del EB300, y los desplazamientos a lo largo de los ejes no están confirmados.
-**Qué hacer:** medir los topes de cada articulación y actualizar `arm_lower` / `arm_upper` en el xacro (con los reales desaparece el giro casi completo de `joint_1` cerca de ±π); medir la muñeca y decidir CAD o DH; confirmar los desplazamientos de los ejes.
-**Listo cuando:** el xacro tiene los valores medidos, la tabla de la sección 5 del informe queda actualizada y `pytest` y `prueba_gazebo.sh` siguen pasando.
-**Dónde mirar:** informe §5 y §23; `andesrobot_arm/docs/BRAZO.md`.
+**Ya hecho:** cada articulación tiene ahora sus propios topes en el xacro (`joint_N_lower` / `joint_N_upper`, hoy ±π; el URDF procesado quedó idéntico). `docs/medicion_brazo.md` es la hoja para medir: pose cero, sentido positivo de cada eje, tablas de topes, de las 6 distancias del DH y de los 5 desplazamientos. `scripts/comparar_medidas.py` compara lo medido con el URDF y el EB300 y escribe las líneas del xacro (`andesrobot_arm/medidas.py`, 4 pruebas).
+**Falta (tú, con el brazo armado):** llenar las tablas de la hoja y pasarlas.
+**Falta (después de medir):** pegar los topes en el xacro; si la muñeca resulta ser la del fabricante, corregir los `origin` de `joint_4..6`, regenerar figuras, actualizar las tablas de la sección 5 y `pose_cero_coincide_con_el_urdf`.
+**Listo cuando:** el xacro tiene los valores medidos, la tabla de la sección 5 queda actualizada y `pytest` y `prueba_gazebo.sh` siguen pasando.
+**Dónde mirar:** `docs/medicion_brazo.md`; informe §5; `andesrobot_arm/docs/BRAZO.md`.
+**Depende de:** armar el brazo físico (P01).
 
 ## P05 · Pesar reductores y piezas impresas; recalcular masas y torques
 **Contexto:** las masas ya incluyen motores y pinza en ABS (8.05 kg el brazo completo). Faltan los reductores y las piezas impresas reales.
