@@ -44,6 +44,11 @@ def test_operatorname_se_rechaza(tmp_path):
     assert any('operatorname' in e for e in revisar(str(tmp_path)))
 
 
+def test_mencionar_operatorname_fuera_de_una_formula_no_es_error(tmp_path):
+    escribir(str(tmp_path), 'a.md', 'GitHub rechaza `\\operatorname`; usa \\mathrm.\n')
+    assert revisar(str(tmp_path)) == []
+
+
 def test_figuras_y_secciones_del_informe_en_orden(tmp_path):
     raiz = str(tmp_path)
     escribir(raiz, 'docs/informe/README.md',

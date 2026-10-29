@@ -32,6 +32,14 @@ def sin_codigo(texto):
     return re.sub(r'```.*?```', '', texto, flags=re.S)
 
 
+def formulas(texto):
+    """Solo las fórmulas: $`…`$, $$…$$ y bloques ```math (no las menciones en el texto)."""
+    en_linea = re.findall(r'\$`(.*?)`\$', texto, flags=re.S)
+    dobles = re.findall(r'\$\$(.*?)\$\$', texto, flags=re.S)
+    bloques = re.findall(r'```math\n(.*?)```', texto, flags=re.S)
+    return '\n'.join(en_linea + dobles + bloques)
+
+
 def slug(titulo):
     """El ancla que GitHub le pone a un título: minúsculas, sin signos, espacios → guiones."""
     titulo = re.sub(r'`|\*|\[|\]|<[^>]+>', '', titulo).strip().lower()
@@ -118,7 +126,7 @@ def revisar(raiz):
         relativa = os.path.relpath(ruta, raiz)
         errores += revisar_enlaces(ruta, texto, cache)
         errores += [e.replace(ruta, relativa, 1) for e in revisar_pruebas(raiz, ruta, texto)]
-        if '\\operatorname' in texto:
+        if '\\operatorname' in formulas(texto):
             errores.append(f'{relativa}: usa \\operatorname (GitHub no lo muestra); usa \\mathrm')
         if os.path.basename(os.path.dirname(ruta)) == 'informe':
             errores += [e.replace(ruta, relativa, 1) for e in revisar_informe(ruta, texto)]
