@@ -19,12 +19,4 @@ repositories:
     url: https://github.com/Slamtec/sllidar_ros2.git
     version: 34300099fadfc772965962dec837bf436706188f
 
-  # Driver de la cámara Orbbec Gemini Plus (pendiente: se activa al conectar la cámara real).
-  # Antes de descomentarlo, fijar una versión que traiga launch/gemini.launch.xml (la del ZIP de
-  # Hiwonder en docs/hardware/camara_gemini_plus/ la trae; las versiones nuevas del repo pueden
-  # no soportar este modelo) y probar que compile, porque necesita librerías del sistema
-  # (libusb, libudev...) y reglas udev propias.
-  # OrbbecSDK_ROS2:
-  #   type: git
-  #   url: https://github.com/orbbec/OrbbecSDK_ROS2.git
-  #   version: <commit o tag probado con la Gemini Plus>
+  # El driver de la cámara Orbbec Gemini Plus va aparte, en camara.repos (ahí se explica por qué).

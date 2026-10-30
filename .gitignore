@@ -6,6 +6,8 @@
 ros2_ws/build/
 ros2_ws/install/
 ros2_ws/log/
+# Log/  registro que el SDK de la cámara Orbbec escribe en la carpeta desde donde se lanza
+ros2_ws/Log/
 __pycache__/
 # Documentación de terceros con derechos reservados (datasheets, manuales, CAD, imágenes de
 # Toolbox Robotics, Orbbec, Hiwonder...): se guarda solo en el PC. Git versiona únicamente el

@@ -11,11 +11,12 @@
 #   ./robot.sh stop          apagar el contenedor
 #   ./robot.sh nav <mapa>    navegación autónoma (AMCL + Nav2) con un mapa ya guardado (SIN PROBAR)
 #   ./robot.sh ir <lugar>    (otra terminal) mandar a Milo a una ubicación (ver ./robot.sh ir --lista)
+#   ./robot.sh camara [alineada:=true]   solo la cámara de la pinza (no necesita lidar ni ruedas)
 #
 # Puertos (por defecto /dev/rplidar y /dev/hoverboard, ver docker/udev/README.md). Sin udev:
 #   LIDAR=/dev/ttyUSB0 HOVER=/dev/ttyUSB1 ./robot.sh
 set -e
-# (Las líneas 2-16 de arriba son la ayuda que imprime "sed -n '2,16p'" si escribes una opción
+# (Las líneas 2-17 de arriba son la ayuda que imprime "sed -n '2,17p'" si escribes una opción
 #  que no existe. Los comentarios explicativos van desde aquí.)
 #
 # "set -e": si un comando falla, el script se detiene.
@@ -74,10 +75,21 @@ case "$1" in
   # Navegación (ver sim.sh): ir a ubicaciones con nombre / levantar Nav2 con un mapa guardado.
   ir)     milo_need_running; shift; exec $DC exec ros bash -ic "ros2 run andesrobot_navigation ir_a $*" ;;
   nav)    [ -f "ros2_ws/src/andesrobot_slam/maps/$2.yaml" ] || { echo "[milo] Uso: ./robot.sh nav <mapa>  (no existe ros2_ws/src/andesrobot_slam/maps/$2.yaml)"; exit 1; } ;;
+  camara)
+    # Antes de levantar nada, revisar la cámara. lsusb -d filtra por vendedor:producto y da
+    # "Bus 003 Device 006: ...": sed lo convierte en /dev/bus/usb/003/006, el archivo que abre el driver.
+    camara_usb="$(lsusb -d 2bc5:0614 | sed -E 's#^Bus ([0-9]+) Device ([0-9]+).*#/dev/bus/usb/\1/\2#')"
+    [ -n "$camara_usb" ] || { echo "[milo] No encuentro la Gemini (2bc5:0614). Revisa el cable USB."; exit 1; }
+    # -w = "puedo escribir": sin la regla udev solo puede root, y el driver fallaría con OB_USB_STATUS_ACCESS.
+    [ -w "$camara_usb" ] || { echo "[milo] Sin permiso sobre $camara_usb. Instala la regla: ver docker/udev/README.md"; exit 1; }
+    milo_up
+    # shift quita la palabra "camara"; lo que queda (alineada:=true) va al launch.
+    shift
+    exec $DC exec ros bash -ic "ros2 launch andesrobot_arm camara_real.launch.py $*" ;;
   # Sin palabra: sigue abajo a levantar a Milo.
   "") ;;
   # Opción desconocida: mostrar ayuda.
-  *) sed -n '2,16p' "$0"; exit 1 ;;
+  *) sed -n '2,17p' "$0"; exit 1 ;;
 esac
 
 # Antes de arrancar, revisar que el lidar y el hoverboard estén conectados.

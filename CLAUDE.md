@@ -45,13 +45,16 @@ All from `~/milo_ws` on the host:
 ./sim.sh mapa [nombre]   # save the slam map
 ./sim.sh cpu|software|sin-gazebo|gpu   # no NVIDIA / CPU rendering (black windows) / no gzclient / GPU check
 ./robot.sh ...           # same commands on the real robot's laptop (USB lidar + hoverboard);
-                         # extra: rviz, puertos; ports via LIDAR=/dev/ttyUSB0 HOVER=... ./robot.sh
+                         # extra: rviz, puertos, camara; ports via LIDAR=/dev/ttyUSB0 HOVER=... ./robot.sh
+./robot.sh camara [alineada:=true]   # real gripper camera alone (no lidar/wheels needed)
 ```
 
 Docker plumbing shared by both scripts lives in `docker/lib.sh` (`milo_init`, `milo_up`, ...).
 External drivers (today `sllidar_ros2`) are pinned in `docker/milo.repos` and fetched at image build
 time with `vcs import` into `/opt/milo_drivers` (outside the workspace). To add or bump one, edit that
-file; it lives in `docker/` because that is the image build context. Own drivers (hoverboard) stay
+file; it lives in `docker/` because that is the image build context. Exception: the camera driver is
+pinned in `docker/camara.repos` and built in a layer after YOLO, so bumping it doesn't reinstall
+PyTorch; it is patched at build time (`docker/parches/`). Own drivers (hoverboard) stay
 in `ros2_ws/src/drivers/`.
 
 `build`, `shell` and `teleop` need the container already up (started by `./sim.sh` or
@@ -183,6 +186,14 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
 - Gazebo tests leave orphan nodes (old `robot_state_publisher`s publishing another
   `robot_description`) that make the next `arm_sim` crash: kill every ROS process before relaunching.
 - There is no arm driver for the real robot yet: arm control is sim-only.
+- The real camera does work (`launch/camara_real.launch.py`: `orbbec_camera` v1.2.9 patched, measured
+  2026-10-30 at 30 Hz, details in `docs/BRAZO.md`). Same topics and frame ids as the sim, because
+  `camera_name:=gripper_camera`; `publish_tf:=false` because `robot_state_publisher` owns those frames.
+  Differences: depth `16UC1` mm (sim `32FC1` m), IR `mono16` (sim `mono8`), cloud without color. It is
+  two USB devices (`2bc5:0511` color, `2bc5:0614` depth/IR) opened with libusb; the container runs as
+  uid 1000, so `--privileged` is not enough and the host needs `docker/udev/99-gemini.rules`
+  (`OB_USB_STATUS_ACCESS` otherwise). Killing only the launch can leave the driver holding the camera
+  (next start: `uvc_open failed`).
 
 **Arm kinematics** (`andesrobot_arm/kinematics.py`, pure numpy, details in `docs/BRAZO.md`):
 `ArmKinematics` walks the processed URDF from tip to base, so it always follows the xacro (no DH

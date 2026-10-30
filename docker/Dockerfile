@@ -127,6 +127,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3-pip \
  && apt-get install -y --no-install-recommends --reinstall python3-setuptools python3-pkg-resources \
  && rm -rf /var/lib/apt/lists/*
 
+# Driver de la cámara Orbbec Gemini Plus de la pinza (versión exacta en camara.repos). Va después
+# de YOLO para que cambiar de versión no obligue a reinstalar PyTorch. Se suma a /opt/milo_drivers,
+# junto al driver del lidar.
+# Pasos: instalar la dependencia que falta en la imagen (image_publisher), descargar el driver,
+# aplicarle el parche (parches/orbbec_camera_v1.2.9.patch, corrige tres fallas medidas con la cámara
+# real: ver el README de esa carpeta), compilar solo ese driver y borrar los temporales.
+COPY camara.repos parches/orbbec_camera_v1.2.9.patch /opt/milo_drivers/
+RUN apt-get update && apt-get install -y --no-install-recommends ros-humble-image-publisher \
+ && rm -rf /var/lib/apt/lists/* \
+ && cd /opt/milo_drivers \
+ && vcs import src < camara.repos \
+ && git -C src/OrbbecSDK_ROS2 apply /opt/milo_drivers/orbbec_camera_v1.2.9.patch \
+ && . /opt/ros/humble/setup.sh \
+ && colcon build --packages-up-to orbbec_camera --cmake-args -DCMAKE_BUILD_TYPE=Release \
+ && rm -rf build log
+
 # Usuario con tu mismo UID/GID (los archivos de build no quedan de root en tu PC)
 # 1) Si ya existe un grupo con tu GID, se renombra a "ros"; si no, se crea.
 # 2) Si ya existe un usuario con tu UID (la imagen base a veces trae uno), se renombra a "ros" y

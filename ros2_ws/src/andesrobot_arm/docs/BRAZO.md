@@ -234,6 +234,33 @@ Diferencias con la cámara real: la profundidad real llega en mm (`16UC1`) con r
 real muestra el patrón de puntos del proyector; en Gazebo la profundidad es perfecta y el IR es una
 imagen gris. Gazebo publica además `/gripper_camera/depth/color_sim/*`, que no existe en la real.
 
+### Cámara real
+
+Se conecta por USB y se usa sin simulador. Una vez en cada PC, instalar el permiso USB
+(`docker/udev/README.md`). Después:
+
+```bash
+./robot.sh camara                  # profundidad con su propia lente, 640×400
+./robot.sh camara alineada:=true   # profundidad y nube en el punto de vista de la lente de color, 640×480
+```
+
+Lanza `launch/camara_real.launch.py`: el driver `orbbec_camera` (`docker/camara.repos`, con el parche
+de `docker/parches/`) con los mismos topics y frames que la simulación. `capturar_camara` funciona
+igual, en otra terminal con `./robot.sh shell`. Medido el 30-10-2026, con la cámara a ~2 m de una
+superficie oscura:
+
+| Topic | Real |
+|---|---|
+| `/gripper_camera/color/image_raw` | 640×480 `rgb8`, 30 Hz |
+| `/gripper_camera/depth/image_raw` | 640×400 `16UC1` en mm, 30 Hz; solo 20–30 % de píxeles con dato en esa escena |
+| `/gripper_camera/depth/points` | 30 Hz, sin color (en Gazebo sí trae color) |
+| `/gripper_camera/ir/image_raw` | 640×400 `mono16`, 30 Hz (en Gazebo, `mono8`) |
+
+Intrínsecos de fábrica: profundidad fx = fy = 477.6, cx = 321.0, cy = 201.2 (640×400); color
+fx = fy = 455.1, cx = 327.0, cy = 243.9 (640×480). La cámara no tiene IMU y se conecta por USB 2.0.
+Falta medir la calidad a la distancia de trabajo del brazo (0.2–1 m), y no hay calibración mano-ojo:
+el montaje del URDF es el del diseño, no uno medido.
+
 ## Qué corre
 
 ![Lazo cerrado del brazo](figuras/fig_lazo_cerrado.png)
