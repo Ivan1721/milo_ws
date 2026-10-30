@@ -242,7 +242,14 @@ Se conecta por USB y se usa sin simulador. Una vez en cada PC, instalar el permi
 ```bash
 ./robot.sh camara                  # profundidad con su propia lente, 640×400
 ./robot.sh camara alineada:=true   # profundidad y nube en el punto de vista de la lente de color, 640×480
+./robot.sh camara rviz:=true       # además abre RViz con los tres canales
 ```
+
+Para ver las imágenes conviene usar esa opción de RViz, porque sus paneles vienen en **Best Effort**.
+Con un `rviz2` abierto aparte, en su modo por defecto (*Reliable*), las imágenes bajaron de 30 a menos
+de 2 Hz al cabo de unos minutos, también para los demás nodos; al cerrarlo volvieron a 30 Hz. Con
+`rviz/camara_real.rviz` se mantuvieron en ~30 Hz durante los 6 minutos medidos. Si abres otro RViz,
+cambia en cada panel *Topic → Reliability Policy* a *Best Effort*.
 
 Lanza `launch/camara_real.launch.py`: el driver `orbbec_camera` (`docker/camara.repos`, con el parche
 de `docker/parches/`) con los mismos topics y frames que la simulación. `capturar_camara` funciona

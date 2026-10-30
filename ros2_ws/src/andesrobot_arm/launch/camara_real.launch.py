@@ -17,6 +17,8 @@ Uso (en el PC, con la cámara conectada y docker/udev/99-gemini.rules instalada)
                                       son el mismo punto. Sirve para medir la distancia de lo que
                                       detecta YOLO en la imagen a color.
                                       En este modo no usar ir/camera_info (ver docker/parches/).
+  ./robot.sh camara rviz:=true        además abre RViz con los tres canales en Best Effort
+                                      (rviz/camara_real.rviz).
 Guardar una imagen de cada canal (en otra terminal, ./robot.sh shell):
   ros2 run andesrobot_arm capturar_camara
 """
@@ -25,8 +27,10 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.conditions import IfCondition
 from launch.launch_description_sources import AnyLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
 
 
 def generate_launch_description():
@@ -45,4 +49,12 @@ def generate_launch_description():
                 'publish_tf': 'false',
                 'depth_registration': LaunchConfiguration('alineada'),
             }.items()),
+        DeclareLaunchArgument(
+            'rviz', default_value='false',
+            description='true: abre RViz con los tres canales (rviz/camara_real.rviz)'),
+        Node(
+            package='rviz2', executable='rviz2', output='screen',
+            arguments=['-d', os.path.join(
+                get_package_share_directory('andesrobot_arm'), 'rviz', 'camara_real.rviz')],
+            condition=IfCondition(LaunchConfiguration('rviz'))),
     ])

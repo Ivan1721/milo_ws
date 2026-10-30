@@ -1,0 +1,112 @@
+# RViz para la cámara real de la pinza (./robot.sh camara rviz:=true). Ver docs/BRAZO.md.
+# Los tres paneles usan Reliability "Best Effort" y Depth 1: si RViz se atrasa, se salta cuadros.
+# Con Reliable (el valor por defecto de RViz) las imágenes bajaron de 30 a menos de 2 Hz.
+# Profundidad: 16UC1 en mm, por eso Min/Max van en mm (200 a 3000). Infrarrojo: mono16 con valores
+# bajos (medido: máximo 934 de 65535), por eso Normalize Range; sin eso se ve negro.
+# Ojo: File > Save en RViz reescribe este archivo y borra estos comentarios.
+Panels:
+  - Class: rviz_common/Displays
+    Help Height: 0
+    Name: Displays
+    Property Tree Widget:
+      Expanded: ~
+      Splitter Ratio: 0.5
+    Tree Height: 223
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Camara color
+      Normalize Range: true
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /gripper_camera/color/image_raw
+      Value: true
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Max Value: 3000
+      Median window: 5
+      Min Value: 200
+      Name: Camara profundidad
+      Normalize Range: false
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /gripper_camera/depth/image_raw
+      Value: true
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Camara infrarrojo
+      Normalize Range: true
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /gripper_camera/ir/image_raw
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: gripper_camera_depth_optical_frame
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/Interact
+      Hide Inactive Objects: true
+    - Class: rviz_default_plugins/MoveCamera
+  Transformation:
+    Current:
+      Class: rviz_default_plugins/TF
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 2.5
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.05999999865889549
+        Stereo Focal Distance: 1
+        Swap Stereo Eyes: false
+        Value: false
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 0
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05000000074505806
+      Invert Z Axis: false
+      Name: Current View
+      Near Clip Distance: 0.009999999776482582
+      Pitch: 0.5
+      Target Frame: <Fixed Frame>
+      Value: Orbit (rviz_default_plugins)
+      Yaw: 0.5
+    Saved: ~
+Window Geometry:
+  Camara color:
+    collapsed: false
+  Camara infrarrojo:
+    collapsed: false
+  Camara profundidad:
+    collapsed: false
+  Displays:
+    collapsed: false
+  Height: 903
+  Hide Left Dock: false
+  Hide Right Dock: false
+  QMainWindow State: 000000ff00000000fd00000001000000000000015600000331fc0200000004fb000000100044006900730070006c006100790073010000003b0000011a000000c700fffffffb0000001800430061006d00610072006100200063006f006c006f0072010000015b000000ac0000002800fffffffb0000002200430061006d00610072006100200069006e00660072006100720072006f006a006f010000020d000000ad0000002800fffffffb0000002400430061006d006100720061002000700072006f00660075006e0064006900640061006401000002c0000000ac0000002800ffffff000002430000033100000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Width: 927
+  X: 120
+  Y: 60

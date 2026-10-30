@@ -46,7 +46,7 @@ All from `~/milo_ws` on the host:
 ./sim.sh cpu|software|sin-gazebo|gpu   # no NVIDIA / CPU rendering (black windows) / no gzclient / GPU check
 ./robot.sh ...           # same commands on the real robot's laptop (USB lidar + hoverboard);
                          # extra: rviz, puertos, camara; ports via LIDAR=/dev/ttyUSB0 HOVER=... ./robot.sh
-./robot.sh camara [alineada:=true]   # real gripper camera alone (no lidar/wheels needed)
+./robot.sh camara [alineada:=true] [rviz:=true]   # real gripper camera alone (no lidar/wheels needed)
 ```
 
 Docker plumbing shared by both scripts lives in `docker/lib.sh` (`milo_init`, `milo_up`, ...).
@@ -193,7 +193,9 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   two USB devices (`2bc5:0511` color, `2bc5:0614` depth/IR) opened with libusb; the container runs as
   uid 1000, so `--privileged` is not enough and the host needs `docker/udev/99-gemini.rules`
   (`OB_USB_STATUS_ACCESS` otherwise). Killing only the launch can leave the driver holding the camera
-  (next start: `uvc_open failed`).
+  (next start: `uvc_open failed`). View it with `rviz:=true` (`rviz/camara_real.rviz`, Best Effort):
+  a native `rviz2` on default Reliable dropped all image topics from 30 to under 2 Hz, for every
+  subscriber, and the cause is not the camera or temperature (driver QoS stays RELIABLE).
 
 **Arm kinematics** (`andesrobot_arm/kinematics.py`, pure numpy, details in `docs/BRAZO.md`):
 `ArmKinematics` walks the processed URDF from tip to base, so it always follows the xacro (no DH
