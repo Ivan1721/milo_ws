@@ -84,9 +84,12 @@ Cómo usarla:
 
 ## P09 · Desafío de la puerta: del detector a empujar
 **Contexto:** hay una puerta de prueba que se abre empujando y un detector YOLO de la manija entrenado (60 de 60 en validación, simulación contra simulación). Todavía no cierra el lazo con el brazo.
-**Qué hacer, en orden:** (1) probar el detector con 30–50 fotos de una puerta real y sumarlas al entrenamiento si hace falta; (2) fijar la posición 3D de la manija con la profundidad (funciona desde 0.25 m); (3) cuando la profundidad se pierde, guiar los últimos centímetros con la imagen a color y los keypoints; (4) bajar la manija y empujar; (5) después, tirar y el pestillo.
+**Ya hecho (sin probar en la simulación):** `andesrobot_arm/manija.py` (geometría sin ROS, 12 pruebas con una puerta sintética): píxel a color → punto 3D con la cámara de profundidad (rayo), plano de la puerta como respaldo cuando la manija brillante hace fallar la profundidad, validación de la detección, pose previa de la pinza y arco que recorre la palanca al bajarla. `manija_node.py` los usa para detectar en vivo y publicar `/manija/agarre`, `/manija/pose_previa` y `/manija/marcadores` (`BRAZO.md`, «Detectar la manija»).
+**Falta (tú, con la simulación):** (1) `./sim.sh build` y lanzar `puerta:=true`; (2) `manija_node`: ¿los marcadores caen sobre la manija en RViz?, ¿el error de posición es de pocos mm?; (3) `enviar_previa:=true`: ¿MoveIt llega a la pose previa?
+**Falta (código, después de probar 2 y 3):** (a) guiar los últimos centímetros con la imagen a color y los keypoints cuando la profundidad se pierde (< 0.25 m); (b) un nodo que ejecute el movimiento: tocar la palanca, bajarla siguiendo `arco_palanca` y empujar a lo largo de la normal; (c) después, tirar de la puerta y el pestillo.
+**Falta (físico):** probar el detector con 30–50 fotos de una puerta real y sumarlas al entrenamiento si hace falta.
 **Listo cuando:** el brazo abre la puerta de prueba en simulación sin intervención manual, y queda en el informe §14.
-**Dónde mirar:** informe §14 («Detectar la manija» y «Cómo sigue»); `scripts/generar_dataset_manija.py`; `scripts/entrenar_manija.py`.
+**Dónde mirar:** informe §14 («Detectar la manija» y «Cómo sigue»); `BRAZO.md`; `andesrobot_arm/manija.py` y `manija_node.py`; `scripts/generar_dataset_manija.py`; `scripts/entrenar_manija.py`.
 
 ## P10 · Simulación con mando por esfuerzo, PID y gravedad
 **Contexto:** con el mando por posición, Gazebo coloca cada articulación en el ángulo pedido como si fuera infinitamente rígida. Agarrar objetos no es realista y un choque mueve la base entera (medido: 3° de inclinación).

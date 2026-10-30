@@ -189,7 +189,32 @@ yolo pose predict model=/ros2_ws/modelos/entrenamientos/manija_pose/weights/best
 ```
 
 Si `capturar_camara` dice «No llegó nada por /gripper_camera/...», no hay simulación corriendo.
-Todavía no hay un nodo que detecte en vivo: es una foto a la vez.
+Para detectar **en vivo** y obtener la manija en 3D está `manija_node` (**sin probar todavía en la
+simulación**; la geometría que usa, `andesrobot_arm/manija.py`, sí tiene pruebas con una puerta
+sintética):
+
+```bash
+ros2 run andesrobot_arm manija_node --ros-args -p use_sim_time:=true      # dentro del contenedor
+# opciones: -p confianza:=0.5  -p distancia_previa:=0.30  -p enviar_previa:=true
+```
+
+Cada 0.5 s corre el modelo sobre la imagen a color y pasa los keypoints `eje`, `agarre` y `punta` a
+puntos 3D: cada píxel a color es un rayo que se sigue hasta tocar la superficie de la imagen de
+profundidad (cámaras con otra resolución y otro campo de visión). Si la profundidad falla sobre la
+manija brillante, se usa el plano de la puerta ajustado con los píxeles de alrededor, corrido 5 cm
+hacia el robot (lo que sobresale la manija). Una detección sin sentido (palanca que no mide 8–18 cm,
+fuera del plano de la puerta) se descarta con un aviso. Publica en `base_footprint`:
+
+| Topic | Qué es |
+| --- | --- |
+| `/manija/agarre` | el punto donde se empuja la palanca |
+| `/manija/pose_previa` | dónde poner la pinza, a 0.30 m de la manija y mirando a la puerta (desde ahí la profundidad mide) |
+| `/manija/marcadores` | eje, agarre, punta y la normal de la puerta, para verlos en RViz |
+
+No mueve el brazo salvo con `enviar_previa:=true`, que manda la pose previa a `/arm_target_pose`. La
+normal de la puerta (hacia donde se empuja) y el arco que recorre la palanca al bajarla
+(`arco_palanca`) ya están calculados en `manija.py`; falta el nodo que los ejecute. Un nodo nuevo
+necesita `./sim.sh build`.
 
 **Primer resultado (19-10-2026)**, `yolov8s-pose` con 267 fotos de entrenamiento y 60 de
 validación (puertas que no vio), 100 épocas en 6 minutos (RTX 3070): encuentra la manija en las
@@ -255,8 +280,8 @@ imagen gris. Gazebo publica además `/gripper_camera/depth/color_sim/*`, que no 
 
 Lazo de control con la IK propia (`moveit:=false`), de la orden al movimiento y de vuelta: la IK
 parte de `/joint_states`, el controlador compara la posición pedida con la medida a 100 Hz, y la
-cámara (pendiente: el detector de la manija ya existe, pero todavía no cierra el lazo) cerrará el
-lazo de percepción. En Gazebo la posición medida es la orden misma (mando por posición): ver
+cámara (pendiente: el detector y `manija_node` ya existen, sin probar, pero todavía no cierran el
+lazo) cerrará el lazo de percepción. En Gazebo la posición medida es la orden misma (mando por posición): ver
 «Limitaciones». Se genera con `scripts/fig_lazo_cerrado.py` (solo matplotlib). El mismo lazo con
 MoveIt 2, que es lo que corre por defecto: figura C del informe, `scripts/fig_lazo_moveit.py`.
 

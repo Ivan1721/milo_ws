@@ -1108,6 +1108,8 @@ Deja `color.png`, `ir.png`, `profundidad_mm.png` (16 bits en mm, como la real), 
 
 **Un hallazgo de la simulación: la base resbala.** Cada movimiento del brazo hace retroceder la base cerca de 1 mm en Gazebo, aunque el brazo no toque nada (el brazo es pesado y la base liviana). En una corrida de 300 fotos la base terminó 41 cm atrás y girada 24°, y el brazo ya no alcanzaba la manija. Las etiquetas seguían correctas, porque se calculan con la posición del momento, pero se perdía tiempo. El generador ahora mueve el brazo con menos aceleración, no intenta vistas pegadas a la puerta y se detiene si la base se corrió más de 15 cm. Para abrir la puerta de verdad importa más: la fuerza que haga el brazo al empujar también puede mover la base.
 
+**Avance (30 de octubre):** ya hay un nodo `manija_node` que detecta la manija en vivo y la ubica en 3D con la profundidad (o con el plano de la puerta cuando la manija brillante la hace fallar), y la geometría para la pose previa y el arco de la palanca (`andesrobot_arm/manija.py`, con pruebas sobre una puerta sintética). **El nodo no se ha probado en la simulación.** Falta probarlo, ejecutar el movimiento y el detector con fotos reales.
+
 **Cómo sigue** (el plan acordado): con la profundidad, que funciona de 0.25 m hacia afuera, fijar la posición 3D de la manija mientras se acerca; cuando la cámara queda demasiado cerca y la profundidad se pierde, seguir guiando la pinza solo con la imagen a color y los keypoints ([control visual](#g-control-visual)); y por último bajar la manija y empujar. El control de fuerza (impedancia) y la IMU de la pinza quedan para después de saber si esto funciona.
 
 <a id="aplicaciones"></a>

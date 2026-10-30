@@ -81,7 +81,7 @@ There are no ament_lint tests; keep Python within 99 columns (flake8) to match t
 
 CI (`.github/workflows/ci.yml`, GitHub Actions on every push to `brazo`/`main` and every PR) runs
 three jobs without ROS or Docker: `pytest` of `andesrobot_safety` plus the arm tests that need no
-ROS (`test_torques.py`, `test_medidas.py`, `test_revisar_docs.py`, `test_moveit_opciones.py`), `flake8 --max-line-length=99`
+ROS (`test_torques.py`, `test_medidas.py`, `test_revisar_docs.py`, `test_moveit_opciones.py`, `test_manija.py`), `flake8 --max-line-length=99`
 on `andesrobot_arm`, `andesrobot_description` and `andesrobot_moveit_config`, and
 `scripts/revisar_docs.py` (broken links/anchors across every `.md`, informe figures and sections in
 order, `\operatorname` forbidden because GitHub rejects it, and every "**N de N** en `X`" test count
@@ -196,6 +196,7 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   gitignored third-party files).
 - Gazebo tests leave orphan nodes (old `robot_state_publisher`s publishing another
   `robot_description`) that make the next `arm_sim` crash: kill every ROS process before relaunching.
+- `andesrobot_arm/manija.py` (pure numpy, `test/test_manija.py` with a synthetic door) turns the handle keypoints into 3D points (color-pixel ray marched against the depth image, door-plane fallback when the shiny handle blanks the depth), validates the detection and computes the pre-grasp pose and the lever arc; `manija_node.py` runs YOLO live and publishes `/manija/{agarre,pose_previa,marcadores}`. The node is **untested in simulation**; the TCP approach axis is local −X.
 - There is no arm driver for the real robot yet: arm control is sim-only.
 
 **Arm kinematics** (`andesrobot_arm/kinematics.py`, pure numpy, details in `docs/BRAZO.md`):
