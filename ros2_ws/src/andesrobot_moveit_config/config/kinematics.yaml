@@ -2,8 +2,9 @@
 # KDL: el solver numérico que viene con MoveIt (Newton con el jacobiano). Sirve con cadenas de
 # rotativas y prismáticas, como la de Milo (lift + 6 ejes); con 7 ejes para 6 restricciones
 # devuelve la solución más cercana al punto de partida (la postura actual).
-# TRAC-IK resolvería más casos cerca de los límites, pero en Humble hay que compilarlo aparte
-# (ver docs/tecnologias/README.md en la raíz del repo).
+# TRAC-IK resolvería más casos cerca de los límites, pero NO tiene paquete para ROS 2 Humble
+# (no está en el índice oficial de rosdistro): el reemplazo que sí hay es pick_ik, que se prueba
+# con `arm_sim.launch.py ik:=pick_ik` (parámetros en kinematics_pick_ik.yaml).
 brazo:
   kinematics_solver: kdl_kinematics_plugin/KDLKinematicsPlugin
   # Paso de búsqueda sobre el eje redundante (rad) y tiempo máximo por intento (s).

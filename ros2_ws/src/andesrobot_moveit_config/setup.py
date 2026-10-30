@@ -1,5 +1,6 @@
-# setup.py: instala los archivos de configuración de MoveIt en install/<paquete>/share/<paquete>/config,
-# que es donde los busca MoveItConfigsBuilder (ver andesrobot_arm/launch/arm_sim.launch.py).
+# setup.py: instala los archivos de configuración de MoveIt en
+# install/<paquete>/share/<paquete>/config, que es donde los busca MoveItConfigsBuilder
+# (ver andesrobot_arm/launch/arm_sim.launch.py).
 import os
 from glob import glob
 

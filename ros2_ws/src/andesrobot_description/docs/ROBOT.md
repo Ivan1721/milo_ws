@@ -42,7 +42,7 @@ El plano de escaneo (+30 mm sobre la base del sensor) es estimado: confirmar con
 
 ## Brazo
 - 6 articulaciones `revolute` (joint_1..6) + lift prismático (`vertical_lift_joint`, −0.4…0.6 m) + pinza.
-- Límites del brazo **provisorios**: ±π, 20 N·m, 1 rad/s (propiedades `arm_lower`/`arm_upper`/`arm_effort`/`arm_velocity`).
+- Límites del brazo **provisorios**: ±π, 20 N·m, 1 rad/s (propiedades `arm_lower`/`arm_upper`/`arm_effort`/`arm_velocity`; cada articulación tiene además sus topes `joint_N_lower`/`joint_N_upper`, que valen los de `arm_lower`/`arm_upper` hasta medirlos: `docs/medicion_brazo.md`).
 - `gripper_tcp`: punto de agarre, 0.102 m hacia −X de `link_6_1`, centrado entre los dedos (medido en sus mallas).
 - Cinemática, control en Gazebo y marcador en RViz: paquete `andesrobot_arm` (ver su `docs/BRAZO.md`).
 - Masas: la pinza EBG-20 es de ABS, pero el CAD le asignó acero (7.85 g/cm³); su masa e inercia se

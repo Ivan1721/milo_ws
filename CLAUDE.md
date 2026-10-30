@@ -25,6 +25,9 @@ EBG-20 gripper, motors and Orbbec camera; third-party, so only its `README.md` i
 `docs/literatura/README.md` is the literature review (methods per pending task, with references;
 open-access PDFs in the gitignored `docs/literatura/pdf/`) and `docs/tecnologias/README.md` the
 technology review (tools per layer, closed-loop diagrams, NBV feasibility).
+`docs/PENDIENTES.md` is the backlog of what is left on the arm, one short self-contained entry per
+task (context, what to do, done-when, where to look): read it first and open only the files the
+entry names, instead of the whole report. Update it when a task closes or a new one appears.
 Keep `ros2_ws/src/` for ROS packages only.
 
 ## Commands
@@ -75,6 +78,15 @@ a reachable pose via TF, with MoveIt also: table in the scene, a pose inside the
 OctoMap filled; gripper open/close, clean shutdown). `MOVEIT=false` runs it with `arm_ik_node`.
 
 There are no ament_lint tests; keep Python within 99 columns (flake8) to match the code.
+
+CI (`.github/workflows/ci.yml`, GitHub Actions on every push to `brazo`/`main` and every PR) runs
+three jobs without ROS or Docker: `pytest` of `andesrobot_safety` plus the arm tests that need no
+ROS (`test_torques.py`, `test_medidas.py`, `test_revisar_docs.py`, `test_moveit_opciones.py`, `test_manija.py`), `flake8 --max-line-length=99`
+on `andesrobot_arm`, `andesrobot_description` and `andesrobot_moveit_config`, and
+`scripts/revisar_docs.py` (broken links/anchors across every `.md`, informe figures and sections in
+order, `\operatorname` forbidden because GitHub rejects it, and every "**N de N** en `X`" test count
+in the docs must match the tests in the code). `test_kinematics.py` (needs ROS) and the Gazebo smoke
+test stay manual inside the container; when you add or remove tests, update the counts in the report.
 
 **Never run `colcon build` natively inside `~/milo_ws/ros2_ws`.** The container reuses
 `ros2_ws/install/`, and host-built paths break it. For native (non-Docker) runs, build elsewhere:
@@ -137,7 +149,9 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   `robot_state_publisher`. The planning scene only knows robot frames (`Unknown frame: odom`), so
   the test table (two boxes published by `arm_moveit_node` on `/planning_scene`) and the OctoMap
   (`octomap_frame`) use `base_footprint`; fine while the base doesn't move. `octomap:=false`
-  disables `sensors_3d.yaml`. Objects seen by the camera become obstacles, so a pose touching them
+  disables `sensors_3d.yaml`. Untested options (defaults unchanged, logic in `moveit_opciones.py`): `ik:=pick_ik`
+  (`config/kinematics_pick_ik.yaml`; TRAC-IK has no Humble package, pick_ik is in the Dockerfile) and
+  `suavizado:=ruckig` (adds `AddRuckigTrajectorySmoothing` before TOTG in the OMPL adapters). Objects seen by the camera become obstacles, so a pose touching them
   is rejected. Regenerate the SRDF `<disable_collisions>` pairs after geometry changes with
   `ros2 run moveit_setup_assistant collisions_updater` (command in `docs/BRAZO.md`); the SRDF keeps
   its hand-written header, so merge the generated pairs instead of overwriting the file. RViz uses
@@ -182,6 +196,7 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   gitignored third-party files).
 - Gazebo tests leave orphan nodes (old `robot_state_publisher`s publishing another
   `robot_description`) that make the next `arm_sim` crash: kill every ROS process before relaunching.
+- `andesrobot_arm/manija.py` (pure numpy, `test/test_manija.py` with a synthetic door) turns the handle keypoints into 3D points (color-pixel ray marched against the depth image, door-plane fallback when the shiny handle blanks the depth), validates the detection and computes the pre-grasp pose and the lever arc; `manija_node.py` runs YOLO live and publishes `/manija/{agarre,pose_previa,marcadores}`. The node is **untested in simulation**; the TCP approach axis is local −X.
 - There is no arm driver for the real robot yet: arm control is sim-only.
 
 **Arm kinematics** (`andesrobot_arm/kinematics.py`, pure numpy, details in `docs/BRAZO.md`):
@@ -205,8 +220,8 @@ before/after table); edit its `FILAS`/`PENDIENTES` when the state changes. The M
 the images in `andesrobot_arm/docs/figuras/` (and the arena PNG in `andesrobot_gazebo/worlds/`)
 directly; `docs/informe/img/` keeps only images that exist nowhere else (camera captures, range
 plot, and figures 8/9: handle labels and model predictions, copied from the gitignored
-`ros2_ws/capturas/` and the training run). The claude.ai artifact has its own uploaded copies. Arm limits are **provisional** (`arm_lower/arm_upper/arm_effort/arm_velocity`
-properties: ±π, 20 N·m, 1 rad/s); don't use them for real hardware.
+`ros2_ws/capturas/` and the training run). The claude.ai artifact has its own uploaded copies. `andesrobot_arm/torques.py` (pure numpy, tested in `test/test_torques.py`) and `scripts/calcular_torques.py` compute the static gravity torque per joint from the URDF masses (`--pesaje` prints the table of parts to weigh); a new module needs `./sim.sh build`. `andesrobot_arm/medidas.py` and `scripts/comparar_medidas.py` compare measured distances/stops with the URDF and the official DH and print the xacro lines (sheet: `docs/medicion_brazo.md`). Arm limits are **provisional** (`arm_lower/arm_upper/arm_effort/arm_velocity`
+properties: ±π, 20 N·m, 1 rad/s; per-joint stops are `joint_N_lower/upper`, defaulting to arm_lower/upper); don't use them for real hardware.
 
 Known sim behaviors: the own IK (`moveit:=false`) has no collision checking. `arm_controller` has goal tolerances
 (`arm_controllers.yaml`: 0.02 rad, lift 5 mm, `goal_time` 1 s, path tolerance off) so a move whose

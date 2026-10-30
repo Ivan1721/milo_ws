@@ -11,7 +11,10 @@ Orden de lo que pasa:
 Uso:  ros2 launch andesrobot_arm arm_sim.launch.py   [gui:=false] [rviz:=false]
                                                     [camara:=false] [mesa:=false]
                                                     [moveit:=false] [octomap:=false]
+                                                    [ik:=pick_ik] [suavizado:=ruckig]
                                                     [puerta:=true]
+Con ik:=pick_ik usa el solver pick_ik en vez de KDL, y con suavizado:=ruckig acota también el
+tirón de la trayectoria (los dos sin probar todavía; ver docs/BRAZO.md y moveit_opciones.py).
 Con puerta:=true pone la puerta de prueba (worlds/puerta_prueba.sdf: se abre empujando, manija de
 palanca a 1 m) en vez de la mesa.
 Con moveit:=true (default) arranca move_group (MoveIt 2) con la configuración de
@@ -37,6 +40,8 @@ from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 from moveit_configs_utils import MoveItConfigsBuilder
+
+from andesrobot_arm.moveit_opciones import aplicar_ruckig, archivo_cinematica
 
 
 def _strip_comments(node):
@@ -67,7 +72,7 @@ def robot_description_urdf(simple_collision, camara):
     return doc.toxml()
 
 
-def moveit_config(simple_collision, camara, octomap):
+def moveit_config(simple_collision, camara, octomap, ik='kdl', suavizado='totg'):
     """Parámetros de MoveIt 2 (URDF + SRDF + cinemática + límites + controladores + OctoMap).
 
     MoveItConfigsBuilder lee los archivos de andesrobot_moveit_config/config y procesa el MISMO
@@ -86,7 +91,7 @@ def moveit_config(simple_collision, camara, octomap):
             'lock_arm': 'false', 'arm_control': 'true', 'arm_controllers_file': controllers,
             'simple_collision': simple_collision, 'gripper_camera': camara})
         .robot_description_semantic(file_path='config/andesrobot.srdf')
-        .robot_description_kinematics(file_path='config/kinematics.yaml')
+        .robot_description_kinematics(file_path=archivo_cinematica(ik))
         .joint_limits(file_path='config/joint_limits.yaml')
         .trajectory_execution(file_path='config/moveit_controllers.yaml')
         .planning_pipelines(pipelines=['ompl'])
@@ -99,7 +104,15 @@ def moveit_config(simple_collision, camara, octomap):
     if octomap == 'true':
         # OctoMap desde la nube de la cámara de la pinza (config/sensors_3d.yaml).
         builder = builder.sensors_3d(file_path='config/sensors_3d.yaml')
-    return builder.to_moveit_configs()
+    config = builder.to_moveit_configs()
+    if suavizado == 'ruckig':
+        # Suavizado Ruckig (acota también el tirón) encima de TOTG; ver moveit_opciones.py.
+        if aplicar_ruckig(config.planning_pipelines) == 0:
+            raise RuntimeError('suavizado:=ruckig: no encontré request_adapters en los '
+                               'parámetros de OMPL (¿cambió MoveItConfigsBuilder?)')
+    elif suavizado != 'totg':
+        raise ValueError(f"suavizado:={suavizado!r} no existe; opciones: totg, ruckig")
+    return config
 
 
 def launch_setup(context):
@@ -154,7 +167,9 @@ def launch_setup(context):
     if moveit:
         config = moveit_config(LaunchConfiguration('simple_collision').perform(context),
                                LaunchConfiguration('camara').perform(context),
-                               LaunchConfiguration('octomap').perform(context))
+                               LaunchConfiguration('octomap').perform(context),
+                               LaunchConfiguration('ik').perform(context),
+                               LaunchConfiguration('suavizado').perform(context))
         # move_group: el planificador. Arranca cuando el spawner terminó (controladores
         # activos): así encuentra las acciones FollowJointTrajectory al conectarse.
         move_group = Node(package='moveit_ros_move_group', executable='move_group',
@@ -228,6 +243,13 @@ def generate_launch_description():
         DeclareLaunchArgument('moveit', default_value='true',
                               description='true = MoveIt 2 planifica sin choques '
                                           '(arm_moveit_node); false = IK propia (arm_ik_node)'),
+        DeclareLaunchArgument('ik', default_value='kdl',
+                              description='Con moveit: solver de cinemática inversa, kdl (el de '
+                                          'siempre) o pick_ik (sin probar; ver BRAZO.md)'),
+        DeclareLaunchArgument('suavizado', default_value='totg',
+                              description='Con moveit: tiempo de la trayectoria, totg (el de '
+                                          'siempre) o ruckig (acota también el tirón; sin '
+                                          'probar)'),
         DeclareLaunchArgument('octomap', default_value='true',
                               description='Con moveit: lo que ve la cámara entra a la escena '
                                           'como obstáculo (OctoMap)'),

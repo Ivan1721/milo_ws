@@ -100,7 +100,22 @@ Limitaciones de esta integración: la escena de MoveIt solo conoce los frames de
 la mesa y el OctoMap van en `base_footprint` (vale mientras la base no se mueva); los objetos de la
 mesa que ve la cámara entran como obstáculos, así que una pose que los toque se rechaza (para
 agarrar uno hay que quitarlo de la escena o apagar el OctoMap); y la IK es KDL, que cerca de los
-límites de las articulaciones falla más que TRAC-IK (no hay binario para Humble).
+límites de las articulaciones falla más que otros solvers. TRAC-IK no tiene paquete para ROS 2
+Humble (no está en el índice oficial de rosdistro); el reemplazo que sí hay es pick_ik.
+
+**Dos opciones para probar** (con los valores por defecto todo queda como siempre; **ninguna de
+las dos se ha probado todavía en la simulación**):
+
+| Argumento | Qué cambia | Cómo se ve si funciona |
+| --- | --- | --- |
+| `ik:=pick_ik` | el solver de cinemática inversa pasa de KDL a pick_ik (`config/kinematics_pick_ik.yaml`; el paquete `ros-humble-pick-ik` está en el Dockerfile, hay que reconstruir la imagen) | `prueba_gazebo.sh` sigue pasando y resuelve igual o más poses que con KDL, sin tardar mucho más |
+| `suavizado:=ruckig` | agrega el adaptador `AddRuckigTrajectorySmoothing` después de TOTG: la trayectoria acota también el tirón (jerk) | los movimientos arrancan y frenan sin golpes; el brazo sigue llegando a la pose |
+
+Dentro del contenedor (`./sim.sh shell`; `./sim.sh brazo` no pasa argumentos):
+`ros2 launch andesrobot_arm arm_sim.launch.py ik:=pick_ik suavizado:=ruckig`.
+Si `move_group` se queja de un parámetro de pick_ik, comparar `kinematics_pick_ik.yaml` con el README
+de la versión instalada. La lógica que no depende de ROS está en `andesrobot_arm/moveit_opciones.py`
+(con pruebas); un módulo o archivo `.yaml` nuevo necesita `./sim.sh build`.
 
 ## Puerta de prueba (desafío: abrir una puerta empujando)
 
@@ -174,7 +189,32 @@ yolo pose predict model=/ros2_ws/modelos/entrenamientos/manija_pose/weights/best
 ```
 
 Si `capturar_camara` dice «No llegó nada por /gripper_camera/...», no hay simulación corriendo.
-Todavía no hay un nodo que detecte en vivo: es una foto a la vez.
+Para detectar **en vivo** y obtener la manija en 3D está `manija_node` (**sin probar todavía en la
+simulación**; la geometría que usa, `andesrobot_arm/manija.py`, sí tiene pruebas con una puerta
+sintética):
+
+```bash
+ros2 run andesrobot_arm manija_node --ros-args -p use_sim_time:=true      # dentro del contenedor
+# opciones: -p confianza:=0.5  -p distancia_previa:=0.30  -p enviar_previa:=true
+```
+
+Cada 0.5 s corre el modelo sobre la imagen a color y pasa los keypoints `eje`, `agarre` y `punta` a
+puntos 3D: cada píxel a color es un rayo que se sigue hasta tocar la superficie de la imagen de
+profundidad (cámaras con otra resolución y otro campo de visión). Si la profundidad falla sobre la
+manija brillante, se usa el plano de la puerta ajustado con los píxeles de alrededor, corrido 5 cm
+hacia el robot (lo que sobresale la manija). Una detección sin sentido (palanca que no mide 8–18 cm,
+fuera del plano de la puerta) se descarta con un aviso. Publica en `base_footprint`:
+
+| Topic | Qué es |
+| --- | --- |
+| `/manija/agarre` | el punto donde se empuja la palanca |
+| `/manija/pose_previa` | dónde poner la pinza, a 0.30 m de la manija y mirando a la puerta (desde ahí la profundidad mide) |
+| `/manija/marcadores` | eje, agarre, punta y la normal de la puerta, para verlos en RViz |
+
+No mueve el brazo salvo con `enviar_previa:=true`, que manda la pose previa a `/arm_target_pose`. La
+normal de la puerta (hacia donde se empuja) y el arco que recorre la palanca al bajarla
+(`arco_palanca`) ya están calculados en `manija.py`; falta el nodo que los ejecute. Un nodo nuevo
+necesita `./sim.sh build`.
 
 **Primer resultado (19-10-2026)**, `yolov8s-pose` con 267 fotos de entrenamiento y 60 de
 validación (puertas que no vio), 100 épocas en 6 minutos (RTX 3070): encuentra la manija en las
@@ -240,8 +280,8 @@ imagen gris. Gazebo publica además `/gripper_camera/depth/color_sim/*`, que no 
 
 Lazo de control con la IK propia (`moveit:=false`), de la orden al movimiento y de vuelta: la IK
 parte de `/joint_states`, el controlador compara la posición pedida con la medida a 100 Hz, y la
-cámara (pendiente: el detector de la manija ya existe, pero todavía no cierra el lazo) cerrará el
-lazo de percepción. En Gazebo la posición medida es la orden misma (mando por posición): ver
+cámara (pendiente: el detector y `manija_node` ya existen, sin probar, pero todavía no cierran el
+lazo) cerrará el lazo de percepción. En Gazebo la posición medida es la orden misma (mando por posición): ver
 «Limitaciones». Se genera con `scripts/fig_lazo_cerrado.py` (solo matplotlib). El mismo lazo con
 MoveIt 2, que es lo que corre por defecto: figura C del informe, `scripts/fig_lazo_moveit.py`.
 
@@ -332,7 +372,8 @@ python3 scripts/figuras.py docs/figuras
 ## Limitaciones
 
 - **Límites provisorios** (±π, 20 N·m, 1 rad/s): la IK puede devolver posturas que el brazo real no hace.
-  Cambiar `arm_lower`/`arm_upper`/`arm_effort`/`arm_velocity` en `andesrobot.urdf.xacro`.
+  Cambiar `arm_effort`/`arm_velocity` y los topes de cada articulación (`joint_N_lower`/`joint_N_upper`, que
+  por defecto valen `arm_lower`/`arm_upper`) en `andesrobot.urdf.xacro`. Cómo medirlos: `docs/medicion_brazo.md`.
 - **Giros largos cerca de ±π**: una articulación no puede pasar de ±π, así que si el objetivo queda
   "al otro lado" da casi una vuelta completa. Ejemplo medido: `joint_1` de 3.05 a −3.03 rad recorre
   6.08 rad en 12.2 s en vez de 0.2 rad. Se arregla con los topes reales.

@@ -412,7 +412,7 @@ La cadena va de `arm_base_link_1` a `gripper_tcp`. Cada articulación tiene un d
 | `joint_6` | rotativa | `(−0.041, 0, 0.0495)` | 0.064 m | `−X` | `+X` | ±π (provisorio) |
 | `gripper_tcp_joint` | fija | `(−0.102, 0, 0)` | 0.102 m | — | — | — |
 
-El eje en el mundo difiere del local por la corrección de 180° en Z de la base. El brazo mide 0.350 m (joint_2 → joint_3) y el antebrazo 0.325 m (joint_3 → joint_4). Los límites provisorios están en las propiedades `arm_lower`, `arm_upper`, `arm_effort` (20 N·m) y `arm_velocity` (1 rad/s).
+El eje en el mundo difiere del local por la corrección de 180° en Z de la base. El brazo mide 0.350 m (joint_2 → joint_3) y el antebrazo 0.325 m (joint_3 → joint_4). Los límites provisorios están en las propiedades `arm_lower`, `arm_upper`, `arm_effort` (20 N·m) y `arm_velocity` (1 rad/s); los topes de cada articulación (`joint_N_lower`, `joint_N_upper`) parten de `arm_lower` y `arm_upper` y se cambian uno por uno cuando se miden (hoja de medición: `docs/medicion_brazo.md`).
 
 ![Dos paneles. Izquierda: Milo de perfil con la cadena del brazo dibujada en tres alturas del lift, la carrera del lift de 1.000 m y cotas de altura del TCP de 1.376, 1.776 y 2.376 m; arriba, el desplazamiento total del lift al TCP, ΔX 0.3251 y ΔZ 0.9236. Derecha: detalle de la cadena con lift en 0 y una etiqueta por tramo con ΔX, ΔZ y distancia, desde vertical_lift_joint hasta el TCP.](../../ros2_ws/src/andesrobot_arm/docs/figuras/fig_cadena.png)
 
@@ -536,7 +536,7 @@ Las tablas de arriba son las masas originales del CAD. En `andesrobot.urdf.xacro
 | **Brazo completo** | **4.42 kg** | **8.05 kg** |
 | **Robot completo** | **30.39 kg** | **34.02 kg** |
 
-Con las masas nuevas la cadena de la IK no cambia, las 6 pruebas de ese momento pasan (hoy el brazo tiene 11), y en Gazebo la pinza sigue llegando a las poses de prueba con menos de 0.1 mm de error. Queda pendiente pesar las piezas impresas reales y recalcular los torques de joint_2 y joint_3 para reemplazar el límite provisorio de 20 N·m.
+Con las masas nuevas la cadena de la IK no cambia, las 6 pruebas de ese momento pasan (hoy el brazo tiene 11), y en Gazebo la pinza sigue llegando a las poses de prueba con menos de 0.1 mm de error. Queda pendiente pesar las piezas impresas reales y recalcular los torques de joint_2 y joint_3 para reemplazar el límite provisorio de 20 N·m. Un cálculo preliminar con las masas de hoy (`andesrobot_arm/scripts/calcular_torques.py`, estático, barrido de posturas al azar) da un torque máximo de unos 23 N·m en joint_2 y 8 N·m en joint_3, sin carga en la pinza: joint_2 ya supera el límite provisorio. Es un resultado preliminar: las piezas impresas están como ABS macizo (pesan de más) y faltan los reductores (pesan de menos).
 
 <a id="fk"></a>
 
@@ -859,7 +859,7 @@ flowchart LR
 
 ### Con MoveIt 2 (el default desde el 18 de octubre)
 
-![Diagrama de bloques del lazo de control del brazo con MoveIt 2, con la misma disposición que la figura B. En el lugar de la cinemática inversa hay un bloque verde, move_group: la escena de planificación (URDF, SRDF, estado actual, OctoMap de la cámara y la mesa), el solver de IK (KDL; TRAC-IK queda pendiente), el planificador OMPL que revisa choques en cada tramo y la parametrización en el tiempo (TOTG; Ruckig queda pendiente); entrega una trayectoria completa al controlador. Vuelven a MoveIt el estado actual de las articulaciones, TF, el resultado de la ejecución y, desde la cámara, la nube de puntos convertida en OctoMap. En naranja punteado sigue pendiente la detección del objeto que daría el nuevo objetivo. Un recuadro resume qué cambia respecto a la figura B.](../../ros2_ws/src/andesrobot_arm/docs/figuras/fig_lazo_moveit.png)
+![Diagrama de bloques del lazo de control del brazo con MoveIt 2, con la misma disposición que la figura B. En el lugar de la cinemática inversa hay un bloque verde, move_group: la escena de planificación (URDF, SRDF, estado actual, OctoMap de la cámara y la mesa), el solver de IK (KDL; pick_ik opcional, TRAC-IK no tiene paquete para Humble), el planificador OMPL que revisa choques en cada tramo y la parametrización en el tiempo (TOTG; Ruckig opcional con `suavizado:=ruckig`, sin probar); entrega una trayectoria completa al controlador. Vuelven a MoveIt el estado actual de las articulaciones, TF, el resultado de la ejecución y, desde la cámara, la nube de puntos convertida en OctoMap. En naranja punteado sigue pendiente la detección del objeto que daría el nuevo objetivo. Un recuadro resume qué cambia respecto a la figura B.](../../ros2_ws/src/andesrobot_arm/docs/figuras/fig_lazo_moveit.png)
 
 **Figura C.** Lazo cerrado del brazo con MoveIt 2, lo que corre con `moveit:=true`: misma disposición que la figura B. Azul: igual que sin MoveIt; verde: lo que agrega MoveIt 2; naranja punteado: pendiente. Generada con `andesrobot_arm/scripts/fig_lazo_moveit.py`.
 
@@ -867,9 +867,9 @@ flowchart LR
 | --- | --- | --- |
 | Objetivo | pose de la pinza en `/arm_target_pose` | igual; además MoveIt acepta metas en articulaciones y poses con restricciones (por ejemplo, «mantener la pinza horizontal») |
 | Qué sabe del entorno | nada: la IK no conoce la base, la columna ni la mesa | la **escena de planificación**: el robot (URDF + SRDF con los pares de piezas que nunca chocan), la mesa como objeto conocido y lo que ve la cámara como **OctoMap** (celdas ocupadas) |
-| Cinemática inversa | DLS propio, una pose final | KDL, dentro del planificador (TRAC-IK queda pendiente); la solución se descarta si choca |
+| Cinemática inversa | DLS propio, una pose final | KDL, dentro del planificador (pick_ik opcional con `ik:=pick_ik`, sin probar); la solución se descarta si choca |
 | Camino | va directo en el espacio de articulaciones | **planificado** (OMPL, RRT-Connect): cada tramo se revisa contra la escena; se suaviza |
-| Tiempo | velocidad constante, duración común | TOTG: límites de velocidad y aceleración por articulación (limitar también el tirón con Ruckig queda pendiente; haría falta para motores paso a paso) |
+| Tiempo | velocidad constante, duración común | TOTG: límites de velocidad y aceleración por articulación (limitar también el tirón con Ruckig es opcional con `suavizado:=ruckig`, sin probar; haría falta para motores paso a paso) |
 | Controlador | `arm_controller`, un punto | el mismo `arm_controller`, con la trayectoria completa (N puntos) por `FollowJointTrajectory` |
 | Vigilancia | el nodo solo imprime el resultado | MoveIt sigue la ejecución: si el controlador no llega a tiempo o fuera de tolerancia, aborta y puede replanificar |
 | Lazo de posición | sensores → controlador, 100 Hz | **igual**; sigue cerrándose sobre la orden en Gazebo y necesita encoders en el robot real |
@@ -1107,6 +1107,8 @@ Deja `color.png`, `ir.png`, `profundidad_mm.png` (16 bits en mm, como la real), 
 **Cuidado al leer estos números:** miden simulación contra simulación. Una puerta real tiene reflejos, sombras, desenfoque y fondos que el simulador no tiene; el siguiente paso es fotografiar una puerta real (30 a 50 fotos), medir ahí y, si hace falta, sumarlas al entrenamiento.
 
 **Un hallazgo de la simulación: la base resbala.** Cada movimiento del brazo hace retroceder la base cerca de 1 mm en Gazebo, aunque el brazo no toque nada (el brazo es pesado y la base liviana). En una corrida de 300 fotos la base terminó 41 cm atrás y girada 24°, y el brazo ya no alcanzaba la manija. Las etiquetas seguían correctas, porque se calculan con la posición del momento, pero se perdía tiempo. El generador ahora mueve el brazo con menos aceleración, no intenta vistas pegadas a la puerta y se detiene si la base se corrió más de 15 cm. Para abrir la puerta de verdad importa más: la fuerza que haga el brazo al empujar también puede mover la base.
+
+**Avance (30 de octubre):** ya hay un nodo `manija_node` que detecta la manija en vivo y la ubica en 3D con la profundidad (o con el plano de la puerta cuando la manija brillante la hace fallar), y la geometría para la pose previa y el arco de la palanca (`andesrobot_arm/manija.py`, con pruebas sobre una puerta sintética). **El nodo no se ha probado en la simulación.** Falta probarlo, ejecutar el movimiento y el detector con fotos reales.
 
 **Cómo sigue** (el plan acordado): con la profundidad, que funciona de 0.25 m hacia afuera, fijar la posición 3D de la manija mientras se acerca; cuando la cámara queda demasiado cerca y la profundidad se pierde, seguir guiando la pinza solo con la imagen a color y los keypoints ([control visual](#g-control-visual)); y por último bajar la manija y empujar. El control de fuerza (impedancia) y la IMU de la pinza quedan para después de saber si esto funciona.
 
@@ -1360,7 +1362,7 @@ El mapa se guarda con `./sim.sh mapa nombre` (o `./robot.sh mapa`), que llama a 
 
 ### Pruebas automáticas (pytest, sin ROS corriendo)
 
-Corridas dentro del contenedor (la última vez el 17 de octubre de 2026, en la revisión completa): **11 de 11** en `andesrobot_arm` y **11 de 11** en `andesrobot_safety` (estas últimas se volvieron a correr el 24 de octubre de 2026 fuera del contenedor, con `pytest` y numpy). Las cinco últimas del brazo se agregaron en esa revisión.
+Corridas dentro del contenedor (la última vez el 17 de octubre de 2026, en la revisión completa): **11 de 11** en `test_kinematics.py` (desde entonces se agregaron 5 pruebas en `test_torques.py`, 4 en `test_medidas.py` y 7 en `test_revisar_docs.py`, que no necesitan ROS y se corrieron el 29 de octubre fuera del contenedor y pasan) y **11 de 11** en `andesrobot_safety` (estas últimas se volvieron a correr el 24 de octubre de 2026 fuera del contenedor, con `pytest` y numpy). Las cinco últimas del brazo se agregaron en esa revisión.
 
 | Prueba | Qué comprueba | Resultado |
 | --- | --- | --- |
@@ -1433,11 +1435,13 @@ El robot físico (hoverboard, lidar y mapeo real) no se probó como parte de est
 
 ## 23. Pendientes
 
+La lista corta y ordenada, con lo mínimo para empezar cada tarea, está en [`docs/PENDIENTES.md`](../PENDIENTES.md); esta sección tiene el contexto largo.
+
 > **En palabras simples:** Lo que falta. Lo más importante: medir el brazo real (topes, piezas) y escribir el programa que mueva los motores reales.
 
 ### Repositorio
 
-- Integración continua: correr las pruebas de `pytest` en GitHub Actions en cada cambio subido (hoy se corren a mano dentro del contenedor).
+- Integración continua: desde el 29 de octubre GitHub Actions corre en cada cambio las pruebas que no necesitan ROS (`andesrobot_safety`, `test_torques.py`, `test_medidas.py`, `test_revisar_docs.py`), `flake8` a 99 columnas en el brazo y la revisión de documentos (`scripts/revisar_docs.py`). Falta correr también `test_kinematics.py`, que necesita ROS, con un contenedor `ros:humble`; la prueba de humo de Gazebo se sigue corriendo a mano.
 
 ### Brazo
 
@@ -1447,7 +1451,7 @@ El robot físico (hoverboard, lidar y mapeo real) no se probó como parte de est
 - **Cámara**: hacer realista la profundidad (nodo `gemini_realista`, sección 14), conectar la cámara real con `OrbbecSDK_ROS2`.
 - **Confirmar los desplazamientos a lo largo de los ejes** (orígenes en los acoplamientos, sección 5) midiendo el brazo real.
 - **Sin driver del brazo real**: el control existe solo en Gazebo. El EB300 se controla con un Arduino MEGA 2560 y 6 drivers TB6600; el camino natural es un plugin de ros2_control que hable por serie con el Arduino, como el del hoverboard.
-- **Choques**: con MoveIt 2 (el default) se evitan antes de mover (sección 13); con `moveit:=false` la IK propia puede atravesar la base, la columna o la mesa, y Gazebo **no la frena** con el mando por posición (sección 21). Pendiente en MoveIt: TRAC-IK (falla menos cerca de los límites que KDL), los objetos de la mesa como objetos conocidos (hoy el OctoMap los vuelve obstáculos y no se pueden agarrar), afinar el OctoMap (resolución, filtrado del propio robot) y, si la base se moviera, pasar la escena a un frame fijo al mundo.
+- **Choques**: con MoveIt 2 (el default) se evitan antes de mover (sección 13); con `moveit:=false` la IK propia puede atravesar la base, la columna o la mesa, y Gazebo **no la frena** con el mando por posición (sección 21). Pendiente en MoveIt: probar pick_ik con `ik:=pick_ik` (reemplazo de KDL que falla menos cerca de los límites; TRAC-IK no tiene paquete para Humble) y el suavizado con `suavizado:=ruckig` (ambos ya están como opciones, sin probar en la simulación), los objetos de la mesa como objetos conocidos (hoy el OctoMap los vuelve obstáculos y no se pueden agarrar), afinar el OctoMap (resolución, filtrado del propio robot) y, si la base se moviera, pasar la escena a un frame fijo al mundo.
 - **Giros largos cerca de ±π**: con los límites provisorios una articulación no puede pasar de ±π, así que un objetivo «al otro lado» obliga a casi una vuelta completa (medido: `joint_1` recorre 6.08 rad en 12.2 s en vez de 0.2 rad). Se arregla con los topes reales.
 - **Desafío de la puerta** (sección 14): probar el detector con fotos de una puerta real y sumarlas al entrenamiento; fijar la posición de la manija con la profundidad y guiar los últimos centímetros con la imagen a color; el movimiento de bajar la manija y empujar; después, tirar y el pestillo.
 - **La base resbala en Gazebo** (~1 mm por movimiento del brazo, sección 14): la física de la base es del otro equipo; afecta a cualquier tarea larga del brazo y al empujar la puerta.

@@ -85,7 +85,7 @@ y sus límites: `andesrobot_arm/docs/BRAZO.md`, sección «MoveIt 2».
 | Solver | Qué es | Estado |
 | --- | --- | --- |
 | **KDL** | el solver por defecto de MoveIt (Newton con el jacobiano) | ✅ en uso (`kinematics.yaml`); falla más cerca de los límites |
-| **TRAC-IK** | corre en paralelo un KDL mejorado y una optimización; resuelve bastantes más casos | ⭐ después; ⚠️ en Humble no encontré paquete binario confirmado: se compila desde el código (rama de ROS 2) |
+| **TRAC-IK** | corre en paralelo un KDL mejorado y una optimización; resuelve bastantes más casos | ⚠️ **no tiene paquete para Humble** (comprobado en el índice oficial de rosdistro, 29-oct-2026): hay que compilarlo del código; el reemplazo con binario es **pick_ik** (`ros-humble-pick-ik`), ya disponible con `ik:=pick_ik` |
 | `kinematics.py` propio | el DLS con pesos que ya tiene Milo | ✅ en uso; se mantiene para pruebas y para `arm-viz` |
 
 ### Trayectorias
