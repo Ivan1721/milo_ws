@@ -53,7 +53,7 @@ están al final.
 | Saber dónde está cada eje | nada | **finales de carrera** para el homing; encoders después | sin ellos, el robot no sabe su posición al encender |
 | IMU en la pinza | MPU-9250 (por montar) | MPU-9250 si ya está; **BNO085** o **ICM-20948** si se compra | el MPU-9250 está discontinuado; el BNO085 entrega la orientación ya calculada |
 | Simulación | Gazebo Classic 11 | seguir; migrar a **Gazebo Harmonic** cuando se amplíe | Classic ya no recibe actualizaciones desde enero de 2025 |
-| Cámara | Gemini Plus simulada | **verificar el driver** antes de conectarla | el driver actual de Orbbec no la lista; puede necesitar la versión antigua |
+| Cámara | ✅ Gemini Plus real con `orbbec_camera` v1.2.9 (desde el 30-10-2026, `./robot.sh camara`) | seguir con esa versión | el driver actual de Orbbec no la lista; la versión antigua sí funciona, con un parche |
 | Detección | YOLO (Ultralytics) en la imagen de Docker; `yolov8s-pose` afinado para la manija de la puerta, probado solo en simulación | **OpenCV** (color, ArUco) → **YOLO** | de lo simple a lo general |
 | Plano eléctrico | nada | **KiCad** (o Fritzing para un primer borrador) | gratis, estándar y versionable en git |
 
@@ -131,7 +131,7 @@ junto con el equipo de la base, porque afecta a todo el robot.
 
 | Tecnología | Para qué | Estado |
 | --- | --- | --- |
-| **OrbbecSDK_ROS2** | driver oficial de las cámaras Orbbec; publica los mismos topics que la simulación de Milo | ⚠️ la rama actual (`v2-main`) no lista la **Gemini Plus** entre sus cámaras; la rama `main` (SDK v1) cubre modelos antiguos. Hay que probar con la cámara conectada antes de fijar la versión en `docker/milo.repos` |
+| **OrbbecSDK_ROS2** | driver oficial de las cámaras Orbbec; publica los mismos topics que la simulación de Milo | ✅ tag `v1.2.9` probado con la cámara real, fijado en `docker/camara.repos` con un parche (`docker/parches/`). ⚠️ la rama actual (`v2-main`) no lista la **Gemini Plus** entre sus cámaras |
 | **image_pipeline** (`depth_image_proc`) | rectificar imágenes, pasar profundidad a nube de puntos | ➕ si el driver no entrega la nube |
 | **easy_handeye2** | calibración cámara–pinza (Tsai–Lenz, Park–Martin) | ⭐ al montar la cámara |
 | **OctoMap** (`moveit_ros_perception`) | la nube de la cámara como obstáculos en la escena de MoveIt | ✅ en uso (`sensors_3d.yaml`, `octomap:=true`) |

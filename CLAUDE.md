@@ -25,6 +25,8 @@ EBG-20 gripper, motors and Orbbec camera; third-party, so only its `README.md` i
 `docs/literatura/README.md` is the literature review (methods per pending task, with references;
 open-access PDFs in the gitignored `docs/literatura/pdf/`) and `docs/tecnologias/README.md` the
 technology review (tools per layer, closed-loop diagrams, NBV feasibility).
+`docs/dependencias/README.md` compiles every software/driver/hardware dependency by stage (development
+vs deployment) with the versions measured in the image; update it when the Dockerfile or hardware changes.
 Keep `ros2_ws/src/` for ROS packages only.
 
 ## Commands
