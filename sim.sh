@@ -16,8 +16,9 @@
 #   ./sim.sh nav <mapa> [arena]   navegación autónoma (AMCL + Nav2) con un mapa ya guardado
 #   ./sim.sh ir <lugar> [...]     (otra terminal) mandar a Milo: ./sim.sh ir kitchen  / --lista
 #   ./sim.sh tour [veces]         (otra terminal) visitar todas las ubicaciones y guardar un CSV
+#   ./sim.sh imagen          reconstruir la imagen de Docker (después de cambiar algo en docker/)
 set -e
-# (Las líneas 2-18 de arriba son la ayuda: el "sed -n '2,18p'" de más abajo las imprime
+# (Las líneas 2-19 de arriba son la ayuda: el "sed -n '2,19p'" de más abajo las imprime
 #  cuando escribes una opción que no existe. Por eso los comentarios explicativos van aquí.)
 #
 # Línea 1 "#!/bin/bash": le dice al sistema que este archivo se ejecuta con bash.
@@ -46,6 +47,8 @@ case "$1" in
   build)  milo_need_running; exec $DC exec ros bash -ic 'cd /ros2_ws && colcon build --symlink-install' ;;
   # Stop: apaga y borra el contenedor (tu código y mapas quedan, están en tu PC).
   stop)   $DC down; exit 0 ;;
+  # Imagen: arrancar ya no reconstruye la imagen de Docker; se hace aquí, a propósito.
+  imagen) milo_imagen; exit 0 ;;
   # GPU: diagnóstico de con qué está dibujando OpenGL.
   gpu)    milo_need_running; milo_gpu_info; exit 0 ;;
   # Brazo: levanta el contenedor y lanza la simulación del brazo (en vez de la de mapeo).
@@ -71,8 +74,8 @@ case "$1" in
           [ -f "ros2_ws/src/andesrobot_slam/maps/$2.yaml" ] || { echo "[milo] No existe el mapa ros2_ws/src/andesrobot_slam/maps/$2.yaml"; exit 1; } ;;
   # Estas opciones no hacen nada aquí: siguen hacia abajo a levantar la simulación.
   ""|cpu|sin-gazebo|software|casa) ;;
-  # Cualquier otra cosa: mostrar la ayuda (líneas 2 a 18 de este archivo) y salir con error.
-  *) sed -n '2,18p' "$0"; exit 1 ;;
+  # Cualquier otra cosa: mostrar la ayuda (líneas 2 a 19 de este archivo) y salir con error.
+  *) sed -n '2,19p' "$0"; exit 1 ;;
 esac
 
 # Por defecto se abre la ventana de Gazebo; con "sin-gazebo" no (ahorra GPU, la física igual corre).

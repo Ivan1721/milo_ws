@@ -309,6 +309,7 @@ El que dice `idVendor "10c4"` es el **lidar**; el otro es el **hoverboard**. Ano
 | `./sim.sh shell` | terminal dentro de Docker |
 | `./sim.sh build` | recompilar si cambiaste código |
 | `./sim.sh stop` | apagar el contenedor |
+| `./sim.sh imagen` | reconstruir la imagen de Docker, si cambió algo en `docker/` (arrancar solo avisa) |
 | `./sim.sh cpu` / `software` / `sin-gazebo` | sin NVIDIA / render por CPU / sin ventana de Gazebo |
 | `./sim.sh gpu` | con qué tarjeta gráfica está dibujando |
 

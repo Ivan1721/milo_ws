@@ -33,6 +33,9 @@ services:
       - LIBGL_ALWAYS_SOFTWARE=${MILO_SOFTWARE_GL:-0}   # 1 = render por CPU (./sim.sh software)
       # "Canal" de ROS 2: solo se ven los nodos con el mismo número (útil si hay varios robots en la red).
       - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+      # Ultralytics no instala paquetes por su cuenta: un "pip install" automático podría cambiar
+      # las versiones fijadas (por ejemplo numpy). Lo que falte se agrega en el Dockerfile.
+      - YOLO_AUTOINSTALL=false
     # Carpetas compartidas  PC:contenedor
     volumes:
       # Socket de X11: por aquí el contenedor dibuja ventanas en tu pantalla.

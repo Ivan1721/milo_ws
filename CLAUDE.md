@@ -44,6 +44,7 @@ All from `~/milo_ws` on the host:
 ./sim.sh build           # colcon build --symlink-install inside the container
 ./sim.sh shell           # bash inside the container (ROS sourced)
 ./sim.sh stop            # docker compose down
+./sim.sh imagen          # rebuild the Docker image; starting no longer does (only warns if docker/ changed)
 ./sim.sh mapa [nombre]   # save the slam map
 ./sim.sh cpu|software|sin-gazebo|gpu   # no NVIDIA / CPU rendering (black windows) / no gzclient / GPU check
 ./robot.sh ...           # same commands on the real robot's laptop (USB lidar + hoverboard);
@@ -57,7 +58,9 @@ time with `vcs import` into `/opt/milo_drivers` (outside the workspace). To add 
 file; it lives in `docker/` because that is the image build context. Exception: the camera driver is
 pinned in `docker/camara.repos` and built in a layer after YOLO, so bumping it doesn't reinstall
 PyTorch; it is patched at build time (`docker/parches/`). Own drivers (hoverboard) stay
-in `ros2_ws/src/drivers/`.
+in `ros2_ws/src/drivers/`. Versions: the base image is pinned by digest and every pip package by
+`docker/requisitos_vision.txt` (`pip -c`, CLIP by commit in the Dockerfile); apt packages are not.
+`milo_up` uses `up -d` without `--build`, and the container sets `YOLO_AUTOINSTALL=false`.
 
 `build`, `shell` and `teleop` need the container already up (started by `./sim.sh` or
 `./sim.sh brazo` in another terminal). `--symlink-install`: edits to existing `.py`/`.xacro`/`.yaml`

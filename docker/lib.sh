@@ -66,12 +66,32 @@ milo_gpu_info() {
   milo_run 'glxinfo -B 2>/dev/null | grep -E "OpenGL (vendor|renderer)|Accelerated" || echo "glxinfo falló: no hay contexto OpenGL"'
 }
 
-# Levanta el contenedor (construye la imagen si cambió) y compila la 1a vez.
+# Avisa si la receta de la imagen cambió después de construirla. Solo avisa: reconstruir se decide
+# a mano con "imagen", porque descarga varios GB y no debe pasar justo antes de usar el robot.
+milo_aviso_imagen() {
+  local creada
+  # Fecha en que se construyó la imagen. Si todavía no existe, no hay nada que comparar.
+  creada="$(docker image inspect -f '{{.Created}}' milo:humble 2>/dev/null)" || return 0
+  # find -newermt = archivos modificados después de esa fecha; -print -quit = basta con el primero.
+  if [ -n "$(find docker -maxdepth 2 -type f \( -name Dockerfile -o -name '*.repos' -o -name '*.patch' -o -name 'requisitos_vision.txt' \) -newermt "$creada" -print -quit)" ]; then
+    echo "[milo] Aviso: la receta en docker/ cambió después de construir la imagen. Para aplicarla: $0 imagen"
+  fi
+}
+
+# Reconstruye la imagen a propósito. Docker reutiliza las capas que no cambiaron.
+milo_imagen() {
+  $DC build
+  echo "[milo] Imagen lista. El próximo arranque recrea el contenedor con ella."
+  echo "[milo] Si cambió algo de ROS, recompila el workspace después de arrancar: $0 build"
+}
+
+# Levanta el contenedor (construye la imagen solo si no existe) y compila la 1a vez.
 milo_up() {
   milo_display
-  # up = crear/arrancar el contenedor; -d = en segundo plano; --build = reconstruir la imagen
-  # si el Dockerfile cambió (si no cambió, Docker reutiliza lo ya construido y es instantáneo).
-  $DC up -d --build
+  milo_aviso_imagen
+  # up = crear/arrancar el contenedor; -d = en segundo plano. Va sin --build a propósito: así, con
+  # la imagen ya construida, arrancar no descarga nada y funciona sin internet.
+  $DC up -d
   # Dentro del contenedor ("exec ros"): si todavía no existe install/setup.bash (nunca se compiló),
   # compila el workspace. "bash -ic" = bash interactivo, para que cargue ~/.bashrc con ROS.
   # También compila si apareció un paquete nuevo en src/ que todavía no está en install/
