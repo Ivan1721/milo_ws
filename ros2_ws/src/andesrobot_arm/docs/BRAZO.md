@@ -240,6 +240,12 @@ ros2 launch andesrobot_arm arm_sim.launch.py puerta:=true octomap:=false     # t
 ros2 run andesrobot_arm manija_node --ros-args -p use_sim_time:=true -p acercar:=true
 ```
 
+Para que la cámara vea la manija antes de lanzar el nodo, mandar primero la pinza a una pose de
+partida frente a ella (x 0.373, y −0.319, z 1.062 en `base_footprint`, pinza girada 180° en Z: la
+cámara queda a 45 cm de la manija). El comando, de dónde sale la pose y las alternativas a 55 y
+65 cm están en [`docs/prueba_desde_cero.md`](../../../../docs/prueba_desde_cero.md#9-pinza-frente-a-la-manija-y-acercamiento),
+el orden de pruebas desde un PC vacío.
+
 `scripts/probar_manija_sin_gazebo.py` prueba el nodo de punta a punta **sin Gazebo ni YOLO** (un
 brazo ideal que sigue `/arm_target_pose` por TF, una puerta plana en la profundidad y los keypoints
 verdaderos con 1 px de ruido): medido el 5-nov-2026, la pinza queda a 0.050 m del punto de agarre

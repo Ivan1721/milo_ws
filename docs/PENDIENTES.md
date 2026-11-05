@@ -89,7 +89,7 @@ Cómo usarla:
 **Falta (código, después de probar 2 y 3):** (a) guiar los últimos centímetros con la imagen a color y los keypoints cuando la profundidad se pierde (< 0.25 m; hoy el último tramo es a ciegas); (b) ejecutar el movimiento desde donde termina `acercar`: tocar la palanca, bajarla siguiendo `arco_palanca` y empujar a lo largo de la normal; (c) después, tirar de la puerta y el pestillo.
 **Falta (físico):** probar el detector con 30–50 fotos de una puerta real y sumarlas al entrenamiento si hace falta.
 **Listo cuando:** el brazo abre la puerta de prueba en simulación sin intervención manual, y queda en el informe §14.
-**Dónde mirar:** informe §14 («Detectar la manija» y «Cómo sigue»); `BRAZO.md`; `andesrobot_arm/manija.py` y `manija_node.py`; `scripts/generar_dataset_manija.py`; `scripts/entrenar_manija.py`.
+**Dónde mirar:** [`prueba_desde_cero.md`](prueba_desde_cero.md) §9 (pose de partida frente a la manija y comandos); informe §14 («Detectar la manija» y «Cómo sigue»); `BRAZO.md`; `andesrobot_arm/manija.py` y `manija_node.py`; `scripts/generar_dataset_manija.py`; `scripts/entrenar_manija.py`.
 
 ## P10 · Simulación con mando por esfuerzo, PID y gravedad
 **Contexto:** con el mando por posición, Gazebo coloca cada articulación en el ángulo pedido como si fuera infinitamente rígida. Agarrar objetos no es realista y un choque mueve la base entera (medido: 3° de inclinación).

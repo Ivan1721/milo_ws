@@ -31,6 +31,8 @@ entry names, instead of the whole report. Update it when a task closes or a new 
 project skill `.claude/skills/actualizar-informe` maps each kind of change to the docs it touches.
 `docs/dependencias/README.md` compiles every software/driver/hardware dependency by stage (development
 vs deployment) with the versions measured in the image; update it when the Dockerfile or hardware changes.
+`docs/prueba_desde_cero.md` is the ordered test checklist from an empty PC to the gripper reaching
+the door handle (`manija_node acercar:=true`), including the start pose in front of the handle.
 Keep `ros2_ws/src/` for ROS packages only.
 
 ## Commands

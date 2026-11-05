@@ -253,6 +253,9 @@ Mandar poses a mano, abrir/cerrar la pinza, la cámara, la puerta y el detector 
 (YOLO), medidas y ecuaciones:
 [`andesrobot_arm/docs/BRAZO.md`](ros2_ws/src/andesrobot_arm/docs/BRAZO.md).
 
+Orden para probar todo el brazo en un PC nuevo, hasta llevar la pinza a la manija (con la pose de
+partida): [`docs/prueba_desde_cero.md`](docs/prueba_desde_cero.md).
+
 >  Los límites de las articulaciones del brazo son **provisorios**. No usar con el brazo real
 > hasta medirlos.
 
