@@ -6,8 +6,9 @@ import pytest
 
 from andesrobot_arm.kinematics import matrix_to_quaternion
 from andesrobot_arm.manija import (
-    arco_palanca, deproyectar, matriz_k, normal_de_la_puerta, orientacion_pinza,
-    pose_previa, punto_en_plano, punto_en_rayo, puntos_anillo, rayo, validar_manija)
+    Acercamiento, arco_palanca, corregir_saliente, deproyectar, distancia_desde_tcp, matriz_k,
+    normal_de_la_puerta, orientacion_pinza, pose_previa, punto_en_plano, punto_en_rayo,
+    puntos_anillo, rayo, validar_manija)
 
 # Cámara de profundidad 640x400 (67.9°) y cámara a color 640x480 (71°), como en la simulación.
 K_PROF = matriz_k(640, 400, np.radians(67.9))
@@ -60,12 +61,12 @@ def test_plano_de_la_puerta_y_punto_de_respaldo():
     puntos = puntos_anillo(profundidad, K_PROF, centro, radio_exterior=80, radio_interior=35)
     normal, punto, error = normal_de_la_puerta(puntos)
     assert np.allclose(normal, [0, 0, 1], atol=1e-6) and error < 1e-9
-    verdadero = np.array([0.12, -0.07, DISTANCIA])
+    # El píxel muestra la manija, que sobresale 5 cm de la hoja (hacia la cámara).
+    verdadero = np.array([0.12, -0.07, DISTANCIA - 0.05])
     u, v = pixel_de_color(verdadero)
     d = R @ rayo(u, v, K_COLOR)
     hallado = punto_en_plano(T, d, normal, punto, saliente=0.05)
-    # Cae en la puerta, corrido 5 cm hacia la cámara (la manija sobresale de la hoja).
-    assert np.allclose(hallado, verdadero - [0, 0, 0.05], atol=0.005)
+    assert np.allclose(hallado, verdadero, atol=1e-6)
 
 
 def test_la_normal_apunta_hacia_la_puerta_aunque_el_ajuste_la_de_vuelta():
@@ -125,3 +126,71 @@ def test_el_arco_baja_la_palanca_y_conserva_el_radio():
 def test_arco_con_palanca_vertical_es_un_error():
     with pytest.raises(ValueError):
         arco_palanca([0, 0, 1.0], [0, 0, 1.07], [1, 0, 0], np.radians(30))
+
+
+# Puerta frente a Milo, como en puerta_prueba.sdf: la normal apunta a +X (hacia donde se empuja)
+# y el punto de agarre queda a 1 m de altura.
+AGARRE = np.array([0.75, -0.38, 1.0])
+NORMAL = np.array([1.0, 0.0, 0.0])
+
+
+def test_distancia_desde_tcp_separa_avance_y_corrimientos():
+    # Pinza a 30 cm de la manija, mirándola, pero 2 cm a la izquierda (+Y del mundo) y 1 cm abajo.
+    posicion, giro = pose_previa(AGARRE, NORMAL, 0.30)
+    posicion = posicion + np.array([0.0, 0.02, -0.01])
+    d = distancia_desde_tcp(posicion, giro, AGARRE)
+    assert d['adelante'] == pytest.approx(0.30)
+    # La manija queda 2 cm a −Y del mundo respecto de la pinza; el eje Y de la pinza apunta a −Y
+    # del mundo (orientacion_pinza), así que para la pinza son +2 cm. Y queda 1 cm más arriba.
+    assert d['lateral'] == pytest.approx(0.02)
+    assert d['vertical'] == pytest.approx(0.01)
+    assert d['total'] == pytest.approx(np.sqrt(0.30**2 + 0.02**2 + 0.01**2))
+    # Una manija detrás de la pinza da un avance negativo.
+    assert distancia_desde_tcp(AGARRE + 0.1 * NORMAL, giro, AGARRE)['adelante'] < 0
+
+
+def test_acercamiento_en_dos_tramos():
+    a = Acercamiento(distancias=(0.30, 0.05), n_estables=3)
+    rng = np.random.default_rng(0)
+    vista = [AGARRE + rng.normal(0, 0.003, 3) for _ in range(3)]
+    assert a.deteccion(vista[0], NORMAL) is None and a.deteccion(vista[1], NORMAL) is None
+    posicion, giro = a.deteccion(vista[2], NORMAL)
+    assert a.fase == 'yendo'
+    assert distancia_desde_tcp(posicion, giro, AGARRE)['adelante'] == pytest.approx(0.30, abs=0.01)
+    assert a.deteccion(AGARRE, NORMAL) is None          # mientras va, no manda otra cosa
+    assert not a.tcp(posicion + [0.0, 0.0, 0.05])       # todavía a 5 cm del objetivo
+    assert a.tcp(posicion) and a.fase == 'buscar' and a.tramo == 1
+    for _ in range(2):
+        assert a.deteccion(AGARRE, NORMAL) is None
+    posicion, giro = a.deteccion(AGARRE, NORMAL)
+    assert distancia_desde_tcp(posicion, giro, AGARRE)['adelante'] == pytest.approx(0.05)
+    assert a.tcp(posicion) and a.fase == 'listo'
+    assert a.deteccion(AGARRE, NORMAL) is None
+
+
+def test_acercamiento_espera_detecciones_estables_y_reintenta():
+    a = Acercamiento(n_estables=3, tol_estable=0.02)
+    a.deteccion(AGARRE, NORMAL)
+    a.deteccion(AGARRE + [0.0, 0.10, 0.0], NORMAL)      # una detección que saltó 10 cm
+    assert a.deteccion(AGARRE, NORMAL) is None
+    assert a.deteccion(AGARRE, NORMAL) is None          # el salto sigue entre las 3 últimas
+    assert a.deteccion(AGARRE, NORMAL) is not None      # ya salió: tres estables
+    a.reintentar()                                      # MoveIt no llegó
+    assert a.fase == 'buscar' and a.tramo == 0 and a.vistas == []
+
+
+def test_corregir_saliente_adelanta_los_puntos_que_cayeron_en_la_hoja():
+    # Cámara en (0.40, -0.30, 1.10) mirando la manija de AGARRE en diagonal: el rayo que pasa por
+    # la manija sigue hasta la hoja (x = 0.80) si no la toca.
+    camara = np.array([0.40, -0.30, 1.10])
+    direccion = (AGARRE - camara) / np.linalg.norm(AGARRE - camara)
+    plano = np.array([0.80, 0.0, 1.0])                  # un punto de la hoja
+    s = (0.80 - camara[0]) / direccion[0]
+    en_la_hoja = camara + s * direccion                 # lo que midió la profundidad
+    corregido = corregir_saliente(en_la_hoja, camara, direccion, NORMAL, plano, 0.05)
+    assert np.allclose(corregido, AGARRE)               # sobre el mismo rayo, en la manija
+    detras = en_la_hoja + 0.01 * direccion              # ruido: 1 cm más lejos
+    assert np.allclose(corregir_saliente(detras, camara, direccion, NORMAL, plano, 0.05), AGARRE)
+    en_la_manija = AGARRE + 0.002 * direccion           # la profundidad sí midió la manija
+    assert np.allclose(corregir_saliente(en_la_manija, camara, direccion, NORMAL, plano, 0.05),
+                       en_la_manija)

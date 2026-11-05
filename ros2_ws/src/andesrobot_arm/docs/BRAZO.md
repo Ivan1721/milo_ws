@@ -196,13 +196,16 @@ sintética):
 ```bash
 ros2 run andesrobot_arm manija_node --ros-args -p use_sim_time:=true      # dentro del contenedor
 # opciones: -p confianza:=0.5  -p distancia_previa:=0.30  -p enviar_previa:=true
+#           -p acercar:=true  -p distancia_final:=0.05  -p tiempo_max:=30.0
 ```
 
 Cada 0.5 s corre el modelo sobre la imagen a color y pasa los keypoints `eje`, `agarre` y `punta` a
 puntos 3D: cada píxel a color es un rayo que se sigue hasta tocar la superficie de la imagen de
 profundidad (cámaras con otra resolución y otro campo de visión). Si la profundidad falla sobre la
 manija brillante, se usa el plano de la puerta ajustado con los píxeles de alrededor, corrido 5 cm
-hacia el robot (lo que sobresale la manija). Una detección sin sentido (palanca que no mide 8–18 cm,
+hacia el robot (lo que sobresale la manija). Lo mismo si el rayo pasó al lado de la palanca (es
+delgada) y midió la hoja de detrás: un keypoint que cae sobre el plano de la puerta se cambia por
+el cruce de su rayo con el plano de la manija (`corregir_saliente`). Una detección sin sentido (palanca que no mide 8–18 cm,
 fuera del plano de la puerta) se descarta con un aviso. Publica en `base_footprint`:
 
 | Topic | Qué es |
@@ -210,11 +213,40 @@ fuera del plano de la puerta) se descarta con un aviso. Publica en `base_footpri
 | `/manija/agarre` | el punto donde se empuja la palanca |
 | `/manija/pose_previa` | dónde poner la pinza, a 0.30 m de la manija y mirando a la puerta (desde ahí la profundidad mide) |
 | `/manija/marcadores` | eje, agarre, punta y la normal de la puerta, para verlos en RViz |
+| `/manija/distancia` | distancia en línea recta del efector final (`gripper_tcp`) al punto de agarre [m] |
+| `/manija/agarre_tcp` | el punto de agarre visto desde `gripper_tcp` (x negativo = lo que falta avanzar) |
 
-No mueve el brazo salvo con `enviar_previa:=true`, que manda la pose previa a `/arm_target_pose`. La
-normal de la puerta (hacia donde se empuja) y el arco que recorre la palanca al bajarla
-(`arco_palanca`) ya están calculados en `manija.py`; falta el nodo que los ejecute. Un nodo nuevo
-necesita `./sim.sh build`.
+En cada detección escribe en el log cuánto le falta a la pinza (`manija.distancia_desde_tcp`):
+*«manija a 0.300 m del TCP: avanzar 0.300 m, lateral −0.000 m, vertical +0.000 m»*. «Avanzar» es a
+lo largo de la dirección en que apunta la pinza (su −X local); lateral y vertical, a lo largo de
+sus ejes Y y Z. Con lateral y vertical cerca de 0 basta avanzar en línea recta.
+
+**Llevar la pinza a la manija** (`acercar:=true`, clase `Acercamiento` de `manija.py`). La
+profundidad no mide a menos de 0.25 m, así que el acercamiento va en dos tramos:
+
+1. Con 3 detecciones seguidas que no se separan más de 2 cm (una suelta puede estar mal), manda
+   a `/arm_target_pose` la pose previa: 30 cm antes del punto de agarre, mirando a la puerta.
+2. Cuando el TCP llega (a menos de 1 cm), vuelve a detectar la manija desde ahí (más cerca y de
+   frente, mejor estimación) y manda el último tramo: `distancia_final` (5 cm) antes del punto de
+   agarre, a ciegas. Al llegar escribe a qué distancia quedó la pinza.
+
+Si el brazo no llega en `tiempo_max` s (MoveIt no encontró camino), vuelve a detectar y lo
+intenta de nuevo. Conviene lanzar la puerta con `octomap:=false`: con el OctoMap, la puerta y la
+manija que ve la cámara son obstáculos y MoveIt rechaza una pose a 5 cm de ellas. Todavía no toca
+ni baja la palanca: el arco (`arco_palanca`) ya está calculado en `manija.py`; falta ejecutarlo.
+
+```bash
+ros2 launch andesrobot_arm arm_sim.launch.py puerta:=true octomap:=false     # terminal 1
+ros2 run andesrobot_arm manija_node --ros-args -p use_sim_time:=true -p acercar:=true
+```
+
+`scripts/probar_manija_sin_gazebo.py` prueba el nodo de punta a punta **sin Gazebo ni YOLO** (un
+brazo ideal que sigue `/arm_target_pose` por TF, una puerta plana en la profundidad y los keypoints
+verdaderos con 1 px de ruido): medido el 5-nov-2026, la pinza queda a 0.050 m del punto de agarre
+y la manija estimada a 0.3 mm de la verdadera. Esa prueba encontró que el rayo de un keypoint puede
+pasar al lado de la palanca y llevar la pinza 5 cm de más (hasta tocar la manija): por eso
+`corregir_saliente`. No reemplaza la prueba en Gazebo (MoveIt, la imagen y el modelo reales). Un
+nodo o script nuevo necesita `./sim.sh build`.
 
 **Primer resultado (19-10-2026)**, `yolov8s-pose` con 267 fotos de entrenamiento y 60 de
 validación (puertas que no vio), 100 épocas en 6 minutos (RTX 3070): encuentra la manija en las

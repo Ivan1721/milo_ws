@@ -13,11 +13,15 @@ puerta y calcular por dónde mover la pinza. Los pasos, cada uno una función de
   2. La manija es metálica y brillante: la profundidad suele fallar justo encima de ella. Para esos
      casos se ajusta un plano a la puerta con los píxeles de alrededor (`normal_de_la_puerta`) y
      el punto es donde el rayo cruza ese plano, corrido hacia la cámara lo que sobresale la manija
-     (`punto_en_plano`).
+     (`punto_en_plano`). Y si el rayo pasó al lado de la palanca y midió la hoja de detrás, el
+     punto se adelanta lo que sobresale la manija (`corregir_saliente`).
   3. Con los tres puntos y la normal de la puerta se comprueba que la detección tenga sentido
      (largo de la palanca, que esté en el plano de la puerta: `validar_manija`) y se calcula la
      pose previa de la pinza (`pose_previa`) y el arco que recorre la palanca al bajarla
      (`arco_palanca`).
+  4. Para llevar la pinza hasta la manija: cuánto le falta al efector final (`distancia_desde_tcp`)
+     y la secuencia de acercamiento en dos tramos, primero a la pose previa y después, con una
+     detección nueva tomada desde ahí, a pocos centímetros de la manija (`Acercamiento`).
 
 Convenciones: puntos en metros; la normal de la puerta apunta DEL robot HACIA la puerta (la
 dirección en que se empuja). La pinza (gripper_tcp) apunta con su eje −X local: con la pinza
@@ -126,17 +130,39 @@ def normal_de_la_puerta(puntos, origen_camara=(0.0, 0.0, 0.0), minimo=30):
 
 def punto_en_plano(origen, direccion, normal, punto_plano, saliente=SALIENTE):
     """
-    Dónde cruza un rayo el plano de la puerta, corrido `saliente` hacia el robot (la manija
-    sobresale de la hoja). None si el rayo es casi paralelo al plano o el cruce queda detrás.
+    Dónde cruza un rayo el plano de la manija: el de la puerta corrido `saliente` hacia el robot
+    (la manija sobresale de la hoja). Se corre el plano y no el punto, porque el píxel muestra la
+    manija: el punto buscado está sobre el mismo rayo, más cerca. None si el rayo es casi
+    paralelo al plano o el cruce queda detrás.
     """
     origen, direccion = np.asarray(origen, float), np.asarray(direccion, float)
+    normal = np.asarray(normal, float)
     denominador = direccion @ normal
     if abs(denominador) < 1e-6:
         return None
-    s = ((np.asarray(punto_plano, float) - origen) @ normal) / denominador
+    plano_manija = np.asarray(punto_plano, float) - saliente * normal
+    s = ((plano_manija - origen) @ normal) / denominador
     if s <= 0:
         return None
-    return origen + s * direccion - saliente * normal
+    return origen + s * direccion
+
+
+def corregir_saliente(punto, origen, direccion, normal, punto_plano, saliente=SALIENTE,
+                      tol=0.015):
+    """
+    La palanca es delgada: el rayo de un keypoint puede pasar al lado y medir la hoja de la puerta
+    que está detrás, `saliente` más lejos (o el keypoint cae un par de píxeles fuera de la
+    palanca). Si el punto quedó sobre el plano de la puerta (a menos de `tol`) o detrás, se lo
+    reemplaza por el cruce del mismo rayo (`origen`, `direccion`) con el plano de la manija
+    (`punto_en_plano`). Un punto que ya está delante del plano (la profundidad sí midió la
+    manija) no se toca.
+    """
+    punto = np.asarray(punto, float)
+    altura = float((punto - np.asarray(punto_plano, float)) @ np.asarray(normal, float))
+    if altura < -tol:          # altura > 0: detrás del plano de la puerta
+        return punto
+    corregido = punto_en_plano(origen, direccion, normal, punto_plano, saliente)
+    return punto if corregido is None else corregido
 
 
 def validar_manija(eje, agarre, punta, normal):
@@ -209,3 +235,87 @@ def arco_palanca(eje, punto, normal, angulo, pasos=10):
                 + n * (n @ v) * (1.0 - np.cos(theta)))
         camino.append(eje + giro)
     return np.array(camino)
+
+
+def distancia_desde_tcp(posicion_tcp, giro_tcp, punto):
+    """
+    Cuánto le falta a la pinza (gripper_tcp) para llegar a `punto`, todo en el mismo frame.
+
+    posicion_tcp, giro_tcp  pose del TCP (vector de 3 y matriz de rotación 3x3), de TF
+    Devuelve un diccionario en metros:
+      total      distancia en línea recta
+      adelante   lo que falta a lo largo de la dirección en que apunta la pinza (su eje −X local);
+                 negativo = el punto quedó detrás de la pinza
+      lateral    corrimiento a lo largo del eje Y local de la pinza
+      vertical   corrimiento a lo largo del eje Z local de la pinza
+    Con lateral y vertical cerca de 0, basta avanzar en línea recta para llegar.
+    """
+    v = np.asarray(giro_tcp, float).T @ (np.asarray(punto, float)
+                                         - np.asarray(posicion_tcp, float))
+    return {'total': float(np.linalg.norm(v)), 'adelante': float(-v[0]),
+            'lateral': float(v[1]), 'vertical': float(v[2])}
+
+
+class Acercamiento:
+    """
+    Secuencia para llevar la pinza hasta la manija, sin ROS (manija_node le pasa las detecciones
+    y la posición del TCP, y manda a MoveIt lo que esta clase devuelve).
+
+    Por qué en tramos: la profundidad de la cámara solo mide desde 0.25 m, así que el último tramo
+    se hace sin ver. Con `distancias` = (0.30, 0.05):
+      tramo 0: con la manija vista desde lejos, ir a 30 cm de ella, mirándola;
+      tramo 1: desde ahí la cámara la ve mejor (más cerca y de frente): con esa detección nueva, ir
+               a 5 cm (la pinza todavía no la toca; empujar es el paso siguiente).
+    En cada tramo hacen falta `n_estables` detecciones seguidas que no se separen más de
+    `tol_estable` (una detección suelta puede estar mal); se usa su promedio. El tramo termina
+    cuando el TCP queda a menos de `tol_llegada` del objetivo.
+
+    Fases: 'buscar' (juntando detecciones), 'yendo' (esperando que el brazo llegue), 'listo'.
+    """
+
+    def __init__(self, distancias=(0.30, 0.05), n_estables=3, tol_estable=0.02,
+                 tol_llegada=0.02):
+        self.distancias = tuple(distancias)
+        self.n_estables, self.tol_estable, self.tol_llegada = n_estables, tol_estable, tol_llegada
+        self.tramo = 0
+        self.fase = 'buscar'
+        self.vistas = []
+        self.objetivo = self.agarre = self.normal = None
+
+    def deteccion(self, agarre, normal):
+        """
+        Una detección válida de la manija (punto de agarre y normal de la puerta).
+        Devuelve (posición, rotación) de la pinza a mandar al brazo, o None si todavía no hay que
+        mandar nada (faltan detecciones estables, o el brazo ya va en camino).
+        """
+        if self.fase != 'buscar':
+            return None
+        self.vistas.append((np.asarray(agarre, float), np.asarray(normal, float)))
+        self.vistas = self.vistas[-self.n_estables:]
+        if len(self.vistas) < self.n_estables:
+            return None
+        puntos = np.array([a for a, _ in self.vistas])
+        centro = puntos.mean(axis=0)
+        if np.linalg.norm(puntos - centro, axis=1).max() > self.tol_estable:
+            return None    # todavía saltan: se espera la próxima (la más vieja sale de la lista)
+        normal = np.array([n for _, n in self.vistas]).mean(axis=0)
+        self.agarre, self.normal = centro, normal / np.linalg.norm(normal)
+        posicion, giro = pose_previa(self.agarre, self.normal, self.distancias[self.tramo])
+        self.objetivo, self.fase, self.vistas = posicion, 'yendo', []
+        return posicion, giro
+
+    def tcp(self, posicion):
+        """Posición actual del TCP. Devuelve True si con ella se terminó un tramo."""
+        if self.fase != 'yendo':
+            return False
+        if np.linalg.norm(np.asarray(posicion, float) - self.objetivo) > self.tol_llegada:
+            return False
+        self.tramo += 1
+        self.fase = 'listo' if self.tramo >= len(self.distancias) else 'buscar'
+        return True
+
+    def reintentar(self):
+        """El brazo no llegó (MoveIt no encontró camino, o tardó demasiado): se vuelve a buscar
+        la manija en el mismo tramo, con detecciones nuevas."""
+        if self.fase == 'yendo':
+            self.fase, self.vistas = 'buscar', []
