@@ -330,6 +330,13 @@ Cada fase termina con una prueba que se puede medir.
 
 ## 13. Referencias
 
+**Verificación** (búsqueda web, 24-oct y 5-nov-2026; la consulta automática a OpenAlex y arXiv está
+bloqueada por la red del entorno): **27 de 56** referencias de este repaso y de
+`docs/tecnologias/` confirmadas contra su registro (editorial, arXiv, actas o catálogo). **No
+encontradas** por búsqueda: 49 (TIAGo, taller de IROS 2016) y 50 (Fetch & Freight, taller de IJCAI
+2016); no parecen inventadas, pero falta el registro. **Sin comprobar**: los clásicos (1–10, 13, 14,
+17–19, 21, 22, 30, 33–35, 39 y [N1]) y las cuatro páginas web (27, 28, 32, 36).
+
 **Libros y modelado**
 
 1. J. Denavit, R. S. Hartenberg, "A kinematic notation for lower-pair mechanisms based on matrices", *ASME J. Applied Mechanics*, 1955.

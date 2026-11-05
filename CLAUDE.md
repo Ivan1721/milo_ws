@@ -27,7 +27,8 @@ open-access PDFs in the gitignored `docs/literatura/pdf/`) and `docs/tecnologias
 technology review (tools per layer, closed-loop diagrams, NBV feasibility).
 `docs/PENDIENTES.md` is the backlog of what is left on the arm, one short self-contained entry per
 task (context, what to do, done-when, where to look): read it first and open only the files the
-entry names, instead of the whole report. Update it when a task closes or a new one appears.
+entry names, instead of the whole report. Update it when a task closes or a new one appears. The
+project skill `.claude/skills/actualizar-informe` maps each kind of change to the docs it touches.
 `docs/dependencias/README.md` compiles every software/driver/hardware dependency by stage (development
 vs deployment) with the versions measured in the image; update it when the Dockerfile or hardware changes.
 Keep `ros2_ws/src/` for ROS packages only.

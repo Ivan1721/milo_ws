@@ -22,7 +22,7 @@ Cómo usarla:
 | P09 | Desafío de la puerta: del detector a empujar | brazo, simulación | — |
 | P10 | Simulación con mando por esfuerzo, PID y gravedad | brazo, simulación | — |
 | P11 | CI etapa 2: pruebas del brazo con ROS en GitHub Actions (la etapa 1 ya está) | ci | — |
-| P12 | Documentación: artifact, `docs/tecnologias` y referencias | documentación | — |
+| P12 | Documentación: sincronizar el artifact del informe y terminar de verificar referencias | documentación | — |
 | P13 | La base resbala en Gazebo (coordinar con el equipo de la base) | otro-equipo, simulación | — |
 
 ---
@@ -103,13 +103,11 @@ Cómo usarla:
 **Listo cuando:** el job queda verde en un PR y `CLAUDE.md` lo menciona (hoy dice que `test_kinematics.py` se corre a mano).
 **Dónde mirar:** `.github/workflows/ci.yml`; `CLAUDE.md` («Tests» y «CI»).
 
-## P12 · Documentación: artifact, `docs/tecnologias` y referencias
-**Qué hacer:**
-1. Actualizar el artifact de claude.ai para que coincida con el informe (figuras 8/9/10, sección 15, pick_ik y Ruckig como opciones sin probar, pruebas, fórmulas con `\mathrm`).
-2. `docs/tecnologias/README.md` (~línea 409) dice que llegar a cada vista sin chocar «requiere MoveIt 2», que ya está integrado.
-3. Verificar las 56 referencias de `docs/literatura` y `docs/tecnologias`: 16 ya verificadas por búsqueda web; faltan 37 y confirmar L12 (Chan–Dubey), L49 (TIAGo) y L50 (Fetch & Freight). Requiere habilitar `api.openalex.org`, `export.arxiv.org`, `arxiv.org` y `doi.org` en Network access del entorno.
-4. Skill propio `.claude/skills/actualizar-informe` que, después de cada avance, revise qué documentos quedaron desactualizados (cifras, figuras, pendientes), con las reglas del `CLAUDE.md`.
-**Listo cuando:** el artifact coincide con el informe, el punto 2 está corregido y las 56 referencias tienen veredicto.
+## P12 · Documentación: sincronizar el artifact del informe y terminar de verificar referencias
+**Ya hecho (5-nov-2026):** `docs/tecnologias` (§11) ya no dice que MoveIt está pendiente. Referencias: 27 de 56 confirmadas por búsqueda web (el detalle está al inicio de `docs/literatura` §13). Skill del proyecto `.claude/skills/actualizar-informe`: qué documento toca cada cambio y los mismos chequeos del CI.
+**Falta:** (1) **artifact** «Informe técnico de Milo» (claude.ai): es una copia en HTML hecha a mano y quedó en el estado del 19-oct. Falta decidir si se sincroniza (es largo: todas las secciones cambiadas desde entonces y las figuras B y C) o se reemplaza por un aviso que apunte al informe en GitHub. (2) **Referencias:** comprobar los clásicos y las páginas web, y encontrar el registro de 49 y 50. Para hacerlo con la herramienta automática hay que habilitar `api.openalex.org`, `export.arxiv.org`, `arxiv.org` y `doi.org` en Network access del entorno.
+**Listo cuando:** el artifact coincide con el informe o apunta a él, y las 56 referencias tienen veredicto.
+**Dónde mirar:** `docs/literatura/README.md` §13; `docs/tecnologias/README.md` («Referencias de esta sección»); `.claude/skills/actualizar-informe/SKILL.md`.
 
 ## P13 · La base resbala en Gazebo (coordinar con el equipo de la base)
 **Contexto:** en Gazebo la base retrocede cerca de 1 mm por cada movimiento del brazo, aunque no toque nada (el brazo es pesado y la base liviana). En una corrida de 300 fotos terminó 41 cm atrás y girada 24°, y MoveIt falló en 1 de cada 3 vistas. La física de la base es del otro equipo.
