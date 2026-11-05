@@ -281,6 +281,7 @@ class Acercamiento:
         self.fase = 'buscar'
         self.vistas = []
         self.objetivo = self.agarre = self.normal = None
+        self.dispersion = None   # cuánto se separaron las últimas detecciones [m], para el log
 
     def deteccion(self, agarre, normal):
         """
@@ -296,7 +297,8 @@ class Acercamiento:
             return None
         puntos = np.array([a for a, _ in self.vistas])
         centro = puntos.mean(axis=0)
-        if np.linalg.norm(puntos - centro, axis=1).max() > self.tol_estable:
+        self.dispersion = float(np.linalg.norm(puntos - centro, axis=1).max())
+        if self.dispersion > self.tol_estable:
             return None    # todavía saltan: se espera la próxima (la más vieja sale de la lista)
         normal = np.array([n for _, n in self.vistas]).mean(axis=0)
         self.agarre, self.normal = centro, normal / np.linalg.norm(normal)

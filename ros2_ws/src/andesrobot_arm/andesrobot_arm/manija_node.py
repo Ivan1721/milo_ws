@@ -82,6 +82,7 @@ class ManijaNode(Node):
         self.declare_parameter('acercar', False)
         self.declare_parameter('distancia_final', 0.05)
         self.declare_parameter('tiempo_max', 30.0)
+        self.declare_parameter('tol_estable', 0.02)
         self.color = self.profundidad = self.k_color = self.k_prof = None
         self.modelo = None
         self.tf_buffer = Buffer()
@@ -98,12 +99,18 @@ class ManijaNode(Node):
         self.pub_distancia = self.create_publisher(Float32, '/manija/distancia', 1)
         self.pub_agarre_tcp = self.create_publisher(PointStamped, '/manija/agarre_tcp', 1)
         # tol_llegada 1 cm: MoveIt deja el TCP a menos de 2 mm (prueba del 18-oct).
-        self.acercamiento = Acercamiento(tol_llegada=0.01, distancias=(
-            self.get_parameter('distancia_previa').value,
-            self.get_parameter('distancia_final').value))
+        distancias = (self.get_parameter('distancia_previa').value,
+                      self.get_parameter('distancia_final').value)
+        self.acercamiento = Acercamiento(distancias, tol_llegada=0.01,
+                                         tol_estable=self.get_parameter('tol_estable').value)
         self.enviado = None      # cuándo se mandó el último objetivo (para tiempo_max)
         self.create_timer(1.0 / self.get_parameter('hz').value, self.ciclo)
-        self.get_logger().info('manija_node listo: esperando imágenes y el modelo (sin probar)')
+        if self.get_parameter('acercar').value:
+            self.get_logger().info('manija_node listo, acercar:=true: cuando vea la manija '
+                                   'estable llevo la pinza hasta ella')
+        else:
+            self.get_logger().info('manija_node listo, solo mido (acercar:=false): para mover el '
+                                   'brazo, lanzar con -p acercar:=true')
 
     def on_color(self, msg):
         self.color = msg
@@ -263,6 +270,11 @@ class ManijaNode(Node):
         tramo = a.tramo
         objetivo = a.deteccion(agarre, normal)
         if objetivo is None:
+            if a.fase == 'buscar' and a.dispersion is not None and a.dispersion > a.tol_estable:
+                self.get_logger().info(
+                    f'Espero detecciones estables: las últimas {a.n_estables} saltan '
+                    f'{a.dispersion * 100:.1f} cm (tolerancia {a.tol_estable * 100:.0f} cm, '
+                    'parámetro tol_estable)', throttle_duration_sec=2.0)
             return
         posicion, giro = objetivo
         self.pub_objetivo.publish(self.pose_stamped(frame, posicion, giro))
