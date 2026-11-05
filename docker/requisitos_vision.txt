@@ -1,0 +1,59 @@
+# Versiones exactas de la capa de visión (YOLO) del Dockerfile. Se usa como "constraints" (pip -c):
+# no instala nada por sí solo, pero si un paquete hace falta, tiene que ser esta versión.
+#
+# Por qué: "pip install ultralytics" sin versión baja lo más nuevo del día. Si Docker rehace la capa
+# de visión, torch y ultralytics podrían cambiar sin que nadie lo decida (ya pasó el 30-10-2026).
+#
+# Son las versiones de la imagen probada el 2-11-2026 (salen de "pip freeze" dentro de la imagen):
+# prueba de Gazebo, YOLO en GPU y cv_bridge. Faltan dos a propósito:
+#   clip  se instala desde git; su commit está fijado en el Dockerfile
+#   pip   su versión también está en el Dockerfile
+#
+# Para subir una versión: cambiarla aquí, reconstruir con ./sim.sh imagen y repetir esas pruebas.
+# Cuidados: numpy tiene que seguir < 2 (ROS Humble), y opencv-python 4.12 o más nuevo pide numpy 2.
+#
+# torch y torchvision están compiladas para CUDA distintos (13.0 y 13.2). Así las publica PyPI, y en
+# esta combinación funcionan en GPU (medido: nms y roi_align).
+certifi==2026.10.23
+charset-normalizer==3.5.2
+cuda-bindings==13.4.4
+cuda-pathfinder==1.8.3
+cuda-toolkit==13.0.3.0
+filelock==4.1.0
+fsspec==2026.9.0
+ftfy==6.3.1
+idna==3.20
+mpmath==1.3.0
+networkx==3.4.2
+numpy==1.26.4
+nvidia-cublas==13.1.1.3
+nvidia-cuda-cupti==13.0.85
+nvidia-cuda-nvrtc==13.0.88
+nvidia-cuda-runtime==13.0.96
+nvidia-cudnn-cu13==9.24.0.43
+nvidia-cufft==12.0.0.61
+nvidia-cufile==1.15.1.6
+nvidia-curand==10.4.0.35
+nvidia-cusolver==12.0.4.66
+nvidia-cusparse==12.6.3.3
+nvidia-cusparselt-cu13==0.8.1
+nvidia-ml-py==13.615.71
+nvidia-nccl-cu13==2.30.7
+nvidia-nvjitlink==13.4.92
+nvidia-nvshmem-cu13==3.4.5
+nvidia-nvtx==13.0.85
+opencv-python==4.11.0.86
+polars==2.0.0
+polars-runtime-32==2.0.0
+regex==2026.9.29
+requests==2.34.2
+sympy==1.14.0
+torch==2.14.1
+torchvision==0.29.2
+tqdm==4.70.1
+triton==3.8.0
+typing_extensions==4.16.0
+ultralytics==8.4.194
+ultralytics-thop==2.2.3
+urllib3==2.8.0
+wcwidth==0.9.4

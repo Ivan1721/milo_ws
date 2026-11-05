@@ -6,7 +6,10 @@
 # (Los comentarios no cuentan para la caché: agregarlos no obliga a reconstruir.)
 
 # Imagen base oficial de Open Robotics: Ubuntu 22.04 + ROS 2 Humble + RViz y herramientas de escritorio.
-FROM osrf/ros:humble-desktop
+# El "@sha256:..." (digest) fija la versión exacta: el nombre humble-desktop apunta a lo último que
+# publiquen, y si cambia, Docker rehace toda la imagen. Este digest es la versión del 10-09-2026.
+# Para subirla: docker buildx imagetools inspect osrf/ros:humble-desktop, y volver a probar todo.
+FROM osrf/ros:humble-desktop@sha256:fb07245b32187d74350be25323d8ad2f8ca5c25c325759911a1eff2267a49c1e
 
 # ARG = variables que solo existen mientras se construye la imagen.
 # compose.yaml les pasa tu UID/GID reales (de lib.sh) para crear un usuario igual al tuyo.
@@ -121,14 +124,33 @@ RUN mkdir -p /opt/milo_drivers/src && cd /opt/milo_drivers \
 #   - CLIP de Ultralytics: lo necesita YOLOE para recibir las clases como texto ("door handle").
 #   - setuptools: pip instala uno nuevo (>= 80) que colcon no acepta, y al desinstalarlo se
 #     lleva también el del sistema; por eso se reinstala python3-setuptools de apt al final.
+#   - Versiones exactas: "-c requisitos_vision.txt" (ahí se explica por qué); CLIP y pip, aquí.
 # Pesa varios GB (PyTorch con CUDA): va en su propia capa, después de lo de ROS.
+COPY requisitos_vision.txt /opt/milo_drivers/
 RUN apt-get update && apt-get install -y --no-install-recommends python3-pip \
- && python3 -m pip install --no-cache-dir "numpy<2" ultralytics \
- && python3 -m pip install --no-cache-dir --upgrade pip \
- && python3 -m pip install --no-cache-dir "git+https://github.com/ultralytics/CLIP.git" \
+ && python3 -m pip install --no-cache-dir -c /opt/milo_drivers/requisitos_vision.txt "numpy<2" ultralytics \
+ && python3 -m pip install --no-cache-dir pip==26.2.2 \
+ && python3 -m pip install --no-cache-dir -c /opt/milo_drivers/requisitos_vision.txt \
+      "git+https://github.com/ultralytics/CLIP.git@7ffa84b3bfa40c42ecc1c77147a855e69cb2dd40" \
  && (python3 -m pip uninstall -y setuptools || true) \
  && apt-get install -y --no-install-recommends --reinstall python3-setuptools python3-pkg-resources \
  && rm -rf /var/lib/apt/lists/*
+
+# Driver de la cámara Orbbec Gemini Plus de la pinza (versión exacta en camara.repos). Va después
+# de YOLO para que cambiar de versión no obligue a reinstalar PyTorch. Se suma a /opt/milo_drivers,
+# junto al driver del lidar.
+# Pasos: instalar la dependencia que falta en la imagen (image_publisher), descargar el driver,
+# aplicarle el parche (parches/orbbec_camera_v1.2.9.patch, corrige tres fallas medidas con la cámara
+# real: ver el README de esa carpeta), compilar solo ese driver y borrar los temporales.
+COPY camara.repos parches/orbbec_camera_v1.2.9.patch /opt/milo_drivers/
+RUN apt-get update && apt-get install -y --no-install-recommends ros-humble-image-publisher \
+ && rm -rf /var/lib/apt/lists/* \
+ && cd /opt/milo_drivers \
+ && vcs import src < camara.repos \
+ && git -C src/OrbbecSDK_ROS2 apply /opt/milo_drivers/orbbec_camera_v1.2.9.patch \
+ && . /opt/ros/humble/setup.sh \
+ && colcon build --packages-up-to orbbec_camera --cmake-args -DCMAKE_BUILD_TYPE=Release \
+ && rm -rf build log
 
 # Usuario con tu mismo UID/GID (los archivos de build no quedan de root en tu PC)
 # 1) Si ya existe un grupo con tu GID, se renombra a "ros"; si no, se crea.

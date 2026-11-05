@@ -1,0 +1,16 @@
+# Driver de la cámara Orbbec Gemini Plus de la pinza. Mismo formato que milo.repos.
+#
+# Está en su propio archivo porque el Dockerfile lo instala DESPUÉS de la capa de YOLO: si estuviera
+# en milo.repos, cambiar de versión obligaría a Docker a reinstalar PyTorch (varios GB), y con
+# ultralytics sin versión fija eso podría traer otra versión distinta.
+#
+# Versión: tag v1.2.9 (paquete orbbec_camera 1.2.9, SDK 1.6.3), probada el 30-10-2026 con la cámara
+# real (firmware RD3013): color, profundidad, IR y nube a 30 Hz. Es la más cercana al driver del ZIP
+# de Hiwonder (1.2.5; ese tag no existe en GitHub). Las ramas nuevas del repo pueden no soportar
+# este modelo: al cambiar de versión, revisar que traiga launch/gemini.launch.xml, ver si el parche
+# de docker/parches/ todavía aplica y volver a probar con la cámara.
+repositories:
+  OrbbecSDK_ROS2:
+    type: git
+    url: https://github.com/orbbec/OrbbecSDK_ROS2.git
+    version: c5ccfad4174e2dcd3218efe3b3bb80a2f71bde4f

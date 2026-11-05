@@ -28,6 +28,8 @@ technology review (tools per layer, closed-loop diagrams, NBV feasibility).
 `docs/PENDIENTES.md` is the backlog of what is left on the arm, one short self-contained entry per
 task (context, what to do, done-when, where to look): read it first and open only the files the
 entry names, instead of the whole report. Update it when a task closes or a new one appears.
+`docs/dependencias/README.md` compiles every software/driver/hardware dependency by stage (development
+vs deployment) with the versions measured in the image; update it when the Dockerfile or hardware changes.
 Keep `ros2_ws/src/` for ROS packages only.
 
 ## Commands
@@ -45,17 +47,23 @@ All from `~/milo_ws` on the host:
 ./sim.sh build           # colcon build --symlink-install inside the container
 ./sim.sh shell           # bash inside the container (ROS sourced)
 ./sim.sh stop            # docker compose down
+./sim.sh imagen          # rebuild the Docker image; starting no longer does (only warns if docker/ changed)
 ./sim.sh mapa [nombre]   # save the slam map
 ./sim.sh cpu|software|sin-gazebo|gpu   # no NVIDIA / CPU rendering (black windows) / no gzclient / GPU check
 ./robot.sh ...           # same commands on the real robot's laptop (USB lidar + hoverboard);
-                         # extra: rviz, puertos; ports via LIDAR=/dev/ttyUSB0 HOVER=... ./robot.sh
+                         # extra: rviz, puertos, camara; ports via LIDAR=/dev/ttyUSB0 HOVER=... ./robot.sh
+./robot.sh camara [alineada:=true] [rviz:=true]   # real gripper camera alone (no lidar/wheels needed)
 ```
 
 Docker plumbing shared by both scripts lives in `docker/lib.sh` (`milo_init`, `milo_up`, ...).
 External drivers (today `sllidar_ros2`) are pinned in `docker/milo.repos` and fetched at image build
 time with `vcs import` into `/opt/milo_drivers` (outside the workspace). To add or bump one, edit that
-file; it lives in `docker/` because that is the image build context. Own drivers (hoverboard) stay
-in `ros2_ws/src/drivers/`.
+file; it lives in `docker/` because that is the image build context. Exception: the camera driver is
+pinned in `docker/camara.repos` and built in a layer after YOLO, so bumping it doesn't reinstall
+PyTorch; it is patched at build time (`docker/parches/`). Own drivers (hoverboard) stay
+in `ros2_ws/src/drivers/`. Versions: the base image is pinned by digest and every pip package by
+`docker/requisitos_vision.txt` (`pip -c`, CLIP by commit in the Dockerfile); apt packages are not.
+`milo_up` uses `up -d` without `--build`, and the container sets `YOLO_AUTOINSTALL=false`.
 
 `build`, `shell` and `teleop` need the container already up (started by `./sim.sh` or
 `./sim.sh brazo` in another terminal). `--symlink-install`: edits to existing `.py`/`.xacro`/`.yaml`
@@ -198,6 +206,16 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   `robot_description`) that make the next `arm_sim` crash: kill every ROS process before relaunching.
 - `andesrobot_arm/manija.py` (pure numpy, `test/test_manija.py` with a synthetic door) turns the handle keypoints into 3D points (color-pixel ray marched against the depth image, door-plane fallback when the shiny handle blanks the depth), validates the detection and computes the pre-grasp pose and the lever arc; `manija_node.py` runs YOLO live and publishes `/manija/{agarre,pose_previa,marcadores}`. The node is **untested in simulation**; the TCP approach axis is local −X.
 - There is no arm driver for the real robot yet: arm control is sim-only.
+- The real camera does work (`launch/camara_real.launch.py`: `orbbec_camera` v1.2.9 patched, measured
+  2026-10-30 at 30 Hz, details in `docs/BRAZO.md`). Same topics and frame ids as the sim, because
+  `camera_name:=gripper_camera`; `publish_tf:=false` because `robot_state_publisher` owns those frames.
+  Differences: depth `16UC1` mm (sim `32FC1` m), IR `mono16` (sim `mono8`), cloud without color. It is
+  two USB devices (`2bc5:0511` color, `2bc5:0614` depth/IR) opened with libusb; the container runs as
+  uid 1000, so `--privileged` is not enough and the host needs `docker/udev/99-gemini.rules`
+  (`OB_USB_STATUS_ACCESS` otherwise). Killing only the launch can leave the driver holding the camera
+  (next start: `uvc_open failed`). View it with `rviz:=true` (`rviz/camara_real.rviz`, Best Effort):
+  a native `rviz2` on default Reliable dropped all image topics from 30 to under 2 Hz, for every
+  subscriber, and the cause is not the camera or temperature (driver QoS stays RELIABLE).
 
 **Arm kinematics** (`andesrobot_arm/kinematics.py`, pure numpy, details in `docs/BRAZO.md`):
 `ArmKinematics` walks the processed URDF from tip to base, so it always follows the xacro (no DH

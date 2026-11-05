@@ -1,0 +1,13 @@
+# Permiso para usar la cámara Orbbec Gemini Plus sin ser root (se instala en el PC, NO en el contenedor).
+# Ver ./docker/udev/README.md
+#
+# La cámara aparece como dos dispositivos USB, y el driver abre los dos directamente con libusb:
+#   2bc5:0511   color (cámara UVC estándar)
+#   2bc5:0614   profundidad e infrarrojo (protocolo propio de Orbbec)
+# Sin esta regla el contenedor corre como tu usuario y el driver falla con OB_USB_STATUS_ACCESS,
+# aunque el contenedor sea privilegiado.
+#
+# Cómo se lee: SUBSYSTEM=="usb" es un dispositivo USB, ATTR{...} son sus datos de fábrica, y
+# MODE="0666" deja que cualquier usuario lo lea y escriba.
+SUBSYSTEM=="usb", ATTR{idVendor}=="2bc5", ATTR{idProduct}=="0511", MODE="0666", GROUP="video"
+SUBSYSTEM=="usb", ATTR{idVendor}=="2bc5", ATTR{idProduct}=="0614", MODE="0666", GROUP="video"

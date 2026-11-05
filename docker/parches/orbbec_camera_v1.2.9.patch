@@ -1,0 +1,48 @@
+diff --git a/orbbec_camera/src/ob_camera_node.cpp b/orbbec_camera/src/ob_camera_node.cpp
+index 94e80c0..2bcd2ad 100644
+--- a/orbbec_camera/src/ob_camera_node.cpp
++++ b/orbbec_camera/src/ob_camera_node.cpp
+@@ -128,7 +128,9 @@ void OBCameraNode::setupDevices() {
+ 
+     device_->setBoolProperty(OB_PROP_DEPTH_SOFT_FILTER_BOOL, enable_soft_filter_);
+     device_->setBoolProperty(OB_PROP_COLOR_AUTO_EXPOSURE_BOOL, enable_color_auto_exposure_);
+-    device_->setBoolProperty(OB_PROP_IR_AUTO_EXPOSURE_BOOL, enable_ir_auto_exposure_);
++    if (device_->isPropertySupported(OB_PROP_IR_AUTO_EXPOSURE_BOOL, OB_PERMISSION_WRITE)) {
++      device_->setBoolProperty(OB_PROP_IR_AUTO_EXPOSURE_BOOL, enable_ir_auto_exposure_);
++    }
+     auto default_soft_filter_max_diff = device_->getIntProperty(OB_PROP_DEPTH_MAX_DIFF_INT);
+     if (soft_filter_max_diff_ != -1 && default_soft_filter_max_diff != soft_filter_max_diff_) {
+       device_->setIntProperty(OB_PROP_DEPTH_MAX_DIFF_INT, soft_filter_max_diff_);
+@@ -561,7 +563,8 @@ void OBCameraNode::publishDepthPointCloud(const std::shared_ptr<ob::FrameSet>& f
+   }
+   auto timestamp = frameTimeStampToROSTime(depth_frame->systemTimeStamp());
+   point_cloud_msg_.header.stamp = timestamp;
+-  point_cloud_msg_.header.frame_id = optical_frame_id_[DEPTH];
++  point_cloud_msg_.header.frame_id =
++      depth_registration_ ? optical_frame_id_[COLOR] : optical_frame_id_[DEPTH];
+   point_cloud_msg_.is_dense = true;
+   point_cloud_msg_.width = valid_count;
+   point_cloud_msg_.height = 1;
+@@ -753,7 +756,12 @@ void OBCameraNode::onNewFrameCallback(const std::shared_ptr<ob::Frame>& frame,
+       stream_index == COLOR ? camera_param_->rgbIntrinsic : camera_param_->depthIntrinsic;
+   auto& distortion =
+       stream_index == COLOR ? camera_param_->rgbDistortion : camera_param_->depthDistortion;
++  const auto& frame_id = depth_registration_ && stream_index == DEPTH
++                             ? optical_frame_id_[COLOR]
++                             : optical_frame_id_[stream_index];
+   auto camera_info = convertToCameraInfo(intrinsic, distortion, width);
++  camera_info.header.stamp = timestamp;
++  camera_info.header.frame_id = frame_id;
+   CHECK(camera_info_publishers_.count(stream_index) > 0);
+   camera_info_publishers_[stream_index]->publish(camera_info);
+   auto image_msg =
+@@ -761,8 +769,7 @@ void OBCameraNode::onNewFrameCallback(const std::shared_ptr<ob::Frame>& frame,
+   image_msg->header.stamp = timestamp;
+   image_msg->is_bigendian = false;
+   image_msg->step = width * unit_step_size_[stream_index];
+-  image_msg->header.frame_id =
+-      depth_registration_ ? depth_aligned_frame_id_[stream_index] : optical_frame_id_[stream_index];
++  image_msg->header.frame_id = frame_id;
+   CHECK(image_publishers_.count(stream_index) > 0);
+   image_publishers_[stream_index].publish(image_msg);
+   saveImageToFile(stream_index, image, image_msg);

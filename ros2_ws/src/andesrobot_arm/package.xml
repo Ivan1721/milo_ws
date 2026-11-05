@@ -40,6 +40,8 @@
   <exec_depend>moveit_configs_utils</exec_depend>
   <exec_depend>moveit_msgs</exec_depend>
   <exec_depend>shape_msgs</exec_depend>
+  <!-- Driver de la cámara real (camara_real.launch.py); viene en la imagen, docker/camara.repos. -->
+  <exec_depend>orbbec_camera</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <!-- test_depend = solo para correr los tests. -->

@@ -309,11 +309,13 @@ El que dice `idVendor "10c4"` es el **lidar**; el otro es el **hoverboard**. Ano
 | `./sim.sh shell` | terminal dentro de Docker |
 | `./sim.sh build` | recompilar si cambiaste código |
 | `./sim.sh stop` | apagar el contenedor |
+| `./sim.sh imagen` | reconstruir la imagen de Docker, si cambió algo en `docker/` (arrancar solo avisa) |
 | `./sim.sh cpu` / `software` / `sin-gazebo` | sin NVIDIA / render por CPU / sin ventana de Gazebo |
 | `./sim.sh gpu` | con qué tarjeta gráfica está dibujando |
 
 `./robot.sh` tiene los mismos (`teleop`, `mapa`, `shell`, `build`, `stop`, `nav`, `ir`) más
-`puertos` y `rviz`.
+`puertos`, `rviz` y `camara` (solo la cámara real de la pinza; ver `docker/udev/README.md` para el
+permiso USB y `andesrobot_arm/docs/BRAZO.md` para los detalles).
 
 ---
 
