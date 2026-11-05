@@ -22,7 +22,7 @@ Cómo usarla:
 | P09 | Desafío de la puerta: del detector a empujar | brazo, simulación | — |
 | P10 | Simulación con mando por esfuerzo, PID y gravedad | brazo, simulación | — |
 | P11 | CI etapa 2: pruebas del brazo con ROS en GitHub Actions (la etapa 1 ya está) | ci | — |
-| P12 | Documentación: sincronizar el artifact del informe y terminar de verificar referencias | documentación | — |
+| P12 | Documentación: terminar de verificar referencias | documentación | — |
 | P13 | La base resbala en Gazebo (coordinar con el equipo de la base) | otro-equipo, simulación | — |
 
 ---
@@ -103,10 +103,10 @@ Cómo usarla:
 **Listo cuando:** el job queda verde en un PR y `CLAUDE.md` lo menciona (hoy dice que `test_kinematics.py` se corre a mano).
 **Dónde mirar:** `.github/workflows/ci.yml`; `CLAUDE.md` («Tests» y «CI»).
 
-## P12 · Documentación: sincronizar el artifact del informe y terminar de verificar referencias
-**Ya hecho (5-nov-2026):** `docs/tecnologias` (§11) ya no dice que MoveIt está pendiente. Referencias: 27 de 56 confirmadas por búsqueda web (el detalle está al inicio de `docs/literatura` §13). Skill del proyecto `.claude/skills/actualizar-informe`: qué documento toca cada cambio y los mismos chequeos del CI.
-**Falta:** (1) **artifact** «Informe técnico de Milo» (claude.ai): es una copia en HTML hecha a mano y quedó en el estado del 19-oct. Falta decidir si se sincroniza (es largo: todas las secciones cambiadas desde entonces y las figuras B y C) o se reemplaza por un aviso que apunte al informe en GitHub. (2) **Referencias:** comprobar los clásicos y las páginas web, y encontrar el registro de 49 y 50. Para hacerlo con la herramienta automática hay que habilitar `api.openalex.org`, `export.arxiv.org`, `arxiv.org` y `doi.org` en Network access del entorno.
-**Listo cuando:** el artifact coincide con el informe o apunta a él, y las 56 referencias tienen veredicto.
+## P12 · Documentación: terminar de verificar referencias
+**Ya hecho (5-nov-2026):** `docs/tecnologias` (§11) ya no dice que MoveIt está pendiente. Referencias: 27 de 56 confirmadas por búsqueda web (el detalle está al inicio de `docs/literatura` §13). Skill del proyecto `.claude/skills/actualizar-informe`: qué documento toca cada cambio y los mismos chequeos del CI. Artifact «Informe técnico de Milo» (claude.ai): decidido no sincronizarlo; queda congelado en el 19-oct con un aviso arriba que lleva a `docs/informe/README.md` en GitHub.
+**Falta:** **Referencias:** comprobar los clásicos y las páginas web, y encontrar el registro de 49 y 50. Para hacerlo con la herramienta automática hay que habilitar `api.openalex.org`, `export.arxiv.org`, `arxiv.org` y `doi.org` en Network access del entorno.
+**Listo cuando:** las 56 referencias tienen veredicto.
 **Dónde mirar:** `docs/literatura/README.md` §13; `docs/tecnologias/README.md` («Referencias de esta sección»); `.claude/skills/actualizar-informe/SKILL.md`.
 
 ## P13 · La base resbala en Gazebo (coordinar con el equipo de la base)

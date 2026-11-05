@@ -43,5 +43,5 @@ python3 -m flake8 --max-line-length=99 ros2_ws/src/andesrobot_arm ros2_ws/src/an
 
 ## 5. Al terminar
 - Decir qué documentos se tocaron y qué quedó sin verificar.
-- El artifact de claude.ai «Informe técnico de Milo» es una copia en HTML del informe y no se
-  actualiza solo: anotarlo en el pendiente de documentación si el cambio afecta al informe.
+- El artifact de claude.ai «Informe técnico de Milo» está congelado en el 19-oct-2026 con un
+  aviso que apunta a `docs/informe/README.md`: no se sincroniza; la versión vigente es la de GitHub.
