@@ -11,6 +11,11 @@
       <max_step_size>0.001</max_step_size>
       <real_time_factor>1.0</real_time_factor>
       <real_time_update_rate>1000</real_time_update_rate>
+      <!-- Solver de ODE con 200 iteraciones (Gazebo usa 50): con 50, el "freno" de las ruedas
+           (el diff drive pide velocidad 0) no se cumple del todo bajo el peso del brazo y la base
+           rueda de a poco, ~0.4 mm por movimiento del brazo. Con 200 baja a ~0.01 mm; la física
+           cuesta ~2 veces más. Medido en andesrobot_arm/scripts/deriva_base/README.md. -->
+      <ode><solver><type>quick</type><iters>200</iters></solver></ode>
     </physics>
     <scene><shadows>false</shadows></scene>
     <gui><camera name="user_camera">

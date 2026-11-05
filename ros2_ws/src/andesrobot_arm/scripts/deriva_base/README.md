@@ -54,10 +54,10 @@ Cómo se lee:
   corrige la posición, así que lo que se corrió no vuelve. Con 200 iteraciones el error residual
   desaparece.
 
-## Arreglo propuesto (para el equipo de la base)
+## Arreglo (aplicado el 5 de noviembre de 2026)
 
-En el bloque `<physics>` del mundo (`andesrobot_gazebo/worlds/andesrobot_arena.world`, y en
-`tools/gen_casa_robocup.py` para `robocup_casa.world`):
+En el bloque `<physics>` de `andesrobot_gazebo/worlds/andesrobot_arena.world` y de
+`tools/gen_casa_robocup.py` (que genera `robocup_casa.world`; se regeneró con el script):
 
 ```xml
 <physics type="ode">

@@ -437,7 +437,7 @@ python3 scripts/figuras.py docs/figuras
 - **La base resbala** ~1 mm con cada movimiento del brazo (ver «Detectar la manija»): en tareas
   largas Milo se va corriendo de su lugar. Causa medida: el solver de ODE (50 iteraciones) no logra
   frenar las ruedas, que ruedan de a poco; con `<iters>200</iters>` en el mundo desaparece
-  (`scripts/deriva_base/README.md`). Falta que el equipo de la base lo aplique.
+  (`scripts/deriva_base/README.md`); aplicado en los dos mundos el 5-nov-2026.
 - `simple_collision:=true` deja al brazo sin colisión propia (y una caja fija donde estaría el brazo
   bloqueado): por eso `arm_sim.launch.py` usa las mallas por defecto.
 - `gazebo_ros2_control` (Humble) no puede leer un URDF con comentarios XML: `arm_sim.launch.py` los
