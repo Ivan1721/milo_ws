@@ -25,3 +25,6 @@ docs/literatura/pdf/
 ros2_ws/modelos/
 # Imágenes etiquetadas que genera andesrobot_arm/scripts/generar_dataset_manija.py: datos, no código.
 ros2_ws/datasets/
+# Mediciones de andesrobot_arm/scripts/deriva_base (una fila por movimiento del brazo): datos que
+# se rehacen con su correr.sh.
+ros2_ws/resultados/deriva_base/

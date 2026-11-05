@@ -222,7 +222,7 @@ validación (puertas que no vio), 100 épocas en 6 minutos (RTX 3070): encuentra
 de 640×480) y tarda 12 ms por imagen. Ojo: eso mide *simulación contra simulación*; con una
 puerta real todavía no está probado (siguiente paso: fotos de una puerta real).
 
-**La base resbala.** En la simulación, cada movimiento del brazo (pesado, sobre una base liviana)
+**La base resbala.** En la simulación, cada movimiento del brazo
 hace retroceder la base ~1 mm, **aunque no toque nada** (medido moviendo el brazo en el aire: 1.4
 cm en 12 movimientos). En una corrida de 300 fotos la base terminó 0.41 m atrás y girada 24°, y
 MoveIt fallaba 1 de cada 3 vistas porque la puerta quedaba lejos. Las etiquetas siguen bien (se
@@ -435,7 +435,9 @@ python3 scripts/figuras.py docs/figuras
   infinitamente rígidas; para agarrar objetos de verdad (y para que un choque frene el brazo en vez
   de inclinar la base) habría que pasar a esfuerzo con PID.
 - **La base resbala** ~1 mm con cada movimiento del brazo (ver «Detectar la manija»): en tareas
-  largas Milo se va corriendo de su lugar.
+  largas Milo se va corriendo de su lugar. Causa medida: el solver de ODE (50 iteraciones) no logra
+  frenar las ruedas, que ruedan de a poco; con `<iters>200</iters>` en el mundo desaparece
+  (`scripts/deriva_base/README.md`). Falta que el equipo de la base lo aplique.
 - `simple_collision:=true` deja al brazo sin colisión propia (y una caja fija donde estaría el brazo
   bloqueado): por eso `arm_sim.launch.py` usa las mallas por defecto.
 - `gazebo_ros2_control` (Humble) no puede leer un URDF con comentarios XML: `arm_sim.launch.py` los

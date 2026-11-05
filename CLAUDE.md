@@ -193,7 +193,10 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   `puerta_prueba.sdf` with ElementTree: materials, lever size, a dim point light, spring
   references for hinge/handle angles; unique model names; first batch is always the original;
   brighter lights wash the image out). The base slips ~1 mm per arm move even in free air
-  (Gazebo friction; base belongs to another team, not fixed): a 300-image run drifted 0.41 m/24°
+  (cause measured in `scripts/deriva_base/`: the wheels roll, not slide, because ODE's quick
+  solver at the default 50 iterations doesn't hold the diff-drive's zero-velocity motor under
+  the arm's load; `<iters>200</iters>` in the world's `<physics>` removes it; the worlds belong
+  to the base team, so not applied yet): a 300-image run drifted 0.41 m/24°
   and MoveIt then failed 1/3 of views. The generator therefore sets `acceleration_scaling` 0.2 on
   `arm_moveit_node` at runtime, skips views with the TCP < 12 cm from the leaf, and stops at 15 cm
   drift (relaunch the sim, continue with `--inicio`). `scripts/entrenar_manija.py --tarea pose|seg|det` hard-links

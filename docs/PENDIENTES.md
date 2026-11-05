@@ -23,7 +23,7 @@ Cómo usarla:
 | P10 | Simulación con mando por esfuerzo, PID y gravedad | brazo, simulación | — |
 | P11 | CI etapa 2: pruebas del brazo con ROS en GitHub Actions (la etapa 1 ya está) | ci | — |
 | P12 | Documentación: terminar de verificar referencias | documentación | — |
-| P13 | La base resbala en Gazebo (coordinar con el equipo de la base) | otro-equipo, simulación | — |
+| P13 | La base resbala en Gazebo: causa encontrada, falta que el equipo de la base aplique el arreglo | otro-equipo, simulación | — |
 
 ---
 
@@ -110,7 +110,8 @@ Cómo usarla:
 **Dónde mirar:** `docs/literatura/README.md` §13; `docs/tecnologias/README.md` («Referencias de esta sección»); `.claude/skills/actualizar-informe/SKILL.md`.
 
 ## P13 · La base resbala en Gazebo (coordinar con el equipo de la base)
-**Contexto:** en Gazebo la base retrocede cerca de 1 mm por cada movimiento del brazo, aunque no toque nada (el brazo es pesado y la base liviana). En una corrida de 300 fotos terminó 41 cm atrás y girada 24°, y MoveIt falló en 1 de cada 3 vistas. La física de la base es del otro equipo.
-**Qué hacer:** avisarles y pedirles revisar la fricción de las ruedas y el lastre (`ballast_mass`) en la simulación. Mientras tanto, el generador de imágenes baja la aceleración, salta vistas muy cercanas y se detiene a los 15 cm de deriva.
-**Listo cuando:** la deriva por movimiento del brazo es despreciable, o el equipo de la base confirma que no se va a cambiar.
-**Dónde mirar:** informe §14 («Un hallazgo de la simulación: la base resbala») y §17.
+**Contexto:** en Gazebo la base retrocede cerca de 1 mm por cada movimiento del brazo, aunque no toque nada. En una corrida de 300 fotos terminó 41 cm atrás y girada 24°, y MoveIt falló en 1 de cada 3 vistas. Los mundos y la física de la base son del otro equipo.
+**Ya hecho (5-nov-2026):** causa medida con `andesrobot_arm/scripts/deriva_base/` (Gazebo sin ROS que imita `gazebo_ros2_control` y el diff drive): las ruedas **ruedan**, no patinan; el solver de ODE (quick, 50 iteraciones) no logra mantener en 0 el motor de velocidad de las ruedas bajo el peso del brazo y la base se arrastra, también con el brazo quieto. El torque de las ruedas, su fricción, la del eje y la suavidad del brazo no cambian nada; con `<ode><solver><iters>200</iters></solver></ode>` en el `<physics>` del mundo la deriva pasa de 10.2 mm a 0.3 mm en 30 movimientos, con la física unas 2 veces más lenta.
+**Falta:** que el equipo de la base acepte el cambio en `andesrobot_arena.world` y en `tools/gen_casa_robocup.py`, y medir con `./sim.sh brazo` completo el factor de tiempo real (cámara, MoveIt) y con `./sim.sh`/`./sim.sh nav` que la base sigue manejando igual. Después, quitar del generador de imágenes las defensas contra la deriva que ya no hagan falta.
+**Listo cuando:** el mundo usa 200 iteraciones (o el equipo de la base decide otra cosa) y una corrida de `generar_dataset_manija.py` no se detiene por deriva.
+**Dónde mirar:** `andesrobot_arm/scripts/deriva_base/README.md`; informe §14 («Un hallazgo de la simulación: la base resbala»).
