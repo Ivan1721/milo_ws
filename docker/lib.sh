@@ -17,6 +17,15 @@ milo_init() {
   # UID/GID = tu número de usuario y de grupo en el PC. compose.yaml se los pasa al Dockerfile
   # para crear dentro del contenedor un usuario igual a ti: así lo que se compila en ros2_ws
   # queda a tu nombre y no de "root". (UID ya existe en bash; "export" lo hace visible a docker.)
+  # Con sudo, UID = 0 (root): el Dockerfile intentaría renombrar root a "ros" y falla con
+  # "usermod: user root is currently used by process 1". Los scripts se corren sin sudo; si
+  # docker pide sudo, agrega tu usuario al grupo docker (sudo usermod -aG docker $USER y
+  # cerrar sesión).
+  if [ "$UID" -eq 0 ]; then
+    echo "[milo] No corras este script con sudo ni como root: la imagen se crea con tu usuario." >&2
+    echo "[milo] Si docker pide sudo: sudo usermod -aG docker \$USER, cierra sesión y vuelve a entrar." >&2
+    exit 1
+  fi
   export UID GID="$(id -g)"
   # GIDs del host para que el contenedor pueda usar la GPU (/dev/dri)
   # getent group video -> "video:x:44:..." ; cut -d: -f3 se queda con el 3er campo = el número 44.
