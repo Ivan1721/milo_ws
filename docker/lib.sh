@@ -43,6 +43,13 @@ milo_init() {
   [ "$force_cpu" = "software" ] && export MILO_SOFTWARE_GL=1
   # Archivo base de compose, siempre.
   MILO_FILES="-f docker/compose.yaml"
+  # GPU Intel/AMD: solo si existe /dev/dri (-e = "existe"). En WSL2 no existe y pedirla hace que
+  # Docker no arranque el contenedor.
+  if [ -e /dev/dri ]; then
+    MILO_FILES="$MILO_FILES -f docker/compose.dri.yaml"
+  else
+    echo "[milo] Este PC no tiene /dev/dri: el contenedor arranca sin la GPU Intel/AMD."
+  fi
   # En el robot se suma compose.robot.yaml (acceso a /dev, o sea a los USB del lidar y hoverboard).
   [ "$mode" = "robot" ] && MILO_FILES="$MILO_FILES -f docker/compose.robot.yaml"
   # Si el PC tiene NVIDIA (existe nvidia-smi) y Docker tiene el runtime de NVIDIA instalado,
@@ -61,7 +68,9 @@ milo_display() {
   if command -v xhost >/dev/null; then
     # xhost controla quién puede dibujar ventanas en tu pantalla. Damos permiso a tu usuario
     # y a los procesos locales (el contenedor corre en este mismo PC).
-    xhost +si:localuser:"$(whoami)" >/dev/null
+    # En algunos servidores X (WSLg en Windows, por ejemplo) xhost +si: no se acepta y escribe
+    # "X Error ... BadValue ... X_ChangeHosts": es inofensivo, así que se esconde y se sigue.
+    xhost +si:localuser:"$(whoami)" >/dev/null 2>&1 || true
     # ">/dev/null 2>&1" esconde la salida; "|| true" evita que un error aquí detenga el script.
     xhost +local:docker >/dev/null 2>&1 || true
   else

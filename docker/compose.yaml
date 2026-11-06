@@ -43,12 +43,8 @@ services:
       - ../ros2_ws:/ros2_ws:rw       # tu workspace, editable desde el host
       # Caché de modelos de Gazebo, guardada en un volumen de Docker para no descargarla cada vez.
       - gazebo_cache:/home/ros/.gazebo
-    # Dispositivos: /dev/dri = la GPU (Intel/AMD) para OpenGL acelerado.
-    devices:
-      - /dev/dri:/dev/dri
-    group_add:                       # acceso a la GPU (/dev/dri es de los grupos video y render del host)
-      - "${MILO_VIDEO_GID:-44}"
-      - "${MILO_RENDER_GID:-20}"
+    # La GPU Intel/AMD (/dev/dri) se agrega en compose.dri.yaml, solo si el PC la tiene: en WSL2
+    # o en un PC sin /dev/dri, pedirla aquí impedía arrancar el contenedor.
 
 # Volumen con nombre (vive en Docker, sobrevive a "./sim.sh stop").
 volumes:

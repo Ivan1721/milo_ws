@@ -1,0 +1,12 @@
+# GPU Intel/AMD (/dev/dri) para OpenGL acelerado. Se suma encima de compose.yaml solo si el PC
+# tiene /dev/dri (lib.sh lo revisa): Docker no arranca el contenedor si se le pide un dispositivo
+# que no existe ("error gathering device information ... /dev/dri: no such file or directory"),
+# como pasa en WSL2 o en algunos PC sin GPU Intel/AMD. Sin este archivo, OpenGL dibuja con la CPU
+# (o con la NVIDIA, si compose.nvidia.yaml está activo).
+services:
+  ros:
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:                       # /dev/dri pertenece a los grupos video y render del host
+      - "${MILO_VIDEO_GID:-44}"
+      - "${MILO_RENDER_GID:-20}"

@@ -269,7 +269,8 @@ Todo corre dentro de un contenedor para que cualquier PC con Docker tenga el mis
 
 | Archivo | Cuándo se usa | Qué agrega |
 | --- | --- | --- |
-| `compose.yaml` | siempre | contenedor `milo`, red e IPC del host (ROS 2 se ve en la red), X11 para ventanas, `/dev/dri`, montaje de `ros2_ws`, caché de modelos de Gazebo |
+| `compose.yaml` | siempre | contenedor `milo`, red e IPC del host (ROS 2 se ve en la red), X11 para ventanas, montaje de `ros2_ws`, caché de modelos de Gazebo |
+| `compose.dri.yaml` | si el PC tiene `/dev/dri` (en WSL2 no) | la GPU Intel/AMD (`/dev/dri`) para OpenGL |
 | `compose.nvidia.yaml` | si hay `nvidia-smi` y el runtime de NVIDIA, salvo con `cpu` o `software` | la GPU NVIDIA |
 | `compose.robot.yaml` | `robot.sh` | modo privilegiado y `/dev` completo (USB del lidar y del hoverboard) |
 
