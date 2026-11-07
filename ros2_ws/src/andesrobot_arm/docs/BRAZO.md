@@ -419,6 +419,10 @@ El nombre es un id o una clase del catálogo (`tenedor`, `fork`, `taza`, `cup`..
 publica. Si `objeto_node` no está corriendo, `agarre_node` lo arranca buscando la clase del
 objeto (con confianza mínima 0.2) y lo apaga al terminar. Hace una vez la secuencia completa:
 
+0. **Recoger** (solo si la pinza quedó baja, por ejemplo de una corrida que falló): sube 10 cm en
+   línea recta y va a la pose de retraer. MoveIt no sabe dónde están los objetos de la mesa (sin
+   OctoMap): yendo a la vista desde cerca de la mesa, el brazo llegó a lanzar el tenedor al aire.
+
 1. **Mirar**: abre la pinza y la lleva a una vista frente a la mesa (parámetro `vistas`, de a 6
    números: dónde va el TCP y a qué punto apunta). La cámara va sobre la pinza y mira por encima
    de ella: si la pinza apunta justo al objeto, lo tapa. Por eso las vistas apuntan 6 cm antes del
@@ -436,13 +440,15 @@ objeto (con confianza mínima 0.2) y lo apaga al terminar. Hace una vez la secue
    puntas de los dedos 5 mm sobre la mesa: las puntas sobresalen **20.4 mm** más allá del TCP
    (medido en las mallas de colisión), así que el TCP queda 25 mm sobre la mesa.
 5. **Cerrar** cada dedo 2 mm más adentro que el ancho medido (como en `prueba_levantar.py`) y
-   comprobar que se frenaron antes de llegar: si cerraron hasta lo pedido, no había objeto.
+   comprobar que se frenaron antes de llegar: si cerraron hasta lo pedido, no había objeto; si
+   siguen abiertos del todo (49 mm), la pinza no cerró (antes eso se contaba como agarre).
 6. **Unir** el objeto a la pinza en la escena de MoveIt (una caja con sus medidas pegada a
    `gripper_tcp`, que pueden tocar los dedos y `link_6_1`).
 7. **Levantar** 10 cm en línea recta y **retraer** a `retraer` (TCP en (0.45, 0, 1.0), hacia
    abajo), y revisar que los dedos sigan frenados por el objeto.
 
-Probado el 7-nov sin ventanas: con el **tenedor** en (0.80, 0), 2 de 2 corridas completas. La
+Probado el 7-nov sin ventanas: con el **tenedor** en (0.80, 0), 3 de 3 corridas completas (una
+partiendo con la pinza baja junto a la mesa). La
 visión lo ubica a 1 cm de su centro real (168 × 21 mm medidos; la caja de colisión mide 198 × 27),
 los dedos se frenan a 27.1 mm, sube 10 cm y al final queda en la mano, casi horizontal (≤ 8°). Con
 la **taza** lo encuentra (78 × 81 mm) y avisa que no cabe. Hallazgos en el camino:

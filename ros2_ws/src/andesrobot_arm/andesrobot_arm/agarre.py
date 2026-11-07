@@ -157,10 +157,13 @@ def apertura(q_derecho, q_izquierdo):
 
 
 def hay_objeto(apertura_medida, objetivo, minimo=0.002):
-    """¿Los dedos se frenaron contra algo? Si quedaron al menos `minimo` [m] más abiertos de lo
-    que se les pidió, algo los detiene: el objeto. Si llegaron a lo pedido, cerraron en vacío."""
+    """¿Los dedos se frenaron contra algo? Sí, si quedaron al menos `minimo` [m] más abiertos de lo
+    que se les pidió (algo los detiene: el objeto) Y cerraron al menos `minimo` desde abiertos del
+    todo. Si llegaron a lo pedido, cerraron en vacío; si siguen abiertos del todo, la pinza no
+    cerró (medido el 7-nov: quedaron en 49 mm y antes se contaba como objeto agarrado)."""
     pedida = CARAS_EN_CERO + 2.0 * objetivo
-    return apertura_medida - pedida >= minimo
+    abierta = CARAS_EN_CERO + 2.0 * ABIERTA
+    return apertura_medida - pedida >= minimo and abierta - apertura_medida >= minimo
 
 
 def promediar(analisis):

@@ -273,7 +273,9 @@ class AgarreNode(Node):
         meta.trajectory.joint_names = ['right_finger_joint', 'left_finger_joint']
         meta.trajectory.points = [JointTrajectoryPoint(positions=[q, -q],
                                                        time_from_start=Duration(sec=1))]
-        self.accion(self.pinza_cli, meta)
+        r = self.accion(self.pinza_cli, meta)
+        if r is None:
+            raise Fallo('gripper_controller rechazó la orden de la pinza')
         self.esperar(1.0)
         return apertura(*self.dedos)
 
@@ -341,6 +343,22 @@ class AgarreNode(Node):
         self.esperar(0.5)
 
     # ------------------------------------------------------------------ secuencia
+    def alejarse_de_la_mesa(self):
+        """Si la pinza quedó baja (por ejemplo, de una corrida que falló a medio camino), sube en
+        línea recta y va a `retraer` antes de mirar. MoveIt no sabe dónde están los objetos de la
+        mesa (sin OctoMap): un camino libre desde ahí puede barrerlos (medido el 7-nov: el brazo
+        lanzó el tenedor al aire yendo a la vista)."""
+        r, t = self.transformacion(FRAME, TCP)
+        if t[2] >= self.p['retraer'][2] - 0.05:
+            return
+        self.get_logger().info(f'0. La pinza está baja (z = {t[2]:.2f} m): subo y la recojo '
+                               'antes de mirar')
+        arriba = t + np.array([0.0, 0.0, self.p['subir']])
+        self.linea_recta(self.pose(arriba, r), 'Subir', evitar_choques=False)
+        retraer = np.array(self.p['retraer'], float)
+        _, abajo = pose_desde_arriba(retraer, [1.0, 0.0, 0.0], retraer[2])
+        self.mover(self.pose(retraer, abajo), 'Recoger')
+
     def correr(self):
         log = self.get_logger()
         self.esperar(2.0)   # TF, cámara y /joint_states
@@ -348,6 +366,7 @@ class AgarreNode(Node):
             raise Fallo('no llega /joint_states con los dedos: ¿está corriendo arm_sim?')
 
         self.asegurar_vision()
+        self.alejarse_de_la_mesa()
         log.info(f'1-2. Mirar y encontrar: abro la pinza, llevo la cámara frente a la mesa y la '
                  f'visión busca {self.objeto["id"]} (clase {self.clase})')
         self.pinza(ABIERTA)

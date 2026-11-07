@@ -269,7 +269,10 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   (`/compute_cartesian_path` + `/execute_trajectory`, 10 % speed) to TCP = table + 20.4 mm (finger
   tips stick out 20.4 mm past the TCP along −X; MoveIt refuses lower) + 5 mm, fingers to width −
   2 mm each, checks they stalled (`hay_objeto`), attaches a box to `gripper_tcp` in the planning
-  scene, lifts 10 cm (Cartesian, no collision check) and moves to `retraer`. Fork 2/2 on
+  scene, lifts 10 cm (Cartesian, no collision check) and moves to `retraer`. If the TCP starts
+  low (failed earlier run) it first rises 10 cm and goes to `retraer`: a free MoveIt path from
+  near the table swept the (unmodeled) fork into the air. `hay_objeto` also rejects fingers still
+  fully open (49 mm), which once counted as a grasp. Fork 3/3 on
   2026-11-07 (center within 1 cm, fingers stop at 27.1 mm, held ≤ 8° tilt); the cup is found and
   rejected (81 mm). Of the objects that fit, the model only recognizes the fork in sim (P14).
 - `kinematics.matrix_to_quaternion` uses Shepperd's method since 2026-11-07: the old version took

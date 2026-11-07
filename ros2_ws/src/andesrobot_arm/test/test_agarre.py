@@ -115,6 +115,7 @@ def test_apertura_y_hay_objeto():
     assert hay_objeto(0.027, q)                 # se frenaron en los 27 mm del objeto
     assert not hay_objeto(0.0235, q)            # llegaron a lo pedido: no había nada
     assert not hay_objeto(apertura(CERRADA, -CERRADA), CERRADA)
+    assert not hay_objeto(apertura(ABIERTA, -ABIERTA), q)    # siguen abiertos: no cerró
 
 
 def test_estable_y_promediar():
