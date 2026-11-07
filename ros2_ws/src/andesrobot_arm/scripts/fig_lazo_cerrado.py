@@ -6,7 +6,8 @@ vuelven (la realimentación) para cerrar cada lazo:
   - lazo de posición: el controlador compara la posición pedida con la medida (100 Hz),
   - lazo de percepción: la cámara de la pinza mide el objeto y corrige el objetivo (pendiente).
 Las flechas continuas existen hoy; las punteadas naranjas faltan. El recuadro de abajo explica
-por qué en Gazebo (mando por posición) el lazo de posición se cierra sobre la propia orden.
+qué lazo se cierra de verdad en Gazebo (mando por velocidad desde el 7-11-2026) y cuál no en el
+robot real.
 
 Es un esquema: no lee el URDF ni necesita ROS, solo matplotlib.
   python3 fig_lazo_cerrado.py [carpeta_salida]      # por defecto ./figuras
@@ -94,7 +95,7 @@ def main():
              'arm_controller (JTC), 100 Hz\ninterpola q_ref(t) de q actual a q*\n'
              'compara q_ref con q medido:\ntolerancia de meta 0.02 rad / 5 mm')
     D = caja(ax, 11.65, Y, 2.9, 1.7, 'ACTUADORES',
-             'sim: GazeboSystem\n(mando por posición: pone\ncada eje en q_ref, sin fuerzas)\n'
+             'sim: GazeboSystem\n(mando por velocidad:\nv = v_ref + p·(q_ref − q))\n'
              'real: Arduino + 6 TB6600 (pendiente)')
     E = caja(ax, 14.95, Y, 2.5, 1.7, 'PLANTA',
              'brazo (6 ejes) + lift\n+ pinza\nsalida: pose real\nde la pinza', color=C_BASE,
@@ -102,8 +103,8 @@ def main():
 
     flecha(ax, [(A[1], Y), (B[0], Y)], 'pose\nobjetivo', dy=0.08)
     flecha(ax, [(B[1], Y), (C[0], Y)], 'q* (meta)\n+ T', dy=0.08)
-    flecha(ax, [(C[1], Y), (D[0], Y)], 'q_ref(t)\n100 Hz', dy=0.08)
-    flecha(ax, [(D[1], Y), (E[0], Y)], 'sim: SetPosition\nreal: pulsos\nSTEP/DIR', dy=0.08,
+    flecha(ax, [(C[1], Y), (D[0], Y)], 'velocidad\n100 Hz', dy=0.08)
+    flecha(ax, [(D[1], Y), (E[0], Y)], 'sim: SetVelocity\nreal: pulsos\nSTEP/DIR', dy=0.08,
            size=7.8)
 
     # Resultado del controlador de vuelta a la IK (arriba, punteado gris).
@@ -116,7 +117,7 @@ def main():
     Yf = 4.55
     F = caja(ax, 11.65, Yf, 3.6, 1.35, 'SENSORES DE POSICIÓN',
              'joint_state_broadcaster → /joint_states (q medido, 100 Hz)\n'
-             'sim: lee la posición que puso Gazebo (= q_ref)\nreal: encoders por eje (pendiente)')
+             'sim: posición de cada eje en Gazebo\nreal: encoders por eje (pendiente)')
     G = caja(ax, 6.0, Yf, 2.9, 1.1, 'robot_state_publisher',
              '/joint_states + URDF → TF:\ndónde está cada pieza y la pinza', color=C_BASE,
              fill=C_FILL2)
@@ -148,14 +149,15 @@ def main():
            color=C_GRIP, ls=(0, (5, 3)), pos=0.45, dy=0.06)
 
     # ---------------------------------------------------------------- nota y leyenda
-    nota = ('QUÉ CIERRA Y QUÉ NO (medido el 17-10-2026)\n'
-            'En Gazebo, con mando por posición, el eje queda exactamente en q_ref: la posición\n'
-            '"medida" es la orden misma, así que el lazo de posición se cierra sobre sí '
-            'mismo.\n'
-            'Un choque no frena el brazo: inclina la base 3° y la corre 3.5 cm, y el '
-            'controlador\n'
-            'reporta éxito. En el robot real sin encoders pasa lo mismo (el Arduino cuenta '
-            'pulsos).\n'
+    nota = ('QUÉ CIERRA Y QUÉ NO\n'
+            'En Gazebo el controlador manda una velocidad corregida por el error de posición: '
+            'el lazo\n'
+            'se cierra de verdad (desde el 7-11-2026). Antes, con mando por posición, el eje '
+            'quedaba\n'
+            'en q_ref y un choque inclinaba la base 3° con el controlador reportando éxito '
+            '(17-10).\n'
+            'En el robot real sin encoders el lazo no cierra: el Arduino solo cuenta '
+            'pulsos.\n'
             'El lazo se cierra de verdad con encoders en cada eje, o al menos con la IMU de la\n'
             'pinza comparada con la cinemática directa. Evitar choques: MoveIt 2 antes de mover.')
     ax.text(0.35, 1.72, nota, ha='left', va='top', fontsize=8.4, color=INK, linespacing=1.4,

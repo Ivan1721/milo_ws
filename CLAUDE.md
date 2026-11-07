@@ -141,8 +141,8 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   `rsp.launch.py`, because `gazebo_ros2_control` (Humble) re-passes `robot_description` as a CLI
   `--param` and fails to parse it when the URDF has XML comments (the controller manager never
   starts). The launch strips comments; keep that if you change how the URDF is produced.
-- `arm_control:=true` includes `andesrobot.arm_control.xacro` (`GazeboSystem`, **position** command
-  interfaces for lift + joint_1..6, **effort** for both fingers) and removes the arm joints from the
+- `arm_control:=true` includes `andesrobot.arm_control.xacro` (`GazeboSystem`, **velocity** command
+  interfaces for lift + joint_1..6 since 2026-11-07, **effort** for both fingers) and removes the arm joints from the
   Gazebo joint_state plugin so `joint_state_broadcaster` is their only publisher.
 - Gripper by force since 2026-11-07 (P15 phase 1): `gripper_controller` (JTC, effort, P-only
   `gains` p=10000) holds **both** `right_finger_joint` and `left_finger_joint`; goals must send both,
@@ -152,10 +152,21 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   drifted (stopped at -11 mm when opening). Force cap = finger `<limit effort>` = `gripper_force`
   20 N (Gazebo truncates SetForce to it; EBG-20 pinion pitch radius ≈ 7 mm from CAD part 015 → MG99x
   max ≈ 65 N/finger), `gripper_damping` 400 N·s/m with `implicitSpringDamper`, finger contact
-  mu 1, kp 1e5, kd 100 (ODE's default rigid contact gave 3-6 mm jumps in 3/10 closes; minDepth /
-  maxVel 0 didn't help). `scripts/prueba_pinza.py` (sim running, best with `mesa:=false
-  camara:=false`) closes on static boxes of 10-45 mm: fingers stop within 0.05 mm, no jitter. Test
-  boxes must be shorter than the 21 mm finger pad (a 20 mm box hit the pad edge and jittered).
+  mu 1, kp 1e6, kd 300 (ODE's default rigid contact gave 3-6 mm jumps in 3/10 closes; minDepth /
+  maxVel 0 didn't help; kp 1e5 let a held box creep down). `scripts/prueba_pinza.py` (sim running,
+  best with `mesa:=false camara:=false`) closes on static boxes of 10-45 mm and checks the
+  **opening** (within 0.1 mm); closing fully, both fingers sit at the force cap so nothing centers
+  them and the pair sways sideways (reported, not checked). Test boxes must be shorter than the
+  21 mm finger pad (a 20 mm box hit the pad edge and jittered).
+- P15 phase 2 (2026-11-07): `scripts/prueba_levantar.py` puts a loose 30 mm box (p3d plugin →
+  `/caja_suelta/odom`) on a static pedestal between the fingers, closes, raises the lift 5 cm,
+  holds 10 s. With position-commanded arm joints the box rose 0 mm: gazebo_ros2_control 0.4.10
+  teleports position joints (no velocity), so finger friction can't carry anything. Hence
+  `arm_controller` is now **velocity** (JTC PID `p` 20, lift 60, `ff_velocity_scale` 1; lift
+  sags 0.3 mm; smoke test green with and without MoveIt). To grasp, command each finger 2 mm
+  **inside** the object width (`--apriete`, 20 N with p=10000), not fully closed: that centers
+  the object. 0.1-0.5 kg hold within 0.4 mm/10 s (8/8); 1 kg slips 2-3 mm. Marker/fork with convex
+  collision still pending (no CoACD/V-HACD in the image).
 - One `arm_controller` holds `vertical_lift_joint` + `joint_1..6` (so 7-DOF IK solutions move in
   sync; `allow_partial_joints_goal: true`); `gripper_controller` holds both fingers (above).
 - Controllers are spawned only if `spawn_entity` exits 0.
@@ -294,9 +305,10 @@ properties: ±π, 20 N·m, 1 rad/s; per-joint stops are `joint_N_lower/upper`, d
 Known sim behaviors: the own IK (`moveit:=false`) has no collision checking. `arm_controller` has goal tolerances
 (`arm_controllers.yaml`: 0.02 rad, lift 5 mm, `goal_time` 1 s, path tolerance off) so a move whose
 joints don't arrive aborts with GOAL_TOLERANCE_VIOLATED and `arm_ik_node` logs it, but **Gazebo
-almost never blocks the arm**: position-commanded joints are rigid, so a collision with the table or
-column tilts/pushes the whole base (measured 2026-10-17: TCP sent 2 cm into the tabletop "arrives",
-base tilts 3° and slides 3.5 cm back) and the controller reports success. Don't present the
+almost never blocked the arm**: position-commanded joints were rigid, so a collision with the table
+or column tilted/pushed the whole base (measured 2026-10-17: TCP sent 2 cm into the tabletop
+"arrives", base tilts 3° and slides 3.5 cm back) and the controller reported success. Not
+re-measured with velocity control (Gazebo also imposes velocity with no force limit). Don't present the
 tolerances as collision detection; the real protection is MoveIt's planning-scene collision
 checking (default) or effort control with PIDs. `gripper_controller` has no tolerances on purpose (fingers stall on a grasped
 object). The test table in `worlds/mesa_prueba.sdf` is anchored to `world` with a fixed joint so

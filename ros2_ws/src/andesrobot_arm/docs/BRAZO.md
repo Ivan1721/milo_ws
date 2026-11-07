@@ -58,7 +58,27 @@ amortiguamiento y los parámetros de contacto: comentarios de `andesrobot.urdf.x
 `andesrobot.arm_control.xacro`. Prueba (con la simulación corriendo; mejor sin mesa ni cámara:
 `ros2 launch andesrobot_arm arm_sim.launch.py gui:=false rviz:=false mesa:=false camara:=false`):
 `python3 /ros2_ws/src/andesrobot_arm/scripts/prueba_pinza.py` pone cajas fijas de 10 a 45 mm entre
-los dedos y comprueba que se frenan a menos de 1 mm del ancho sin temblar (7-nov: 0.05 mm).
+los dedos y comprueba que la apertura queda a menos de 1 mm del ancho sin temblar (7-nov: < 0.1 mm
+de error, < 0.25 mm de temblor).
+
+**Levantar un objeto suelto** (fase 2 de P15). `scripts/prueba_levantar.py` pone una caja suelta
+de 30 mm sobre un pedestal entre los dedos, cierra, sube el lift 5 cm y mide durante 10 s cuánto se
+corre la caja respecto del TCP (su pose la publica el plugin `gazebo_ros_p3d` del SDF de la caja).
+Dos cosas hicieron falta:
+- **Brazo por velocidad.** Con mando por posición, `gazebo_ros2_control` pone cada articulación en
+  la posición pedida de un salto en cada paso, sin velocidad, y el roce de los dedos no arrastra la
+  caja: subió 0 mm de 50. Ahora `arm_controller` manda velocidad
+  ($`v = v_\mathrm{ref} + p\,(q_\mathrm{ref} - q)`$, `ff_velocity_scale` 1, $`p`$ = 20 s⁻¹ y 60 s⁻¹
+  el lift) y la caja sube con la pinza. En reposo el brazo queda a ~1e-5 rad del objetivo y el lift
+  a 0.3 mm. Prueba de humo completa en verde con MoveIt y con `arm_ik_node`.
+- **Apretar, no cerrar del todo.** Si los dos dedos empujan con el tope, nada los centra y la caja
+  se va de lado (3.8 mm en 10 s con 1 kg). Mandando cada dedo 2 mm más adentro del ancho
+  (`--apriete`), cada uno empuja $`p \cdot 2`$ mm = 20 N y si la caja se corre, un dedo empuja más
+  que el otro y la devuelve. En la pinza real lo hace el piñón que mueve los dos dedos.
+Resultado (7-nov, contacto de los dedos kp 1e6, kd 300): de 0.1 a 0.5 kg la caja sube con la pinza
+y se corre 0.05–0.4 mm en 10 s (8 de 8); con 1 kg resbala 2–3 mm al arrancar la subida (no pasa).
+`python3 /ros2_ws/src/andesrobot_arm/scripts/prueba_levantar.py --masa 0.1 0.5` (misma simulación
+que `prueba_pinza.py`, con la pinza en la pose inicial).
 
 ## MoveIt 2: planificar sin choques
 
@@ -485,7 +505,8 @@ el montaje del URDF es el del diseño, no uno medido.
 Lazo de control con la IK propia (`moveit:=false`), de la orden al movimiento y de vuelta: la IK
 parte de `/joint_states`, el controlador compara la posición pedida con la medida a 100 Hz, y la
 cámara (pendiente: el detector y `manija_node` ya existen, sin probar, pero todavía no cierran el
-lazo) cerrará el lazo de percepción. En Gazebo la posición medida es la orden misma (mando por posición): ver
+lazo) cerrará el lazo de percepción. En Gazebo el controlador manda velocidad corregida por el error
+de posición (desde el 7-nov; antes, con mando por posición, la medida era la orden misma): ver
 «Limitaciones». Se genera con `scripts/fig_lazo_cerrado.py` (solo matplotlib). El mismo lazo con
 MoveIt 2, que es lo que corre por defecto: figura C del informe, `scripts/fig_lazo_moveit.py`.
 
@@ -589,9 +610,9 @@ python3 scripts/figuras.py docs/figuras
   choques se evitan antes de mover. `arm_controller` tiene **tolerancias de meta**
   (`config/arm_controllers.yaml`: 0.02 rad por articulación, 5 mm el lift, 1 s de margen): si una
   articulación no llega, aborta y `arm_ik_node` avisa *"el brazo no llegó… ¿chocó con algo?"*. Pero
-  en Gazebo eso **casi nunca pasa**: con el mando por posición las articulaciones son infinitamente
-  rígidas y un choque no frena el brazo, sino que mueve al robot entero. Medido el 17 de octubre de
-  2026: la pinza mandada 2 cm dentro del tablero de la mesa (desde arriba y desde el costado) «llega»
+  en Gazebo eso **casi nunca pasaba**: con el mando por posición (hasta el 7-nov) las
+  articulaciones eran infinitamente rígidas y un choque no frenaba el brazo, sino que movía al robot
+  entero; con el mando por velocidad no se volvió a medir. Medido el 17 de octubre de 2026: la pinza mandada 2 cm dentro del tablero de la mesa (desde arriba y desde el costado) «llega»
   al milímetro, y la base queda inclinada 3° y corrida 3.5 cm hacia atrás. El abort del 9 de octubre
   (la mesa frenó la pinza a 6 mm) fue un caso afortunado. Las tolerancias quedan como red de
   seguridad para el robot real con encoders; la protección de verdad es planificar con revisión de
@@ -604,9 +625,10 @@ python3 scripts/figuras.py docs/figuras
   las piezas impresas se calcularon como ABS macizo.
 - **Cámara ideal**: Gazebo da una profundidad perfecta (sin ruido, sombras ni huecos) y un IR sin el
   patrón del proyector. Ver «Cómo hacer realista la profundidad» en el informe (sección 14).
-- **Mando por posición**: Gazebo pone las articulaciones en el ángulo pedido como si fueran
-  infinitamente rígidas; para agarrar objetos de verdad (y para que un choque frene el brazo en vez
-  de inclinar la base) habría que pasar a esfuerzo con PID.
+- **Mando por velocidad, no por esfuerzo**: desde el 7-nov el brazo va por velocidad (antes por
+  posición, y un objeto agarrado no subía con la pinza). Gazebo sigue fijando la velocidad pedida
+  sin límite de fuerza, así que un choque probablemente siga sin frenar el brazo (no medido); para
+  eso, y para un brazo como el real, habría que pasar a esfuerzo con PID (P10).
 - **La base resbala** ~1 mm con cada movimiento del brazo (ver «Detectar la manija»): en tareas
   largas Milo se va corriendo de su lugar. Causa medida: el solver de ODE (50 iteraciones) no logra
   frenar las ruedas, que ruedan de a poco; con `<iters>200</iters>` en el mundo desaparece

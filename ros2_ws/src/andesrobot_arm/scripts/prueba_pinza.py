@@ -13,9 +13,10 @@ dedo se frena y sigue empujando. Esta prueba lo comprueba con cajas de ancho con
 Al final cierra en vacío, que tiene que llegar a -0.007.
 
 Los dos dedos se mandan en espejo (izquierdo = −derecho). La apertura de la pinza es
-0.017 + q_der − q_izq (las caras de los dedos están a ±8.5 mm del TCP con q = 0), así que con
-una caja de ancho W centrada se espera q_der = −q_izq = (W − 0.017) / 2.
-Pasa si cada dedo queda a menos de 1 mm de eso y tiembla menos de 1 mm (rango en 3 s).
+0.017 + q_der − q_izq (las caras de los dedos están a ±8.5 mm del TCP con q = 0).
+Pasa si la apertura queda a menos de 1 mm del ancho de la caja y tiembla menos de 1 mm (rango
+en 3 s). Los dedos pueden quedar corridos los dos hacia un lado (se informa, no cuenta): al
+cerrar del todo cada uno empuja con el tope y nada los centra.
 
 La caja mide 15 mm de alto y de fondo: más chica que la cara del dedo (21 mm de alto). Con 20 mm
 tocaba justo el borde de la cara y los dedos temblaban hasta 13 mm (medido el 7-nov): para
@@ -96,26 +97,32 @@ class PruebaPinza(Node):
         self.esperar(1.0)
 
     def medir(self, segundos):
-        """Promedio y rango (máximo − mínimo) de cada dedo durante unos segundos."""
+        """Promedio y rango (máximo − mínimo) durante unos segundos de: dedo derecho, dedo
+        izquierdo y apertura de la pinza (0.017 + derecho − izquierdo)."""
         muestras = []
         fin = time.time() + segundos
         while time.time() < fin:
             rclpy.spin_once(self, timeout_sec=0.02)
-            muestras.append(self.dedos)
+            der, izq = self.dedos
+            muestras.append((der, izq, 0.017 + der - izq))
         a = np.array(muestras)
         return a.mean(0), a.max(0) - a.min(0)
 
-    def caja(self, ancho):
-        """Pone la caja centrada en el TCP, girada como la pinza."""
+    def poner_en_tcp(self, nombre, xml, dz=0.0):
+        """Pone un modelo en la pose del TCP, girado como la pinza y corrido dz [m] en Z del
+        mundo (lo usa también prueba_levantar.py)."""
         t = self.tf.lookup_transform('odom', 'gripper_tcp', rclpy.time.Time())
-        pedido = SpawnEntity.Request(name='caja_pinza', xml=sdf_caja(ancho),
-                                     reference_frame='world')
+        pedido = SpawnEntity.Request(name=nombre, xml=xml, reference_frame='world')
         pedido.initial_pose.position.x = t.transform.translation.x
         pedido.initial_pose.position.y = t.transform.translation.y
-        pedido.initial_pose.position.z = t.transform.translation.z
+        pedido.initial_pose.position.z = t.transform.translation.z + dz
         pedido.initial_pose.orientation = t.transform.rotation
         self.poner.wait_for_service()
         return self.resultado(self.poner.call_async(pedido)).success
+
+    def caja(self, ancho):
+        """Pone la caja centrada en el TCP, girada como la pinza."""
+        return self.poner_en_tcp('caja_pinza', sdf_caja(ancho))
 
     def probar(self, ancho):
         self.pinza(ABIERTA)
@@ -124,15 +131,18 @@ class PruebaPinza(Node):
             return False
         self.esperar(0.5)
         self.pinza(CERRADA)
-        (der, izq), rango = self.medir(3.0)
-        esperado = (ancho - 0.017) / 2
-        error = max(abs(der - esperado), abs(izq + esperado))
-        bien = error < TOLERANCIA and rango.max() < TOLERANCIA
+        (der, izq, apertura), rango = self.medir(3.0)
+        error = abs(apertura - ancho)
+        bien = error < TOLERANCIA and rango[2] < TOLERANCIA
+        # Corrimiento lateral: cuánto se movieron los dos dedos juntos hacia un lado. Al cerrar
+        # del todo cada dedo empuja con el tope de fuerza, así que nada los centra (equilibrio
+        # neutro) y el par se mece de lado sin cambiar la apertura. Se informa pero no cuenta:
+        # para agarrar se manda un poco menos que el ancho (ver prueba_levantar.py).
+        lado = (der + izq) / 2
         print(f'{"OK   " if bien else "FALLO"} caja de {ancho * 1000:4.1f} mm: apertura '
-              f'{(0.017 + der - izq) * 1000:5.1f} mm (dedos {der * 1000:+.1f} / '
-              f'{izq * 1000:+.1f} mm, esperado {esperado * 1000:+.1f} / '
-              f'{-esperado * 1000:+.1f}), error '
-              f'{error * 1000:.2f} mm, temblor {rango.max() * 1000:.2f} mm')
+              f'{apertura * 1000:5.1f} mm, error {error * 1000:.2f} mm, temblor '
+              f'{rango[2] * 1000:.2f} mm (dedos {der * 1000:+.1f} / {izq * 1000:+.1f} mm, '
+              f'corridos {lado * 1000:+.1f} mm hacia un lado)')
         self.pinza(ABIERTA)
         self.resultado(self.sacar.call_async(DeleteEntity.Request(name='caja_pinza')))
         return bien
@@ -151,7 +161,7 @@ def main():
         sys.exit('No llega /joint_states con los dedos: ¿está corriendo arm_sim?')
     bien = [nodo.probar(w) for w in a.anchos]
     nodo.pinza(CERRADA)
-    (der, izq), _ = nodo.medir(1.0)
+    (der, izq, _), _ = nodo.medir(1.0)
     vacio = abs(der - CERRADA) < TOLERANCIA and abs(izq + CERRADA) < TOLERANCIA
     print(f'{"OK   " if vacio else "FALLO"} cerrar en vacío: dedos {der * 1000:+.1f} / '
           f'{izq * 1000:+.1f} mm (esperado {CERRADA * 1000:+.1f} / {-CERRADA * 1000:+.1f})')

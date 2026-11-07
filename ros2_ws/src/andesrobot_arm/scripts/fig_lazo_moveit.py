@@ -56,7 +56,7 @@ def main():
              'arm_controller (JTC), 100 Hz\nsigue la trayectoria\npunto a punto\n'
              'tolerancias de meta y de camino')
     D = caja(ax, 12.6, Y, 2.5, 1.7, 'ACTUADORES',
-             'sim: GazeboSystem\n(mando por posición)\nreal: Arduino + 6 TB6600\n(pendiente)')
+             'sim: GazeboSystem\n(mando por velocidad)\nreal: Arduino + 6 TB6600\n(pendiente)')
     E = caja(ax, 15.15, Y, 2.2, 1.7, 'PLANTA',
              'brazo (6 ejes) + lift\n+ pinza\nsalida: pose real\nde la pinza', color=C_BASE,
              fill=C_FILL2)
@@ -64,8 +64,8 @@ def main():
     flecha(ax, [(A[1], Y), (M[0], Y)], 'pose\nobjetivo', dy=0.08)
     flecha(ax, [(M[1], Y), (C[0], Y)], 'trayectoria\n(FollowJoint-\nTrajectory)', color=C_NEW,
            dy=0.08, size=7.8)
-    flecha(ax, [(C[1], Y), (D[0], Y)], 'q_ref(t)\n100 Hz', dy=0.08)
-    flecha(ax, [(D[1], Y), (E[0], Y)], 'SetPosition /\nSTEP-DIR', dy=0.08, size=7.8)
+    flecha(ax, [(C[1], Y), (D[0], Y)], 'velocidad\n100 Hz', dy=0.08)
+    flecha(ax, [(D[1], Y), (E[0], Y)], 'SetVelocity /\nSTEP-DIR', dy=0.08, size=7.8)
 
     # Ejecución vigilada: el resultado del controlador vuelve a MoveIt (arriba, punteado).
     yr = M[3] + 0.35
@@ -78,7 +78,7 @@ def main():
     Yf = 4.3
     F = caja(ax, 12.3, Yf, 3.3, 1.35, 'SENSORES DE POSICIÓN',
              'joint_state_broadcaster → /joint_states (100 Hz)\n'
-             'sim: lee la posición que puso Gazebo (= q_ref)\nreal: encoders por eje (pendiente)')
+             'sim: posición de cada eje en Gazebo\nreal: encoders por eje (pendiente)')
     G = caja(ax, 5.0, Yf, 2.6, 1.1, 'robot_state_publisher',
              '/joint_states + URDF → TF', color=C_BASE, fill=C_FILL2)
 
@@ -117,9 +117,9 @@ def main():
             'rampas de aceleración (TOTG; limitar también el tirón con Ruckig es opcional).\n'
             '3. MoveIt vigila la ejecución: si el controlador no llega a tiempo o fuera de '
             'tolerancia, aborta y puede replanificar.\n'
-            '4. El lazo de posición no cambia: en Gazebo sigue cerrándose sobre la orden y en '
-            'el robot real necesita encoders. arm_moveit_node es el cliente de MoveIt; '
-            'arm_ik_node queda para moveit:=false.')
+            '4. El lazo de posición no cambia: en Gazebo lo cierra el controlador (mando por '
+            'velocidad) y en el robot real necesita encoders. arm_moveit_node es el cliente '
+            'de MoveIt; arm_ik_node queda para moveit:=false.')
     ax.text(0.35, 1.2, nota, ha='left', va='top', fontsize=8.3, color=INK, linespacing=1.4,
             zorder=3, bbox=dict(boxstyle='round,pad=0.45', fc='#f1f3f6', ec='#d6d5ce'))
     leyenda = [((0, (1, 0)), C_ARM, 'igual que sin MoveIt'),

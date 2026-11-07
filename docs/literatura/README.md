@@ -290,7 +290,7 @@ colores, la luz, las posiciones y el ruido de los sensores, para que lo aprendid
 una escena en particular. Simuladores más nuevos (Isaac Sim, Gazebo moderno) traen modelos de
 ruido de cámaras.
 
-**Qué hace Milo.** Gazebo Classic con mando por posición ideal y cámara sin ruido.
+**Qué hace Milo.** Gazebo Classic con mando por velocidad ideal (por posición hasta el 7-nov-2026) y cámara sin ruido.
 
 **Recomendación.** Implementar el nodo de profundidad realista propuesto en la sección 14 del
 informe y aleatorizar la mesa de prueba (posición, color y tamaño de los objetos) en cada

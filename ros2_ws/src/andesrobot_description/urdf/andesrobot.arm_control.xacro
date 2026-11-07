@@ -4,11 +4,17 @@
      El robot real todavía no tiene driver para el brazo: esto es solo para Gazebo. -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-  <!-- Una articulación mandada en POSICIÓN: Gazebo la pone directamente en el ángulo pedido
-       (no hay PID que ajustar). Se lee posición y velocidad. initial_value = arranca en 0. -->
-  <xacro:macro name="arm_position_joint" params="name">
+  <!-- Una articulación del brazo mandada en VELOCIDAD: arm_controller calcula la velocidad
+       con un P sobre el error de posición (ganancias en arm_controllers.yaml) y Gazebo mueve la
+       articulación a esa velocidad. Se lee posición y velocidad. initial_value = arranca en 0.
+       Antes iban en POSICIÓN, pero gazebo_ros2_control (0.4.10) pone la articulación en la
+       posición pedida de un salto en cada paso, sin velocidad: el brazo se movía bien, pero un
+       objeto agarrado no subía con la pinza (el roce actúa sobre la velocidad entre las
+       superficies y no la había). Medido el 7-nov con scripts/prueba_levantar.py: con posición
+       la caja subió 0 mm de 50; con velocidad, 50 mm. -->
+  <xacro:macro name="arm_velocity_joint" params="name">
     <joint name="${name}">
-      <command_interface name="position"/>
+      <command_interface name="velocity"/>
       <state_interface name="position">
         <param name="initial_value">0.0</param>
       </state_interface>
@@ -23,13 +29,13 @@
     </hardware>
 
     <!-- Lift + 6 articulaciones del brazo: las mueve arm_controller en una sola trayectoria. -->
-    <xacro:arm_position_joint name="vertical_lift_joint"/>
-    <xacro:arm_position_joint name="joint_1"/>
-    <xacro:arm_position_joint name="joint_2"/>
-    <xacro:arm_position_joint name="joint_3"/>
-    <xacro:arm_position_joint name="joint_4"/>
-    <xacro:arm_position_joint name="joint_5"/>
-    <xacro:arm_position_joint name="joint_6"/>
+    <xacro:arm_velocity_joint name="vertical_lift_joint"/>
+    <xacro:arm_velocity_joint name="joint_1"/>
+    <xacro:arm_velocity_joint name="joint_2"/>
+    <xacro:arm_velocity_joint name="joint_3"/>
+    <xacro:arm_velocity_joint name="joint_4"/>
+    <xacro:arm_velocity_joint name="joint_5"/>
+    <xacro:arm_velocity_joint name="joint_6"/>
 
     <!-- Pinza: los dedos se mandan por ESFUERZO (fuerza, en N), no por posición. Con posición,
          Gazebo pone el dedo donde se le pide aunque haya un objeto en medio: lo atraviesa o lo
@@ -64,9 +70,12 @@
        kp/kd: rigidez [N/m] y amortiguamiento [N·s/m] del contacto. Por defecto el contacto de
        ODE es casi infinitamente rígido; con el dedo apretando 20 N, 3 de cada 10 cierres daban
        saltos de 3 a 6 mm y uno atravesó la caja (medido el 7-nov con scripts/prueba_pinza.py).
-       Más blando y amortiguado, el dedo se hunde 20 N / 1e5 N/m = 0.2 mm como mucho (medido:
-       0.05 mm) y 10 de 10 cierres quedaron quietos (temblor < 0.05 mm). kd = 100 queda cerca
-       del amortiguamiento crítico del dedo (2·√(kp·m) ≈ 94 con m ≈ 22 g).
+       Más blando y amortiguado (kp 1e5, kd 100) los saltos desaparecieron, pero con un objeto
+       colgando de los dedos el contacto blando también ablanda el roce y la caja se "arrastra"
+       hacia abajo de a poco (0.5 kg: 1.2 mm en 10 s, scripts/prueba_levantar.py). Con kp = 1e6
+       el dedo se hunde 20 N / 1e6 N/m = 0.02 mm, no hay saltos (fase 1: 6 de 6, temblor de la
+       apertura < 0.25 mm) y una caja de 0.1 a 0.5 kg se corre 0.05–0.4 mm en 10 s.
+       kd = 300 queda cerca del amortiguamiento crítico del dedo (2·√(kp·m) ≈ 297 con m ≈ 22 g).
        Probado y descartado: minDepth 0.5–1 mm y maxVel 0 (los dedos se hunden 0.5–1 mm en el
        objeto y los saltos siguen). -->
   <xacro:macro name="dedo_gazebo" params="lado">
@@ -76,8 +85,8 @@
     <gazebo reference="${lado}_finger_link_1">
       <mu1>1.0</mu1>
       <mu2>1.0</mu2>
-      <kp>100000.0</kp>
-      <kd>100.0</kd>
+      <kp>1000000.0</kp>
+      <kd>300.0</kd>
     </gazebo>
   </xacro:macro>
   <xacro:dedo_gazebo lado="right"/>

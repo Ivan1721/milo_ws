@@ -25,7 +25,7 @@ Cómo usarla:
 | P12 | Documentación: terminar de verificar referencias | documentación | — |
 | P13 | La base resbala en Gazebo: arreglo aplicado, falta medirlo en la simulación completa | simulación | — |
 | P14 | Detector de objetos: reconoce 4 de 26 objetos simulados | brazo, simulación | — |
-| P15 | Agarrar objetos de la mesa (plan en 6 fases; fase 1 hecha) | brazo, simulación | P08 (fase 3) |
+| P15 | Agarrar objetos de la mesa (plan en 6 fases; fase 1 hecha, fase 2 con la caja) | brazo, simulación | P08 (fase 3) |
 
 ---
 
@@ -95,9 +95,9 @@ Cómo usarla:
 **Dónde mirar:** [`prueba_desde_cero.md`](prueba_desde_cero.md) §9 (pose de partida frente a la manija y comandos); informe §14 («Detectar la manija» y «Cómo sigue»); `BRAZO.md`; `andesrobot_arm/manija.py` y `manija_node.py`; `scripts/generar_dataset_manija.py`; `scripts/entrenar_manija.py`.
 
 ## P10 · Simulación con mando por esfuerzo, PID y gravedad
-**Contexto:** con el mando por posición, Gazebo coloca cada articulación en el ángulo pedido como si fuera infinitamente rígida. Agarrar objetos no es realista y un choque mueve la base entera (medido: 3° de inclinación).
+**Contexto:** hasta el 7-nov el brazo iba por posición: Gazebo colocaba cada articulación en el ángulo pedido como si fuera infinitamente rígida, un objeto agarrado no subía con la pinza y un choque movía la base entera (medido: 3° de inclinación). Ahora va por velocidad (P15, fase 2), que levanta objetos, pero Gazebo impone la velocidad sin límite de fuerza: un choque probablemente siga sin frenar el brazo (no medido).
 **Qué hacer:** interfaz de comando por esfuerzo opcional con un PID por articulación; compensar la gravedad con la postura *actual* (con un par constante la gravedad suma una rigidez negativa, y la pose solo es estable si `kp·I + ∂g/∂q` es definida positiva). Solo aplica a la simulación; el EB300 real usa motores paso a paso en lazo abierto.
-**Ya hecho (7-nov-2026):** la pinza ya va por esfuerzo con un PID (P15, fase 1); sirve de plantilla: `gains` en `arm_controllers.yaml`, tope de fuerza = `effort` del `<limit>` y amortiguamiento implícito en el URDF.
+**Ya hecho (7-nov-2026):** la pinza ya va por esfuerzo con un PID (P15, fase 1); sirve de plantilla: `gains` en `arm_controllers.yaml`, tope de fuerza = `effort` del `<limit>` y amortiguamiento implícito en el URDF. El brazo pasó de posición a velocidad con un P (`ff_velocity_scale` 1; P15, fase 2): el paso a esfuerzo solo cambia la interfaz y las ganancias.
 **Listo cuando:** una pose se mantiene estable y un choque con la mesa frena el brazo en vez de empujar la base.
 **Dónde mirar:** informe §13 («Control en Gazebo»), §21 (prueba de choque) y §15.
 
@@ -132,7 +132,8 @@ Cómo usarla:
 **Ya hecho (7-nov-2026), fase 1:** dedos mandados por fuerza con tope de 20 N (`gripper_force`, `gripper_damping` en el URDF; piñón medido en el CAD: radio de paso ≈ 7 mm, así que el MG99x daría ≈ 65 N por dedo como máximo), PID en `gripper_controller` y contacto blando en los dedos (`andesrobot.arm_control.xacro`). Cada dedo tiene su PID y se mandan los dos en espejo (`[q, −q]`): con el izquierdo como `mimic` no volvía a abrir del todo. `scripts/prueba_pinza.py`: contra cajas fijas de 10 a 45 mm los dedos quedan a 0.05 mm del ancho sin temblar (20 de 20 cierres); prueba de humo completa en verde.
 **Qué hacer, en orden** (cada fase tiene su «listo cuando»):
 1. ~~**Pinza como la real:** dedos mandados por esfuerzo, con un PID cuya salida no pasa la fuerza de la pinza (F ≈ τ / (2·r) por dedo; τ del servo MG99x ≈ 1 N·m, r = radio del piñón, a medir en el CAD; en simulación 10–20 N) y fricción alta en las caras de los dedos. Revisar si el `mimic` del dedo izquierdo respeta la fuerza. *Listo cuando* al cerrar sobre una caja de 3 cm fija a la mesa los dedos se frenan a 3 cm ± 1 mm sin atravesarla ni vibrar.~~ Hecho.
-2. **Objeto agarrable:** una caja suelta de 3 cm y después el plumón o el tenedor, con colisión de piezas convexas (V-HACD / CoACD) en vez de la caja que lo encierra. *Listo cuando* se cierra, levanta y sostiene 10 s sin resbalar.
+2. **Objeto agarrable:** ~~una caja suelta de 3 cm~~ (hecho, ver abajo) y después el plumón o el tenedor, con colisión de piezas convexas (V-HACD / CoACD, ninguno está en la imagen) en vez de la caja que lo encierra. *Listo cuando* se cierra, levanta y sostiene 10 s sin resbalar (`scripts/prueba_levantar.py` sirve de base: cambiar la caja por el modelo).
+   **Ya hecho (7-nov-2026), la caja:** `scripts/prueba_levantar.py` (caja suelta de 30 mm sobre un pedestal, cerrar, subir el lift 5 cm, sostener 10 s). Con el brazo por posición la caja no subía (0 mm de 50: `gazebo_ros2_control` pone las articulaciones de un salto, sin velocidad, y el roce no arrastra): el brazo pasó a **velocidad** con un P (`arm_controllers.yaml`), prueba de humo en verde con y sin MoveIt. Además: mandar cada dedo 2 mm más adentro del ancho, no cerrar del todo (si no, nada centra la caja y se va de lado), y contacto de los dedos kp 1e6 / kd 300. De 0.1 a 0.5 kg se corre 0.05–0.4 mm en 10 s (8 de 8); con 1 kg resbala 2–3 mm.
 3. **MoveIt sabe del objeto** (P08): `CollisionObject` en vez de OctoMap, choque permitido con los dedos y objeto unido a la pinza al levantar. *Listo cuando* MoveIt planifica el acercamiento y, ya con el objeto, lo esquiva al moverse.
 4. **Agarre con la pose verdadera de Gazebo** (sin cámara): pose previa, bajada en línea recta (`computeCartesianPath`), cerrar, comprobar que el dedo se frenó antes de cerrar del todo, unir y levantar. *Listo cuando* se anota cuántos de 10 intentos (posiciones distintas) terminan con el objeto levantado.
 5. **Agarre con la cámara:** caja de YOLO + profundidad → puntos del objeto sin la mesa → PCA (eje largo y ancho) → agarre desde arriba si el ancho < 45 mm. *Listo cuando* se mide la tasa de éxito en varias posiciones y se compara con la fase 4.

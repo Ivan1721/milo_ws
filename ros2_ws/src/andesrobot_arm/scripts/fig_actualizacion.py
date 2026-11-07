@@ -67,7 +67,7 @@ def flujo():
                C_NEW, C_FILL_NEW, nuevo=True)
     ctl = caja(ax, XL, ys[3], W, H, 'arm_controller', 'ros2_control\nlift + joint_1..6',
                C_ARM, C_FILL)
-    sim = caja(ax, XL, ys[4], W, H, 'Gazebo', 'brazo simulado\n(mando por posición)',
+    sim = caja(ax, XL, ys[4], W, H, 'Gazebo', 'brazo simulado\n(mando por velocidad)',
                C_ARM, C_FILL)
     obj = caja(ax, XR, ys[0], W, H, 'Objetivo', 'marcador en RViz o\n/arm_target_pose', C_ARM,
                C_FILL)
