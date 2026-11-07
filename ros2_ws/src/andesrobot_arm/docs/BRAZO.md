@@ -279,13 +279,18 @@ fork, fruit, key, knife, pitcher, plate, pringles, redbull_can, rubik_cube, spoo
 writing_tool) encuentra el objeto y `objeto_node` lleva la pinza frente a él. Los pesos van en
 `ros2_ws/modelos/objetos/best.pt` (no van a git: se copian a mano).
 
-**Escenario** (`objetos:=true`, basado en `sim_cup_bowl`): la misma mesa de siempre (así MoveIt
-ya la conoce como obstáculo) con una taza y un bowl escaneados de objetos reales (Google Scanned
-Objects, CC-BY 4.0) en (0.80, ±0.11) m. Los modelos se bajan una vez de Gazebo Fuel a
-`ros2_ws/modelos/gazebo/` (no va a git); el launch suma esa carpeta a `GAZEBO_MODEL_PATH`:
+**Escenario** (`objetos:=...`, basado en `sim_cup_bowl`): la misma mesa de siempre (así MoveIt
+ya la conoce como obstáculo) con objetos escaneados de objetos reales. El catálogo
+`config/objetos.yaml` tiene 26, de 23 clases (sin modelo: colgate_box, key, redbull_can y drink),
+de Google Scanned Objects (Gazebo Fuel) y del set YCB, todos CC-BY 4.0. `objetos:=true` pone la
+taza y el bowl originales; `objetos:=taza,platano,pringles` los que se pidan (ids o clases, hasta
+10: una fila de 5 en x = 0.80, al alcance del brazo, y otra en x = 0.95). Los modelos se bajan
+una vez a `ros2_ws/modelos/gazebo/` (no va a git, ~370 MB); el launch suma esa carpeta a
+`GAZEBO_MODEL_PATH` y pone los objetos recién cuando los controladores del brazo están andando:
 
 ```bash
 python3 /ros2_ws/src/andesrobot_arm/scripts/descargar_objetos.py               # una vez (internet)
+python3 /ros2_ws/src/andesrobot_arm/scripts/descargar_objetos.py --lista       # ids y clases
 ros2 launch andesrobot_arm arm_sim.launch.py objetos:=true octomap:=false      # terminal 1
 # Pinza frente a la mesa, cámara a 50 cm de los objetos mirando 40° hacia abajo:
 ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped "{header: {frame_id: base_footprint}, pose: {position: {x: 0.451, y: -0.009, z: 1.016}, orientation: {x: -0.1732, y: 0.0, z: -0.9849, w: 0.0}}}"
@@ -305,14 +310,58 @@ de Milo, inclinada `inclinacion` grados hacia abajo, en los mismos dos tramos qu
 
 **Probado en Gazebo (6-nov-2026), clase `cup`:** desde la pose de arriba, detecta la taza (0.75),
 va a la pose previa (quedó a 0.300 m), la detecta de nuevo (0.66, el punto se movió 1 cm) y
-termina con la pinza a 0.103 m del punto detectado (pedido 0.10 m), justo frente a la taza. Dos
-cosas encontradas:
-- **Los objetos se veían negros:** su material no tenía color ambiente y la textura estaba en otra
-  carpeta. `descargar_objetos.py` lo arregla (copia la textura y agrega `Ka`).
-- **El modelo no reconoce este bowl:** de frente no lo detecta ni con confianza 0.1, y desde
-  arriba lo llama `cup` (0.75). La taza sí, de 0.66 a 0.85 según el ángulo. Es un límite del
-  modelo con este objeto simulado, no del nodo; para el bowl habría que sumar fotos al
-  entrenamiento.
+termina con la pinza a 0.103 m del punto detectado (pedido 0.10 m), justo frente a la taza. Esa
+prueba se hizo antes de corregir el orden de los colores (ver abajo); no se repitió después.
+
+Qué hace `descargar_objetos.py` con cada modelo, y por qué (cada cosa salió de una prueba):
+- **Material:** sin arreglo los objetos se veían negros (sin color ambiente `Ka`, o `Ka` en 0) o
+  grises sin textura (la textura en otra carpeta, o la malla sin `usemtl`, como el tarro de
+  Pringles). Copia la textura junto a la malla, pone `Ka` blanco y agrega el `usemtl`.
+- **Masa e inercia:** los de Google traen 1 kg por defecto; se pone la del catálogo, con la inercia
+  de una caja del tamaño de la malla.
+- **Colisión = caja que encierra la malla:** con la malla como colisión y la masa real, la taza se
+  caía de lado sola. Se ve igual (lo visual sigue siendo la malla); para agarrar de verdad habría
+  que revisarlo.
+- **Medidas** en `milo.json`: el launch las usa para dejar la base del objeto sobre la mesa (los de
+  YCB no tienen el origen en la base).
+- Descartados al probarlos: la botella de agua de Fuel (formato `.glb`, que Gazebo clásico no lee:
+  va la de mostaza de YCB) y la lata de Coca-Cola de Fuel (su malla deja la lata 28 cm bajo su
+  origen y salía disparada de la mesa: `drink` quedó sin modelo).
+
+**Colores invertidos (corregido el 7-nov):** `image_to_array` da la imagen en RGB y Ultralytics
+supone que un arreglo viene en BGR, como OpenCV: `objeto_node`, `manija_node` y
+`evaluar_objetos.py` le pasaban al modelo los colores cambiados (rojo ↔ azul; la mesa café se
+veía azul). Ahora dan vuelta los canales. No pasaba al probar con fotos guardadas (`yolo predict
+... color.png`), porque Ultralytics lee bien los archivos. `manija_node` no se volvió a probar
+en Gazebo después del arreglo.
+
+**¿Qué clases reconoce el modelo en la simulación?** `scripts/evaluar_objetos.py` pone cada objeto
+solo en (0.80, 0), mira desde tres vistas (de frente a 30° y 40°, y desde arriba), corre el modelo
+con confianza mínima 0.1 y escribe un CSV en `ros2_ws/resultados/objetos/` y las fotos en
+`ros2_ws/capturas/evaluacion_<fecha>/` (~40 s por objeto):
+
+```bash
+ros2 launch andesrobot_arm arm_sim.launch.py objetos:=true octomap:=false      # terminal 1
+python3 /ros2_ws/src/andesrobot_arm/scripts/evaluar_objetos.py                  # todos (~17 min)
+python3 /ros2_ws/src/andesrobot_arm/scripts/evaluar_objetos.py taza platano     # algunos
+```
+
+Resultado del 7-nov-2026 (con los colores ya corregidos): **4 de 26** reconocidos en al menos una
+vista. Confianza de la clase correcta (frente 30° / frente 40° / arriba; «–» = no la encontró):
+
+| Reconocidos | Confianza | Lo que ve en los demás |
+|---|---|---|
+| taza (ACE, cup) | 0.86 / 0.74 / 0.82 | mochila → clothing (0.40–0.81); sopa → drink (0.74) |
+| taza blanca (cup) | 0.24 / 0.43 / 0.73 | bowl blanco → cup desde arriba (0.58) |
+| tenedor (fork) | 0.20 / 0.65 / – | la mesa vista desde arriba → card (0.4–0.9) en casi todas las fotos |
+| juego de cartas (card) | 0.13 / – / – | los otros 19 (bowl turquesa, botella, plátano, Rubik, Pringles…): nada, o card |
+
+Las fotos se ven bien (objetos parados, con su textura y su tamaño real), así que el límite es del
+modelo con imágenes de simulación: está entrenado con fotos reales (`dataset_reglamento2`) y a 50
+cm muchos objetos se ven chicos. Detectar la mesa como `card` es un falso positivo que
+`objeto_node` evita solo porque busca una clase pedida. Para usarlo en la simulación habría que
+sumar fotos de estos objetos simulados al entrenamiento, como se hizo con la manija (P14 en
+`docs/PENDIENTES.md`).
 
 ## Cámara de la pinza (Orbbec Gemini Plus)
 
@@ -413,7 +462,8 @@ MoveIt 2, que es lo que corre por defecto: figura C del informe, `scripts/fig_la
 | `capturar_camara` | guarda una imagen de cada canal de la cámara de la pinza (`ros2 run andesrobot_arm capturar_camara`) |
 | `scripts/prueba_gazebo.sh` | prueba de humo sin ventanas (ver «Usarlo») |
 | `objeto_node` | detecta un objeto del reglamento (`clase`, por ejemplo `cup`) con `modelos/objetos/best.pt` y lleva la pinza frente a él (ver «Objetos sobre la mesa») |
-| `scripts/descargar_objetos.py` | baja la taza y el bowl de Gazebo Fuel para `objetos:=true` |
+| `scripts/descargar_objetos.py` | baja los objetos del catálogo `config/objetos.yaml` (Gazebo Fuel y YCB) y los deja listos para Gazebo |
+| `scripts/evaluar_objetos.py` | pone cada objeto solo en la mesa, lo mira desde 3 vistas y anota si el modelo lo reconoce (CSV) |
 | `scripts/generar_dataset_manija.py` | fotos de la manija ya etiquetadas, con variantes al azar de la puerta |
 | `scripts/entrenar_manija.py` | afina YOLO (pose, máscara o caja) con esas fotos |
 | `scripts/figuras.py`, `fig_*.py` | figuras de la geometría y de los lazos de control (ver «Geometría») |

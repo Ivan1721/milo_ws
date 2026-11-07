@@ -177,7 +177,8 @@ class ObjetoNode(Node):
             self.cargar_modelo()
         if not self.modelo:
             return None
-        imagen = image_to_array(self.color)
+        # RGB -> BGR: Ultralytics supone que un arreglo viene en BGR (ver manija_node).
+        imagen = image_to_array(self.color)[:, :, ::-1]
         r = self.modelo.predict(imagen, conf=self.get_parameter('confianza').value,
                                 verbose=False)[0]
         if r.boxes is None or len(r.boxes) == 0:

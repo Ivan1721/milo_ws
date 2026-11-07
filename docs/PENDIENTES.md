@@ -24,6 +24,7 @@ Cómo usarla:
 | P11 | CI etapa 2: pruebas del brazo con ROS en GitHub Actions (la etapa 1 ya está) | ci | — |
 | P12 | Documentación: terminar de verificar referencias | documentación | — |
 | P13 | La base resbala en Gazebo: arreglo aplicado, falta medirlo en la simulación completa | simulación | — |
+| P14 | Detector de objetos: reconoce 4 de 26 objetos simulados | brazo, simulación | — |
 
 ---
 
@@ -85,6 +86,7 @@ Cómo usarla:
 ## P09 · Desafío de la puerta: del detector a empujar
 **Contexto:** hay una puerta de prueba que se abre empujando y un detector YOLO de la manija entrenado (60 de 60 en validación, simulación contra simulación). Todavía no cierra el lazo con el brazo.
 **Ya hecho (sin probar en la simulación):** `andesrobot_arm/manija.py` (geometría sin ROS, 16 pruebas con una puerta sintética): píxel a color → punto 3D con la cámara de profundidad (rayo), plano de la puerta como respaldo cuando la manija brillante hace fallar la profundidad, validación de la detección, pose previa de la pinza y arco que recorre la palanca al bajarla. `manija_node.py` los usa para detectar en vivo y publicar `/manija/agarre`, `/manija/pose_previa` y `/manija/marcadores` (`BRAZO.md`, «Detectar la manija»). Desde el 5-nov también publica la distancia del efector final a la manija (`/manija/distancia`, `/manija/agarre_tcp`) y, con `acercar:=true`, lleva la pinza en dos tramos (pose previa a 30 cm, nueva detección, 5 cm a ciegas); probado sin Gazebo con `scripts/probar_manija_sin_gazebo.py` (queda a 0.050 m, manija a 0.3 mm), que además encontró y arregló el rayo que pasa al lado de la palanca (`corregir_saliente`).
+**Ojo (7-nov):** `manija_node` le pasaba al modelo la imagen con los colores cambiados (RGB en vez de BGR; ver `BRAZO.md`, «Colores invertidos»). Ya está corregido, pero no se volvió a probar en Gazebo: repetir (2) y (3).
 **Falta (tú, con la simulación):** (1) `./sim.sh build` y lanzar `puerta:=true`; (2) `manija_node`: ¿los marcadores caen sobre la manija en RViz?, ¿el error de posición es de pocos mm?; (3) `acercar:=true` con `octomap:=false`: ¿MoveIt llega a la pose previa y a 5 cm de la manija?, ¿la distancia del log coincide con la de RViz?
 **Falta (código, después de probar 2 y 3):** (a) guiar los últimos centímetros con la imagen a color y los keypoints cuando la profundidad se pierde (< 0.25 m; hoy el último tramo es a ciegas); (b) ejecutar el movimiento desde donde termina `acercar`: tocar la palanca, bajarla siguiendo `arco_palanca` y empujar a lo largo de la normal; (c) después, tirar de la puerta y el pestillo.
 **Falta (físico):** probar el detector con 30–50 fotos de una puerta real y sumarlas al entrenamiento si hace falta.
@@ -115,3 +117,10 @@ Cómo usarla:
 **Falta:** en el contenedor, medir el factor de tiempo real de `./sim.sh brazo` (cámara, MoveIt) y comprobar que la base maneja igual en `./sim.sh` y `./sim.sh nav` (avisar al equipo de la base). Correr `generar_dataset_manija.py` largo y, si ya no deriva, quitar las defensas que sobren (`--deriva_max`, aceleración 0.2).
 **Listo cuando:** una corrida de 300 fotos no se detiene por deriva y la simulación sigue cerca del tiempo real.
 **Dónde mirar:** `andesrobot_arm/scripts/deriva_base/README.md`; informe §14 («Un hallazgo de la simulación: la base resbala»).
+
+## P14 · Detector de objetos: reconoce 4 de 26 objetos simulados
+**Contexto:** el modelo YOLO de objetos del reglamento (`ros2_ws/modelos/objetos/best.pt`, YOLO11n, 27 clases, entrenado con fotos reales) y `objeto_node` llevan la pinza frente a un objeto (probado con la taza: queda a 0.103 m). La mesa simulada tiene 26 objetos escaneados de 23 clases (`config/objetos.yaml`; sin modelo: colgate_box, key, redbull_can, drink).
+**Ya hecho (7-nov-2026):** `scripts/evaluar_objetos.py` midió cada objeto solo, desde 3 vistas: el modelo reconoce las dos tazas, el tenedor y (apenas, 0.13) el juego de cartas; a los otros 22 no los ve, o los confunde (mochila → clothing, sopa → drink), y ve la mesa desde arriba como `card` (0.4–0.9). Las fotos se ven bien: el límite es del modelo con imágenes de simulación.
+**Qué hacer:** como con la manija, generar fotos etiquetadas de los objetos simulados (variando vista, distancia, luz y objetos juntos; la caja sale de la posición conocida del objeto + TF, como en `generar_dataset_manija.py`) y afinar el modelo sumándolas a `dataset_reglamento2`, sin perder lo que ya reconoce en fotos reales. Agregar fotos de mesa vacía como fondo, para que deje de verla como `card`. Opcional: modelos para las 4 clases que faltan (caja y lata con foto real como textura).
+**Listo cuando:** `evaluar_objetos.py` reconoce la mayoría de las 23 clases, sin que baje el resultado con fotos reales, y `objeto_node` lleva la pinza frente a objetos de varias clases.
+**Dónde mirar:** `BRAZO.md` («Objetos sobre la mesa»); `scripts/evaluar_objetos.py`; `scripts/generar_dataset_manija.py` (de plantilla); el CSV y las fotos en `ros2_ws/resultados/objetos/` y `ros2_ws/capturas/evaluacion_*`.

@@ -183,7 +183,9 @@ class ManijaNode(Node):
             self.cargar_modelo()
         if not self.modelo:
             return None
-        imagen = image_to_array(self.color)
+        # image_to_array da RGB, pero Ultralytics supone que un arreglo viene en BGR (como OpenCV):
+        # sin dar vuelta los canales el modelo ve los colores cambiados (rojo <-> azul).
+        imagen = image_to_array(self.color)[:, :, ::-1]
         resultado = self.modelo.predict(imagen, conf=self.get_parameter('confianza').value,
                                         verbose=False)[0]
         if resultado.boxes is None or len(resultado.boxes) == 0 or resultado.keypoints is None:

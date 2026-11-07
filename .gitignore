@@ -28,3 +28,5 @@ ros2_ws/datasets/
 # Mediciones de andesrobot_arm/scripts/deriva_base (una fila por movimiento del brazo): datos que
 # se rehacen con su correr.sh.
 ros2_ws/resultados/deriva_base/
+# Resultados de andesrobot_arm/scripts/evaluar_objetos.py (un CSV por corrida): datos, se rehacen.
+ros2_ws/resultados/objetos/

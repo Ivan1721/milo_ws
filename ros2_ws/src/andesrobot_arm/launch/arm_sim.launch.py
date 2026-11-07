@@ -18,8 +18,9 @@ tirón de la trayectoria (los dos sin probar todavía; ver docs/BRAZO.md y movei
 Con puerta:=true pone la puerta de prueba (worlds/puerta_prueba.sdf: se abre empujando, manija de
 palanca a 1 m) en vez de la mesa.
 Con objetos:=true la mesa lleva una taza y un bowl escaneados de verdad en vez de los cubos de
-colores (worlds/mesa_objetos.sdf + Google Scanned Objects, que hay que bajar una vez con
-scripts/descargar_objetos.py); para el detector de objetos, objeto_node.
+colores, y con objetos:=taza,platano,pringles los objetos que se pidan (ids o clases del catálogo
+config/objetos.yaml, hasta 10: 5 al alcance del brazo y 5 más atrás). Los modelos se bajan una
+vez con scripts/descargar_objetos.py; para el detector de objetos, objeto_node.
 Con moveit:=true (default) arranca move_group (MoveIt 2) con la configuración de
 andesrobot_moveit_config y arm_moveit_node reemplaza a arm_ik_node: las poses de
 /arm_target_pose se planifican sin choques (robot, mesa y, con octomap:=true, lo que ve la
@@ -29,6 +30,7 @@ Cámara: topics /gripper_camera/{color,depth,ir}/image_raw y /gripper_camera/dep
 (ver andesrobot_description/urdf/andesrobot.gripper_camera.xacro). Guardar una imagen de cada
 canal:  ros2 run andesrobot_arm capturar_camara
 """
+import json
 import os
 
 import xacro
@@ -45,17 +47,33 @@ from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 from moveit_configs_utils import MoveItConfigsBuilder
 
+from andesrobot_arm.catalogo_objetos import (
+    altura_de_spawn, carpeta, elegir, leer_catalogo, posiciones_en_mesa)
 from andesrobot_arm.moveit_opciones import aplicar_ruckig, archivo_cinematica
 
 # Modelos de Gazebo bajados con scripts/descargar_objetos.py (en tu PC
-# ~/milo_ws/ros2_ws/modelos/gazebo, fuera de git) y los objetos de objetos:=true:
-# nombre en Fuel -> (nombre en Gazebo, x, y, giro en Z [rad]). Frente a Milo, dentro del
-# alcance del brazo (a 0.75 m de altura llega hasta x ~ 0.89 m) y separados 22 cm.
+# ~/milo_ws/ros2_ws/modelos/gazebo, fuera de git), del catálogo config/objetos.yaml.
 MODELOS_GAZEBO = '/ros2_ws/modelos/gazebo'
-OBJETOS_MESA = {
-    'Threshold_Porcelain_Coffee_Mug_All_Over_Bead_White': ('cup', 0.80, 0.11, 0.0),
-    'Threshold_Bead_Cereal_Bowl_White': ('bowl', 0.80, -0.11, 0.0),
-}
+
+
+def objetos_en_mesa(pedido):
+    """(id, carpeta, x, y, z) de cada objeto pedido con objetos:=..., y los que falta bajar.
+    Van en filas frente a Milo (catalogo_objetos.posiciones_en_mesa); z deja su base sobre el
+    tablero según las medidas que anotó el script de descarga (milo.json)."""
+    catalogo = leer_catalogo(open(os.path.join(
+        get_package_share_directory('andesrobot_arm'), 'config', 'objetos.yaml')).read())
+    elegidos = elegir(catalogo, pedido)
+    lista, faltan = [], []
+    for objeto, (x, y) in zip(elegidos, posiciones_en_mesa(len(elegidos))):
+        nombre = carpeta(objeto)
+        info = os.path.join(MODELOS_GAZEBO, nombre, 'milo.json')
+        if not os.path.exists(info):
+            faltan.append(objeto['id'])
+            continue
+        with open(info) as f:
+            medida = json.load(f)['medidas']
+        lista.append((objeto['id'], nombre, x, y, altura_de_spawn(medida)))
+    return lista, faltan
 
 
 def _strip_comments(node):
@@ -136,8 +154,9 @@ def launch_setup(context):
     # Escenario: la puerta reemplaza a la mesa (las dos ocuparían el mismo lugar frente a Milo).
     puerta = LaunchConfiguration('puerta').perform(context) == 'true'
     con_mesa = LaunchConfiguration('mesa').perform(context) == 'true' and not puerta
-    # objetos:=true cambia los cubos de colores por la taza y el bowl (sobre la misma mesa).
-    objetos = LaunchConfiguration('objetos').perform(context) == 'true' and not puerta
+    # objetos:=true (taza y bowl) u objetos:=taza,platano,... cambia los cubos de colores por
+    # objetos del catálogo (sobre la misma mesa).
+    objetos = LaunchConfiguration('objetos').perform(context) not in ('', 'false') and not puerta
     con_mesa = con_mesa or objetos
 
     # robot_state_publisher: publica /robot_description y las TF, con el reloj de Gazebo.
@@ -226,19 +245,23 @@ def launch_setup(context):
     )
     extra = [mueble] if (puerta or con_mesa) else []
     if objetos:
-        # Taza y bowl de Google Scanned Objects: "-database" busca el modelo por nombre en
-        # GAZEBO_MODEL_PATH (generate_launch_description le suma MODELOS_GAZEBO). Su origen está
-        # en la base del objeto: z = 0.72, la altura del tablero.
-        faltan = [n for n in OBJETOS_MESA if not os.path.isdir(os.path.join(MODELOS_GAZEBO, n))]
+        # Objetos del catálogo: "-database" busca el modelo por nombre de carpeta en
+        # GAZEBO_MODEL_PATH (generate_launch_description le suma MODELOS_GAZEBO). En Gazebo cada
+        # uno se llama como su id (taza, platano...).
+        lista, faltan = objetos_en_mesa(LaunchConfiguration('objetos').perform(context))
         if faltan:
             extra.append(LogInfo(msg='[arm_sim] Faltan ' + ', '.join(faltan) + ' en '
                                  + MODELOS_GAZEBO + ': python3 /ros2_ws/src/andesrobot_arm/'
-                                 'scripts/descargar_objetos.py'))
-        for nombre, (entidad, x, y, yaw) in OBJETOS_MESA.items():
-            extra.append(Node(
-                package='gazebo_ros', executable='spawn_entity.py', output='screen',
-                arguments=['-database', nombre, '-entity', entidad, '-x', str(x), '-y', str(y),
-                           '-z', '0.725', '-Y', str(yaw)]))
+                                 'scripts/descargar_objetos.py ' + ' '.join(faltan)))
+        poner = [Node(package='gazebo_ros', executable='spawn_entity.py', output='screen',
+                      arguments=['-database', nombre, '-entity', ident, '-x', str(x),
+                                 '-y', str(y), '-z', str(z)])
+                 for ident, nombre, x, y, z in lista]
+        # Recién cuando los controladores del brazo están andando: cargar varias mallas con
+        # texturas grandes al mismo tiempo que Milo atrasa a Gazebo, y el spawner de los
+        # controladores se rinde ("Could not successfully call service .../load_controller",
+        # medido el 6-nov con 5 objetos).
+        extra.append(RegisterEventHandler(OnProcessExit(target_action=spawner, on_exit=poner)))
     return [rsp, spawn, controllers, after_controllers, marker, rviz] + extra
 
 
@@ -272,8 +295,10 @@ def generate_launch_description():
         DeclareLaunchArgument('puerta', default_value='false',
                               description='Puerta de prueba (abre empujando) en vez de la mesa'),
         DeclareLaunchArgument('objetos', default_value='false',
-                              description='Taza y bowl reales sobre la mesa en vez de los cubos '
-                                          '(bajarlos antes con scripts/descargar_objetos.py)'),
+                              description='Objetos reales sobre la mesa en vez de los cubos: '
+                                          'true (taza y bowl) o ids/clases separados por comas '
+                                          '(config/objetos.yaml; bajarlos antes con '
+                                          'scripts/descargar_objetos.py)'),
         # Antes de abrir Gazebo: que encuentre también los modelos bajados de Fuel.
         AppendEnvironmentVariable('GAZEBO_MODEL_PATH', MODELOS_GAZEBO),
         DeclareLaunchArgument('moveit', default_value='true',

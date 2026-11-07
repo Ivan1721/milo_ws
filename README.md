@@ -253,9 +253,10 @@ Mandar poses a mano, abrir/cerrar la pinza, la cámara, la puerta y el detector 
 (YOLO), medidas y ecuaciones:
 [`andesrobot_arm/docs/BRAZO.md`](ros2_ws/src/andesrobot_arm/docs/BRAZO.md).
 
-**Objetos sobre la mesa** (taza y bowl reales, y el modelo YOLO de objetos del reglamento en
-`ros2_ws/modelos/objetos/best.pt`): `arm_sim.launch.py objetos:=true` y `objeto_node`, que lleva
-la pinza frente al objeto; ver «Objetos sobre la mesa» en `BRAZO.md`.
+**Objetos sobre la mesa** (26 objetos escaneados de 23 clases, y el modelo YOLO de objetos del
+reglamento en `ros2_ws/modelos/objetos/best.pt`): `arm_sim.launch.py objetos:=taza,platano`,
+`objeto_node`, que lleva la pinza frente al objeto, y `evaluar_objetos.py`, que mide qué clases
+reconoce el modelo; ver «Objetos sobre la mesa» en `BRAZO.md`.
 
 Orden para probar todo el brazo en un PC nuevo, hasta llevar la pinza a la manija o a la taza
 (con las poses de partida): [`docs/prueba_desde_cero.md`](docs/prueba_desde_cero.md).

@@ -201,19 +201,33 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   factor of the full arm sim and base driving not re-measured yet): a 300-image run drifted 0.41 m/24°
   and MoveIt then failed 1/3 of views. The generator therefore sets `acceleration_scaling` 0.2 on
   `arm_moveit_node` at runtime, skips views with the TCP < 12 cm from the leaf, and stops at 15 cm
-  drift (relaunch the sim, continue with `--inicio`).
-- Objects: `objetos:=true` spawns `worlds/mesa_objetos.sdf` (same table as `mesa_prueba`, so
-  MoveIt's table matches) plus a Google Scanned Objects cup and bowl via `spawn_entity -database`
-  from `ros2_ws/modelos/gazebo/` (gitignored; `scripts/descargar_objetos.py` fetches them from
-  Fuel and fixes their material: texture copied next to the mesh and `Ka` added, else they render
-  black). The launch appends that folder to `GAZEBO_MODEL_PATH`. `objeto_node` (geometry in
-  `objetos.py`, tested) uses the team's 27-class YOLO11n detection model
-  `ros2_ws/modelos/objetos/best.pt` (gitignored, copied by hand): median of 25 depth rays from the
-  box center → 3D point, then the same two-step `manija.Acercamiento` (0.30 m, then
-  `distancia_final` 0.10 m). Tested 2026-11-06 with `cup`: ends 0.103 m from the point. The model
-  doesn't recognize this bowl (calls it `cup` from above). `scripts/entrenar_manija.py --tarea pose|seg|det` hard-links
+  drift (relaunch the sim, continue with `--inicio`). `scripts/entrenar_manija.py --tarea pose|seg|det` hard-links
   the split into Ultralytics' images/labels layout and fine-tunes yolov8s-* into
   `ros2_ws/modelos/entrenamientos/`.
+- Objects: catalog `config/objetos.yaml` (26 scanned objects, 23 classes; no model for
+  colgate_box, key, redbull_can, drink), logic in `catalogo_objetos.py` (tested).
+  `objetos:=true` (original cup + bowl) or `objetos:=taza,platano,...` (ids or classes, up to 10
+  in rows at x 0.80/0.95) spawns `worlds/mesa_objetos.sdf` (same table as `mesa_prueba`, so
+  MoveIt's table matches) and, after the controller spawner exits (spawning many textured meshes
+  at once made it time out), each object via `spawn_entity -database` from
+  `ros2_ws/modelos/gazebo/` (gitignored, ~370 MB; the launch appends it to `GAZEBO_MODEL_PATH`).
+  `scripts/descargar_objetos.py` fetches Fuel (GSO) zips and YCB google_16k/berkeley meshes
+  (builds their SDF) and fixes each one, every fix found by testing: texture next to the mesh,
+  `Ka` white, `usemtl` added (else black/gray), catalog mass + box inertia, collision = mesh
+  bounding box (mesh collision + real mass made the cup tip over), bbox in `milo.json` (YCB
+  origins aren't at the base). `.glb` (Fuel water bottle) and the classic Coke can (fell through
+  the table) were dropped. `objeto_node` (geometry in `objetos.py`, tested) uses the team's
+  27-class YOLO11n detection model `ros2_ws/modelos/objetos/best.pt` (gitignored, copied by
+  hand): median of 25 depth rays from the box center → 3D point, then the same two-step
+  `manija.Acercamiento` (0.30 m, then `distancia_final` 0.10 m). Tested 2026-11-06 with `cup`:
+  ends 0.103 m from the point (before the color fix below; not re-run).
+  `scripts/evaluar_objetos.py` spawns each object alone at (0.80, 0), views it from 3 poses and
+  logs YOLO results (CSV in gitignored `ros2_ws/resultados/objetos/`): 2026-11-07 the model
+  recognizes only 4/26 (both cups, fork, card at 0.13) and sees the bare table as `card` from
+  above; photos look right, so it's a sim-vs-real gap (P14).
+- `image_to_array` returns RGB but Ultralytics treats numpy input as BGR: every node that feeds a
+  camera frame to YOLO flips channels (`[:, :, ::-1]`). Before 2026-11-07 `manija_node` and
+  `objeto_node` fed swapped colors (`manija_node` not re-tested since).
 - Arm masses: gripper scaled from the CAD's steel to ABS (`gripper_mass_scale`); stepper motors and
   the gripper servo are fixed `motor_joint_N`/`gripper_servo_link` inertial-only links on the link
   before each joint. Sources in `docs/hardware/README.md` at the repo root (the docs there are

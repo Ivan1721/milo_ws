@@ -101,7 +101,7 @@ python3 /ros2_ws/src/andesrobot_arm/scripts/probar_manija_sin_gazebo.py
 ```
 
 **Debe pasar:**
-- El brazo da `57 passed` y el filtro de seguridad `11 passed`.
+- El brazo da `63 passed` y el filtro de seguridad `11 passed`.
 - La prueba de la manija termina en `BIEN`, con la pinza a unos 0.05 m del punto de agarre.
 
 ## 6. Prueba de humo de Gazebo
@@ -208,11 +208,11 @@ avanza a ciegas hasta quedar a 5 cm.
 ## 10. Pinza frente a un objeto de la mesa
 
 Lo mismo que con la manija, pero con el modelo de objetos del reglamento (27 clases: cup, bowl,
-bottle...) y una taza y un bowl sobre la mesa. Detalle en
+bottle...) y objetos escaneados sobre la mesa (26, del catálogo `config/objetos.yaml`). Detalle en
 [`BRAZO.md`](../ros2_ws/src/andesrobot_arm/docs/BRAZO.md), «Objetos sobre la mesa».
 
 **Antes, una vez por computador:** el modelo de objetos tampoco va en git. Copia su `best.pt` a
-`ros2_ws/modelos/objetos/best.pt`, y baja la taza y el bowl (necesita internet; quedan en
+`ros2_ws/modelos/objetos/best.pt`, y baja los objetos (necesita internet; ~370 MB en
 `ros2_ws/modelos/gazebo/`):
 
 ```bash
@@ -227,7 +227,8 @@ ros2 launch andesrobot_arm arm_sim.launch.py objetos:=true octomap:=false
 ```
 
 **Debe pasar:** en Gazebo hay una taza y un bowl **blancos** sobre la mesa (si se ven negros,
-vuelve a correr `descargar_objetos.py`: arregla el material).
+vuelve a correr `descargar_objetos.py`: arregla el material). Para otros objetos:
+`objetos:=taza,platano,pringles` (los ids salen con `descargar_objetos.py --lista`).
 
 **Terminal 2** (`./sim.sh shell`): mandar la pinza a la pose de partida, con la cámara a 50 cm de los
 objetos mirando 40° hacia abajo.
@@ -247,8 +248,16 @@ ros2 run andesrobot_arm objeto_node --ros-args -p use_sim_time:=true -p clase:=c
 - La pinza va a 30 cm de la taza, la detecta de nuevo y termina con «Listo: la pinza quedó a … m
   del objeto», cerca de 0.10 m. Así salió en la prueba del 6-nov-2026 (0.103 m).
 
-**Ojo:** el modelo no reconoce el bowl de este escenario (de frente no lo ve; desde arriba lo llama
-`cup`). Con `clase:=bowl` el nodo dirá «no veo bowl».
+**Ojo:** en la simulación el modelo reconoce pocas clases: en la medición del 7-nov, las tazas, el
+tenedor y apenas el juego de cartas (4 de 26 objetos). Con `clase:=bowl`, por ejemplo, el nodo
+dirá «no veo bowl». Para medirlo de nuevo, con la simulación de arriba corriendo (~17 min):
+
+```bash
+python3 /ros2_ws/src/andesrobot_arm/scripts/evaluar_objetos.py
+```
+
+**Debe pasar:** termina con una tabla por objeto y «Reconocidos en al menos una vista: N de 26»,
+y deja el CSV en `ros2_ws/resultados/objetos/` y las fotos en `ros2_ws/capturas/evaluacion_*`.
 
 ## 11. Corrida larga sin deriva
 

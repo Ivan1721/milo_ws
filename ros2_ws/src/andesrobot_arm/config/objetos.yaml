@@ -1,0 +1,66 @@
+# Catálogo de objetos 3D para la mesa de la simulación del brazo (arm_sim objetos:=...).
+#
+# Cada objeto es un escaneo 3D de un objeto real, con licencia CC-BY 4.0, y corresponde a una de
+# las 27 clases del modelo YOLO de objetos del reglamento (ros2_ws/modelos/objetos/best.pt). La
+# lista salió de revisar los candidatos el 6-nov-2026 (los "sugeridos": uno o dos por clase).
+# colgate_box, key y redbull_can no tienen modelo (no hay en ninguna de las fuentes), y drink
+# tampoco (ver más abajo).
+#
+#   id      nombre corto para elegirlo: arm_sim.launch.py objetos:=taza,platano,pringles
+#           (también sirve el nombre de la clase: objetos:=cup elige el primero de esa clase)
+#   clase   la clase del modelo YOLO que debería reconocerlo
+#   fuente  fuel = Gazebo Fuel (dueno/nombre, ya en formato de Gazebo; GoogleResearch es Google
+#           Scanned Objects); ycb = set YCB (ycb-benchmarks; el script le arma el model.sdf)
+#   masa    [kg], aproximada (la de un objeto así): los modelos no la traen o traen 1 kg
+#
+# scripts/descargar_objetos.py baja todos (o los que se le pidan) a ros2_ws/modelos/gazebo/.
+
+objetos:
+  # Los dos del escenario original (sim_cup_bowl): objetos:=true pone estos dos.
+  - {id: taza_blanca, clase: cup, fuente: fuel, dueno: GoogleResearch, masa: 0.35,
+     nombre: Threshold_Porcelain_Coffee_Mug_All_Over_Bead_White}
+  - {id: bowl_blanco, clase: bowl, fuente: fuel, dueno: GoogleResearch, masa: 0.30,
+     nombre: Threshold_Bead_Cereal_Bowl_White}
+
+  - {id: mochila, clase: bag, fuente: fuel, dueno: GoogleResearch, masa: 0.50,
+     nombre: Jansport_School_Backpack_Blue_Streak}
+  - {id: libro, clase: book, fuente: fuel, dueno: GoogleResearch, masa: 0.40,
+     nombre: Eat_to_Live_The_Amazing_NutrientRich_Program_for_Fast_and_Sustained_Weight_Loss_Revised_Edition_Book}
+  # La botella de agua de Fuel (iche033) viene en .glb, que Gazebo clásico no lee: va la de mostaza.
+  - {id: botella, clase: bottle, fuente: ycb, nombre: 006_mustard_bottle, masa: 0.45}
+  - {id: bowl_turquesa, clase: bowl, fuente: fuel, dueno: GoogleResearch, masa: 0.30,
+     nombre: Room_Essentials_Bowl_Turquiose}
+  - {id: caja_azucar, clase: box, fuente: ycb, nombre: 004_sugar_box, masa: 0.50}
+  - {id: juego_cartas, clase: card, fuente: fuel, dueno: GoogleResearch, masa: 0.30,
+     nombre: Mad_Gab_Refresh_Card_Game}
+  - {id: cereal, clase: cereal_box, fuente: fuel, dueno: GoogleResearch, masa: 0.35,
+     nombre: Vans_Cereal_Honey_Nut_Crunch_11_oz_box}
+  - {id: cloro, clase: cleaning_supply, fuente: ycb, nombre: 021_bleach_cleanser, masa: 1.0}
+  - {id: sombrero, clase: clothing, fuente: fuel, dueno: GoogleResearch, masa: 0.10,
+     nombre: DPC_tropical_Trends_Hat}
+  - {id: taza, clase: cup, fuente: fuel, dueno: GoogleResearch, masa: 0.35,
+     nombre: ACE_Coffee_Mug_Kristen_16_oz_cup}
+  # drink: la lata de Coca-Cola de Fuel (OpenRobotics/Coke Can, el modelo clásico de Gazebo) no
+  # sirve: su malla .dae deja la lata ~28 cm bajo su origen, y aun puesta más alta salió
+  # disparada de la mesa (probado el 6-nov). Queda sin modelo, como colgate_box, key y redbull_can.
+  - {id: mouse, clase: electronic_device, fuente: fuel, dueno: GoogleResearch, masa: 0.10,
+     nombre: Razer_Taipan_White_Ambidextrous_Gaming_Mouse}
+  - {id: sopa, clase: food, fuente: ycb, nombre: 005_tomato_soup_can, masa: 0.35}
+  - {id: tenedor, clase: fork, fuente: ycb, nombre: 030_fork, masa: 0.02}
+  # El plátano y el cubo Rubik de Fuel traen otra forma de armar el modelo (mallas .dae con
+  # posiciones propias): se usan los de YCB, iguales a los demás de YCB.
+  - {id: platano, clase: fruit, fuente: ycb, nombre: 011_banana, masa: 0.12}
+  - {id: manzana, clase: fruit, fuente: ycb, nombre: 013_apple, masa: 0.15}
+  - {id: cuchillo, clase: knife, fuente: ycb, nombre: 032_knife, masa: 0.03}
+  - {id: jarro, clase: pitcher, fuente: fuel, dueno: GoogleResearch, masa: 0.60,
+     nombre: Threshold_Porcelain_Pitcher_White}
+  - {id: plato, clase: plate, fuente: fuel, dueno: GoogleResearch, masa: 0.50,
+     nombre: Threshold_Dinner_Plate_Square_Rim_White_Porcelain}
+  - {id: pringles, clase: pringles, fuente: ycb, nombre: 001_chips_can, masa: 0.20}
+  - {id: rubik, clase: rubik_cube, fuente: ycb, nombre: 077_rubiks_cube, masa: 0.10}
+  - {id: cuchara, clase: spoon, fuente: ycb, nombre: 031_spoon, masa: 0.03}
+  - {id: martillo, clase: tool, fuente: fuel, dueno: GoogleResearch, masa: 0.60,
+     nombre: Cole_Hardware_Hammer_Black}
+  - {id: bandeja, clase: tray, fuente: fuel, dueno: GoogleResearch, masa: 0.60,
+     nombre: Threshold_Tray_Rectangle_Porcelain}
+  - {id: plumon, clase: writing_tool, fuente: ycb, nombre: 040_large_marker, masa: 0.02}
