@@ -17,7 +17,14 @@ el punto 3D se saca de la profundidad (ver objetos.py):
        /objeto/distancia    Float32       distancia del efector final (gripper_tcp) al objeto [m]
        /objeto/punto_tcp    PointStamped  el objeto visto desde gripper_tcp (x negativo = lo que
                                           falta avanzar)
+       /objeto/pose         PoseStamped   para agarrarlo (agarre.analizar_objeto): centro del
+                                          objeto y, como orientación, el giro en Z de su eje
+                                          largo (PCA de sus puntos sobre la mesa)
+       /objeto/medidas      Vector3Stamped  largo (x), ancho (y) y alto (z) sobre la mesa [m]
      y anota en el log la clase, la confianza y cuánto le falta a la pinza.
+     /objeto/pose y /objeto/medidas salen de una grilla de `grilla` x `grilla` rayos por TODA la
+     caja (hacen falta puntos de la mesa alrededor para saber dónde empieza el objeto); los usa
+     agarre_node.
 
 Mover el brazo (por /arm_target_pose; lo planifica MoveIt):
   acercar:=true   lleva la pinza frente al objeto en dos tramos, igual que con la manija
@@ -35,7 +42,7 @@ Uso (dentro del contenedor):
 """
 import numpy as np
 import rclpy
-from geometry_msgs.msg import Point, PointStamped, PoseStamped
+from geometry_msgs.msg import Point, PointStamped, PoseStamped, Vector3Stamped
 from rclpy.duration import Duration
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
@@ -46,6 +53,7 @@ from std_msgs.msg import Float32
 from tf2_ros import Buffer, TransformException, TransformListener
 from visualization_msgs.msg import Marker, MarkerArray
 
+from andesrobot_arm.agarre import analizar_objeto
 from andesrobot_arm.capturar_camara import image_to_array
 from andesrobot_arm.kinematics import matrix_to_quaternion, quaternion_to_matrix
 from andesrobot_arm.manija import (
@@ -71,6 +79,7 @@ class ObjetoNode(Node):
         self.declare_parameter('acercar', False)
         self.declare_parameter('tiempo_max', 30.0)
         self.declare_parameter('tol_estable', 0.02)
+        self.declare_parameter('grilla', 15)          # rayos por lado para las medidas
         self.color = self.profundidad = self.k_color = self.k_prof = None
         self.modelo = None
         self.tf_buffer = Buffer()
@@ -86,6 +95,8 @@ class ObjetoNode(Node):
         self.pub_objetivo = self.create_publisher(PoseStamped, '/arm_target_pose', 1)
         self.pub_distancia = self.create_publisher(Float32, '/objeto/distancia', 1)
         self.pub_punto_tcp = self.create_publisher(PointStamped, '/objeto/punto_tcp', 1)
+        self.pub_pose = self.create_publisher(PoseStamped, '/objeto/pose', 1)
+        self.pub_medidas = self.create_publisher(Vector3Stamped, '/objeto/medidas', 1)
         distancias = (self.get_parameter('distancia_previa').value,
                       self.get_parameter('distancia_final').value)
         self.acercamiento = Acercamiento(distancias, tol_llegada=0.01,
@@ -208,6 +219,7 @@ class ObjetoNode(Node):
             return
         r, t = c2p
         profundidad = profundidad_en_metros(self.profundidad)
+        self.medir(destino, caja, c2p, p2d, profundidad)
         puntos = [punto_en_rayo(profundidad, self.k_prof, rayo(u, v, self.k_color), r, t)
                   for u, v in pixeles_centrales(caja)]
         punto = punto_del_objeto(puntos)
@@ -229,6 +241,29 @@ class ObjetoNode(Node):
         self.medir_desde_tcp(destino, punto, nombre, confianza)
         if self.get_parameter('acercar').value:
             self.acercar(destino, punto, llegada)
+
+    def medir(self, frame, caja, c2p, p2d, profundidad):
+        """Medidas para agarrar (agarre.analizar_objeto): publica /objeto/pose y
+        /objeto/medidas, o nada si no hay suficientes puntos del objeto sobre la mesa."""
+        rd, td = p2d
+        puntos = []
+        for u, v in pixeles_centrales(caja, fraccion=1.0, n=self.get_parameter('grilla').value):
+            p = punto_en_rayo(profundidad, self.k_prof, rayo(u, v, self.k_color), *c2p)
+            if p is not None:
+                puntos.append(rd @ p + td)
+        m = analizar_objeto(puntos)
+        if m is None:
+            return
+        ahora = self.get_clock().now().to_msg()
+        giro = np.eye(3)
+        giro[:2, :2] = [[m['eje'][0], -m['eje'][1]], [m['eje'][1], m['eje'][0]]]
+        pose = self.pose_stamped(frame, m['centro'], giro)
+        pose.header.stamp = ahora
+        self.pub_pose.publish(pose)
+        medidas = Vector3Stamped()
+        medidas.header.frame_id, medidas.header.stamp = frame, ahora
+        medidas.vector.x, medidas.vector.y, medidas.vector.z = m['largo'], m['ancho'], m['alto']
+        self.pub_medidas.publish(medidas)
 
     def medir_desde_tcp(self, frame, punto, nombre, confianza):
         """Distancia del efector final (gripper_tcp) al objeto: se publica y se anota."""

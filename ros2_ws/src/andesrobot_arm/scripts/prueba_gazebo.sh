@@ -9,7 +9,9 @@
 #   1. los 3 controladores (joint_state_broadcaster, arm_controller, gripper_controller) activos
 #   2. /joint_states trae el lift, joint_1..6 y los dedos
 #   3. los 4 canales de la cámara de la pinza publican a ~15 Hz
-#   4. una pose alcanzable: el TCP llega a menos de 5 mm (medido por TF)
+#   4. una pose alcanzable: el TCP llega a menos de 5 mm (medido por TF) Y el nodo del brazo
+#      anota "Objetivo alcanzado" (el controlador dio la trayectoria por terminada bien; el 7-nov
+#      el brazo llegaba pero el controlador abortaba todas por la tolerancia de velocidad)
 #   5. con MoveIt (el default de arm_sim): la mesa está en la escena de planificación, una pose
 #      2 cm dentro de la mesa se RECHAZA (MoveIt no encuentra camino y el brazo no se mueve), y
 #      al mirar la mesa con la cámara el OctoMap de la escena se llena de celdas
@@ -97,7 +99,9 @@ err=$(echo "$tf" | python3 -c "
 import sys, re, math
 v = [float(x) for x in re.findall(r'-?\d+\.\d+', sys.stdin.read())[:3]]
 print('%.1f' % (1000 * math.dist(v, [0.5048, -0.2163, 1.862])) if len(v) == 3 else 'nan')")
-if [ "$err" != nan ] && awk "BEGIN{exit !($err < 5)}"; then ok "4. pose alcanzable: TCP a $err mm del objetivo"; else fallo "4. pose alcanzable: TCP a $err mm ($tf)"; fi
+alcanzado=$(grep -c "Objetivo alcanzado" "$LOG")
+if [ "$err" != nan ] && awk "BEGIN{exit !($err < 5)}" && [ "$alcanzado" -ge 1 ]; then ok "4. pose alcanzable: TCP a $err mm del objetivo"
+else fallo "4. pose alcanzable: TCP a $err mm ($tf), 'Objetivo alcanzado' en el log: $alcanzado"; fi
 
 # 5b. Con MoveIt: una pose 2 cm dentro del tablero de la mesa tiene que rechazarse (no hay camino
 #     sin choque) y el brazo quedarse donde estaba.

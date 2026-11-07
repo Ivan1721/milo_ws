@@ -78,15 +78,30 @@ def quaternion_to_matrix(x, y, z, w):
 
 
 def matrix_to_quaternion(rot):
-    """(x, y, z, w) de una matriz de rotación."""
-    w = np.sqrt(max(0.0, 1.0 + rot[0, 0] + rot[1, 1] + rot[2, 2])) / 2.0
-    x = np.copysign(np.sqrt(max(0.0, 1.0 + rot[0, 0] - rot[1, 1] - rot[2, 2])) / 2.0,
-                    rot[2, 1] - rot[1, 2])
-    y = np.copysign(np.sqrt(max(0.0, 1.0 - rot[0, 0] + rot[1, 1] - rot[2, 2])) / 2.0,
-                    rot[0, 2] - rot[2, 0])
-    z = np.copysign(np.sqrt(max(0.0, 1.0 - rot[0, 0] - rot[1, 1] + rot[2, 2])) / 2.0,
-                    rot[1, 0] - rot[0, 1])
-    return np.array([x, y, z, w])
+    """(x, y, z, w) de una matriz de rotación, con w >= 0.
+
+    Método de Shepperd: se calcula primero el componente más grande (w, x, y o z, según la
+    diagonal) y los otros salen de sumas y restas de la matriz divididas por él. Antes se sacaba el
+    signo de x, y, z de las restas fuera de la diagonal, que valen ~0 en un giro de 180° (w = 0):
+    el signo salía del ruido numérico y el cuaternión podía quedar mal (medido el 7-nov: una pinza
+    pedida hacia adelante y abajo quedó apuntando al cielo).
+    """
+    m = np.asarray(rot, float)[:3, :3]
+    traza = m[0, 0] + m[1, 1] + m[2, 2]
+    if traza > 0:
+        s = 2.0 * np.sqrt(1.0 + traza)
+        q = [(m[2, 1] - m[1, 2]) / s, (m[0, 2] - m[2, 0]) / s, (m[1, 0] - m[0, 1]) / s, s / 4]
+    elif m[0, 0] > m[1, 1] and m[0, 0] > m[2, 2]:
+        s = 2.0 * np.sqrt(1.0 + m[0, 0] - m[1, 1] - m[2, 2])
+        q = [s / 4, (m[0, 1] + m[1, 0]) / s, (m[0, 2] + m[2, 0]) / s, (m[2, 1] - m[1, 2]) / s]
+    elif m[1, 1] > m[2, 2]:
+        s = 2.0 * np.sqrt(1.0 + m[1, 1] - m[0, 0] - m[2, 2])
+        q = [(m[0, 1] + m[1, 0]) / s, s / 4, (m[1, 2] + m[2, 1]) / s, (m[0, 2] - m[2, 0]) / s]
+    else:
+        s = 2.0 * np.sqrt(1.0 + m[2, 2] - m[0, 0] - m[1, 1])
+        q = [(m[0, 2] + m[2, 0]) / s, (m[1, 2] + m[2, 1]) / s, s / 4, (m[1, 0] - m[0, 1]) / s]
+    q = np.array(q) / np.linalg.norm(q)
+    return -q if q[3] < 0 else q
 
 
 def make_pose(xyz, rpy=(0.0, 0.0, 0.0)):

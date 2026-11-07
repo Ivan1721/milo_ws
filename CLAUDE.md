@@ -92,7 +92,7 @@ There are no ament_lint tests; keep Python within 99 columns (flake8) to match t
 
 CI (`.github/workflows/ci.yml`, GitHub Actions on every push to `brazo`/`main` and every PR) runs
 three jobs without ROS or Docker: `pytest` of `andesrobot_safety` plus the arm tests that need no
-ROS (`test_torques.py`, `test_medidas.py`, `test_revisar_docs.py`, `test_moveit_opciones.py`, `test_manija.py`), `flake8 --max-line-length=99`
+ROS (`test_torques.py`, `test_medidas.py`, `test_revisar_docs.py`, `test_moveit_opciones.py`, `test_manija.py`, `test_agarre.py`), `flake8 --max-line-length=99`
 on `andesrobot_arm`, `andesrobot_description` and `andesrobot_moveit_config`, and
 `scripts/revisar_docs.py` (broken links/anchors across every `.md`, informe figures and sections in
 order, `\operatorname` forbidden because GitHub rejects it, and every "**N de N** en `X`" test count
@@ -163,7 +163,10 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   holds 10 s. With position-commanded arm joints the box rose 0 mm: gazebo_ros2_control 0.4.10
   teleports position joints (no velocity), so finger friction can't carry anything. Hence
   `arm_controller` is now **velocity** (JTC PID `p` 20, lift 60, `ff_velocity_scale` 1; lift
-  sags 0.3 mm; smoke test green with and without MoveIt). To grasp, command each finger 2 mm
+  sags 0.3 mm; smoke test green with and without MoveIt). Measured joint velocity at rest jitters
+  up to ~0.05 rad/s, so `stopped_velocity_tolerance` is 0.1 (with 0.01 every trajectory ended in
+  GOAL_TOLERANCE_VIOLATED although the arm arrived; the smoke test now also requires "Objetivo
+  alcanzado" in the log). To grasp, command each finger 2 mm
   **inside** the object width (`--apriete`, 20 N with p=10000), not fully closed: that centers
   the object. 0.1-0.5 kg hold within 0.4 mm/10 s (8/8); 1 kg slips 2-3 mm. Marker/fork with convex
   collision still pending (no CoACD/V-HACD in the image).
@@ -227,7 +230,8 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   brighter lights wash the image out). The base slips ~1 mm per arm move even in free air
   (cause measured in `scripts/deriva_base/`: the wheels roll, not slide, because ODE's quick
   solver at the default 50 iterations doesn't hold the diff-drive's zero-velocity motor under
-  the arm's load; `<iters>200</iters>` in the `<physics>` of both worlds, applied 2026-11-05, removes it; real-time
+  the arm's load; `<iters>200</iters>` in the `<physics>` of both worlds, applied 2026-11-05, mostly removes it
+  (with velocity control, 2026-11-07: 1 cm / 0.8° after ~30 arm moves; not re-measured); real-time
   factor of the full arm sim and base driving not re-measured yet): a 300-image run drifted 0.41 m/24°
   and MoveIt then failed 1/3 of views. The generator therefore sets `acceleration_scaling` 0.2 on
   `arm_moveit_node` at runtime, skips views with the TCP < 12 cm from the leaf, and stops at 15 cm
@@ -249,7 +253,28 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   the table) were dropped. `objeto_node` (geometry in `objetos.py`, tested) uses the team's
   27-class YOLO11n detection model `ros2_ws/modelos/objetos/best.pt` (gitignored, copied by
   hand): median of 25 depth rays from the box center → 3D point, then the same two-step
-  `manija.Acercamiento` (0.30 m, then `distancia_final` 0.10 m). Tested 2026-11-07 with `cup` (color fix + new
+  `manija.Acercamiento` (0.30 m, then `distancia_final` 0.10 m). It also publishes grasp
+  measurements from a 15x15 ray grid over the whole box (`agarre.analizar_objeto`: table = most
+  populated height, object = > 4 mm above, PCA long axis, occupancy-histogram extent → length,
+  width, center; not median/percentiles, which bias toward the denser near side):
+  `/objeto/pose` (center + yaw of the long axis) and `/objeto/medidas` (Vector3: largo, ancho,
+  alto).
+- `agarre_node` (`ros2 run andesrobot_arm agarre_node tenedor`; id or class from the catalog;
+  logic in `agarre.py`, `test/test_agarre.py`; launch with `objetos:=tenedor octomap:=false`):
+  starts `objeto_node` (clase, confianza 0.2) if nobody publishes `/objeto/pose` and stops it on
+  exit (SIGTERM handled), tries `vistas` (TCP xyz + aim point xyz; they aim 6 cm *before* the
+  object at (0.80, 0) because the camera looks over the gripper, which otherwise hides it), waits
+  for 3 stable measurements, rejects width > 45 mm, then MoveGroup to 10 cm above (gripper down,
+  fingers across the long axis, `arm_moveit_node.meta_de_pose` shared), Cartesian descent
+  (`/compute_cartesian_path` + `/execute_trajectory`, 10 % speed) to TCP = table + 20.4 mm (finger
+  tips stick out 20.4 mm past the TCP along −X; MoveIt refuses lower) + 5 mm, fingers to width −
+  2 mm each, checks they stalled (`hay_objeto`), attaches a box to `gripper_tcp` in the planning
+  scene, lifts 10 cm (Cartesian, no collision check) and moves to `retraer`. Fork 2/2 on
+  2026-11-07 (center within 1 cm, fingers stop at 27.1 mm, held ≤ 8° tilt); the cup is found and
+  rejected (81 mm). Of the objects that fit, the model only recognizes the fork in sim (P14).
+- `kinematics.matrix_to_quaternion` uses Shepperd's method since 2026-11-07: the old version took
+  x/y/z signs from off-diagonal differences that are ~0 for 180° rotations (gripper forward and
+  down), so poses could come out flipped (affected `manija_node`/`objeto_node` tilted poses). Tested 2026-11-07 with `cup` (color fix + new
   camera): ends 0.100 m from the point.
   `scripts/evaluar_objetos.py` spawns each object alone at (0.80, 0), views it from 3 poses and
   logs YOLO results (CSV in gitignored `ros2_ws/resultados/objetos/`): 2026-11-07 the model

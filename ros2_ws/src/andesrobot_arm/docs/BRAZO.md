@@ -407,6 +407,71 @@ cm muchos objetos se ven chicos. Detectar la mesa como `card` es un falso positi
 sumar fotos de estos objetos simulados al entrenamiento, como se hizo con la manija (P14 en
 `docs/PENDIENTES.md`).
 
+### Agarrar un objeto por su nombre (`agarre_node`)
+
+```bash
+ros2 launch andesrobot_arm arm_sim.launch.py objetos:=tenedor octomap:=false     # terminal 1
+ros2 run andesrobot_arm agarre_node tenedor                                       # terminal 2
+```
+
+El nombre es un id o una clase del catálogo (`tenedor`, `fork`, `taza`, `cup`...). Son dos nodos:
+`objeto_node` **ve** (YOLO + profundidad) y `agarre_node` **mueve** el brazo con lo que la visión
+publica. Si `objeto_node` no está corriendo, `agarre_node` lo arranca buscando la clase del
+objeto (con confianza mínima 0.2) y lo apaga al terminar. Hace una vez la secuencia completa:
+
+1. **Mirar**: abre la pinza y la lleva a una vista frente a la mesa (parámetro `vistas`, de a 6
+   números: dónde va el TCP y a qué punto apunta). La cámara va sobre la pinza y mira por encima
+   de ella: si la pinza apunta justo al objeto, lo tapa. Por eso las vistas apuntan 6 cm antes del
+   objeto. Si no lo encuentra en 20 s, prueba la vista siguiente.
+2. **Encontrar**: `objeto_node` lanza una grilla de 15 × 15 rayos por toda la caja de YOLO hasta
+   la profundidad, y `agarre.analizar_objeto` separa la mesa (la altura donde más puntos se
+   juntan) del objeto (lo que queda más de 4 mm arriba). Del objeto saca el eje largo (PCA), el
+   largo y el ancho (lo que ocupa a lo largo del eje y cruzado a él) y el alto. Publica
+   `/objeto/pose` (centro y giro del eje largo) y `/objeto/medidas` (largo, ancho, alto).
+   `agarre_node` espera 3 mediciones seguidas que coincidan (a menos de 1 cm). Si el objeto mide
+   más de 45 mm de ancho, avisa «no cabe en la pinza» y termina.
+3. **Previa**: la pinza va 10 cm sobre el objeto, apuntando hacia abajo y con los dedos cruzados al
+   eje largo (MoveIt, camino libre).
+4. **Bajar** en línea recta (camino cartesiano de MoveIt, al 10 % de velocidad) hasta dejar las
+   puntas de los dedos 5 mm sobre la mesa: las puntas sobresalen **20.4 mm** más allá del TCP
+   (medido en las mallas de colisión), así que el TCP queda 25 mm sobre la mesa.
+5. **Cerrar** cada dedo 2 mm más adentro que el ancho medido (como en `prueba_levantar.py`) y
+   comprobar que se frenaron antes de llegar: si cerraron hasta lo pedido, no había objeto.
+6. **Unir** el objeto a la pinza en la escena de MoveIt (una caja con sus medidas pegada a
+   `gripper_tcp`, que pueden tocar los dedos y `link_6_1`).
+7. **Levantar** 10 cm en línea recta y **retraer** a `retraer` (TCP en (0.45, 0, 1.0), hacia
+   abajo), y revisar que los dedos sigan frenados por el objeto.
+
+Probado el 7-nov sin ventanas: con el **tenedor** en (0.80, 0), 2 de 2 corridas completas. La
+visión lo ubica a 1 cm de su centro real (168 × 21 mm medidos; la caja de colisión mide 198 × 27),
+los dedos se frenan a 27.1 mm, sube 10 cm y al final queda en la mano, casi horizontal (≤ 8°). Con
+la **taza** lo encuentra (78 × 81 mm) y avisa que no cabe. Hallazgos en el camino:
+- Desde la vista inicial (`frente40` de `evaluar_objetos.py`, que apunta al objeto) la pinza tapaba
+  el tenedor. Probando 12 vistas que apuntan antes del objeto, el modelo lo ve con 0.2–0.6.
+- La altura de la mesa por percentil caía en el canto de la mesa (el tenedor está en el borde): el
+  tablero contaba como objeto (64 mm de ancho). Se usa la altura más poblada.
+- El centro por mediana de los puntos se corría 2.3 cm hacia la cámara (ahí hay más puntos), y el
+  tenedor, agarrado fuera de centro, colgaba inclinado 29°. Se usa el punto medio de su extensión.
+- `kinematics.matrix_to_quaternion` sacaba mal los signos en giros de 180° (la pinza hacia adelante
+  y abajo quedaba apuntando al cielo). Corregida con el método de Shepperd; afectaba también las
+  poses inclinadas de `manija_node` y `objeto_node`.
+- Con el brazo por velocidad, `stopped_velocity_tolerance` = 0.01 hacía abortar toda trayectoria
+  aunque el brazo llegara (en reposo la velocidad medida tiembla hasta 0.05 rad/s): ahora 0.1
+  rad/s (`config/arm_controllers.yaml`). La prueba de humo no lo notó porque solo medía el TCP por
+  TF; ahora exige además «Objetivo alcanzado» en el log.
+- La base todavía resbala: tras ~30 movimientos del brazo quedó 1 cm adelante y girada 0.8°. No
+  afecta al agarre (visión y MoveIt trabajan en `base_footprint`), pero sí a una «verdad» de Gazebo
+  que suponga a Milo en el origen.
+
+Límites: solo agarra desde arriba objetos de hasta 45 mm de ancho; el objeto que más reconoce el
+modelo en la simulación y cabe es el tenedor (la cuchara y el cuchillo no los reconoce, P14). Las
+vistas están pensadas para un objeto en (0.80, 0). El objeto queda en la mano al terminar; para
+soltarlo, abrir la pinza:
+
+```bash
+ros2 action send_goal /gripper_controller/follow_joint_trajectory control_msgs/action/FollowJointTrajectory "{trajectory: {joint_names: [right_finger_joint, left_finger_joint], points: [{positions: [0.016, -0.016], time_from_start: {sec: 1}}]}}"
+```
+
 ## Cámara de la pinza (Orbbec Gemini Plus)
 
 `./sim.sh brazo` monta la cámara detrás de la muñeca (`andesrobot_description/urdf/andesrobot.gripper_camera.xacro`,

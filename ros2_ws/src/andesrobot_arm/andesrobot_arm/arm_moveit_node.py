@@ -80,6 +80,63 @@ def caja(nombre, tam, xyz, frame):
     return obj
 
 
+def meta_de_pose(frame, pose, group='brazo', tcp_frame='gripper_tcp', tol_pos=0.002,
+                 tol_rot=0.02, position_only=False, joint_6_max=1.5708):
+    """MoveGroup.Goal que pide llevar `tcp_frame` a `pose` (geometry_msgs/Pose en `frame`),
+    planificando y ejecutando. La usan arm_moveit_node y agarre_node; quien la llama completa los
+    intentos, el tiempo y las escalas de velocidad y aceleración en goal.request."""
+    # Meta = restricciones sobre el TCP: posición dentro de una esfera chica y orientación
+    # dentro de una tolerancia por eje. Es la forma en que MoveIt recibe "ir a esta pose".
+    pos = PositionConstraint()
+    pos.header.frame_id = frame
+    pos.link_name = tcp_frame
+    pos.target_point_offset = Vector3()
+    esfera = SolidPrimitive()
+    esfera.type = SolidPrimitive.SPHERE
+    esfera.dimensions = [tol_pos]
+    centro = Pose()
+    centro.position = pose.position
+    centro.orientation.w = 1.0
+    pos.constraint_region = BoundingVolume(primitives=[esfera], primitive_poses=[centro])
+    pos.weight = 1.0
+    meta = Constraints(name='pose_de_la_pinza', position_constraints=[pos])
+    if not position_only:
+        ori = OrientationConstraint()
+        ori.header.frame_id = frame
+        ori.link_name = tcp_frame
+        ori.orientation = pose.orientation
+        ori.absolute_x_axis_tolerance = tol_rot
+        ori.absolute_y_axis_tolerance = tol_rot
+        ori.absolute_z_axis_tolerance = tol_rot
+        ori.weight = 1.0
+        meta.orientation_constraints.append(ori)
+    # |joint_6| <= joint_6_max: ver el parámetro joint_6_max de ArmMoveItNode.
+    if joint_6_max > 0:
+        j6 = JointConstraint(joint_name='joint_6', position=0.0, weight=1.0)
+        j6.tolerance_above = j6.tolerance_below = float(joint_6_max)
+        meta.joint_constraints.append(j6)
+
+    goal = MoveGroup.Goal()
+    req = goal.request
+    req.group_name = group
+    req.goal_constraints.append(meta)
+    # Partir de la postura actual (is_diff = no traigo un estado, usa el que ves).
+    req.start_state.is_diff = True
+    # Espacio de trabajo: una caja de 4 x 4 x 3 m alrededor de Milo.
+    req.workspace_parameters.header.frame_id = 'base_footprint'
+    req.workspace_parameters.min_corner.x = -2.0
+    req.workspace_parameters.min_corner.y = -2.0
+    req.workspace_parameters.min_corner.z = -0.1
+    req.workspace_parameters.max_corner.x = 2.0
+    req.workspace_parameters.max_corner.y = 2.0
+    req.workspace_parameters.max_corner.z = 3.0
+    # Planificar Y ejecutar, sobre la escena actual de move_group.
+    goal.planning_options.plan_only = False
+    goal.planning_options.planning_scene_diff.is_diff = True
+    goal.planning_options.planning_scene_diff.robot_state.is_diff = True
+    return goal
+
+
 class ArmMoveItNode(Node):
 
     def __init__(self):
@@ -155,58 +212,13 @@ class ArmMoveItNode(Node):
             return
         frame = msg.header.frame_id or 'base_footprint'
 
-        # Meta = restricciones sobre el TCP: posición dentro de una esfera chica y orientación
-        # dentro de una tolerancia por eje. Es la forma en que MoveIt recibe "ir a esta pose".
-        pos = PositionConstraint()
-        pos.header.frame_id = frame
-        pos.link_name = self.tcp_frame
-        pos.target_point_offset = Vector3()
-        esfera = SolidPrimitive()
-        esfera.type = SolidPrimitive.SPHERE
-        esfera.dimensions = [self.tol_pos]
-        centro = Pose()
-        centro.position = msg.pose.position
-        centro.orientation.w = 1.0
-        pos.constraint_region = BoundingVolume(primitives=[esfera], primitive_poses=[centro])
-        pos.weight = 1.0
-        meta = Constraints(name='pose_de_la_pinza', position_constraints=[pos])
-        if not self.position_only:
-            ori = OrientationConstraint()
-            ori.header.frame_id = frame
-            ori.link_name = self.tcp_frame
-            ori.orientation = msg.pose.orientation
-            ori.absolute_x_axis_tolerance = self.tol_rot
-            ori.absolute_y_axis_tolerance = self.tol_rot
-            ori.absolute_z_axis_tolerance = self.tol_rot
-            ori.weight = 1.0
-            meta.orientation_constraints.append(ori)
-        if self.joint_6_max > 0:
-            j6 = JointConstraint(joint_name='joint_6', position=0.0, weight=1.0)
-            j6.tolerance_above = j6.tolerance_below = float(self.joint_6_max)
-            meta.joint_constraints.append(j6)
-
-        goal = MoveGroup.Goal()
+        goal = meta_de_pose(frame, msg.pose, self.group, self.tcp_frame, self.tol_pos,
+                            self.tol_rot, self.position_only, self.joint_6_max)
         req = goal.request
-        req.group_name = self.group
-        req.goal_constraints.append(meta)
         req.num_planning_attempts = self.attempts
         req.allowed_planning_time = self.planning_time
         req.max_velocity_scaling_factor = self.velocity_scaling
         req.max_acceleration_scaling_factor = self.acceleration_scaling
-        # Partir de la postura actual (is_diff = no traigo un estado, usa el que ves).
-        req.start_state.is_diff = True
-        # Espacio de trabajo: una caja de 4 x 4 x 3 m alrededor de Milo.
-        req.workspace_parameters.header.frame_id = 'base_footprint'
-        req.workspace_parameters.min_corner.x = -2.0
-        req.workspace_parameters.min_corner.y = -2.0
-        req.workspace_parameters.min_corner.z = -0.1
-        req.workspace_parameters.max_corner.x = 2.0
-        req.workspace_parameters.max_corner.y = 2.0
-        req.workspace_parameters.max_corner.z = 3.0
-        # Planificar Y ejecutar, sobre la escena actual de move_group.
-        goal.planning_options.plan_only = False
-        goal.planning_options.planning_scene_diff.is_diff = True
-        goal.planning_options.planning_scene_diff.robot_state.is_diff = True
 
         p = msg.pose.position
         log.info(f"Objetivo ({p.x:.3f}, {p.y:.3f}, {p.z:.3f}) en '{frame}': pidiendo a MoveIt "

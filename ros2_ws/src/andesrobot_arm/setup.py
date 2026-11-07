@@ -34,5 +34,6 @@ setup(
         'arm_moveit_node = andesrobot_arm.arm_moveit_node:main',
         'manija_node = andesrobot_arm.manija_node:main',
         'objeto_node = andesrobot_arm.objeto_node:main',
+        'agarre_node = andesrobot_arm.agarre_node:main',
     ]},
 )

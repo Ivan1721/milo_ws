@@ -69,9 +69,15 @@ arm_controller:
     #   trajectory  error máximo DURANTE el movimiento (0 = no se revisa). Está en 0: con el brazo
     #               pesado podría abortar movimientos normales; probar antes de activarlo.
     #   goal_time   margen [s] para llegar después del tiempo pedido
-    #   stopped_velocity_tolerance  velocidad [rad/s] bajo la que se considera detenido
+    #   stopped_velocity_tolerance  velocidad [rad/s] bajo la que se considera detenido. Era 0.01;
+    #               con el mando por velocidad, en reposo la velocidad medida tiembla hasta
+    #               0.02 rad/s (el P corrige el hundimiento por el peso en cada paso) y TODA
+    #               trayectoria terminaba en GOAL_TOLERANCE_VIOLATED aunque el brazo llegara
+    #               (medido el 7-nov: MoveIt daba "el controlador no ejecutó la trayectoria").
+    #               Con 0.05, levantando un tenedor joint_3 quedó en 0.053: se usa 0.1. La
+    #               posición (goal) se sigue revisando igual.
     constraints:
-      stopped_velocity_tolerance: 0.01
+      stopped_velocity_tolerance: 0.1
       goal_time: 1.0
       vertical_lift_joint: {trajectory: 0.0, goal: 0.005}
       joint_1: {trajectory: 0.0, goal: 0.02}
