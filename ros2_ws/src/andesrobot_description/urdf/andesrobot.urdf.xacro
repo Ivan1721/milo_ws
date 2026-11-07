@@ -719,23 +719,47 @@
   <xacro:arm_limit lower="${joint_6_lower}" upper="${joint_6_upper}"/>
 </joint>
 
+<!-- FUERZA DE LA PINZA. En la EBG-20 un servo MG99x gira un piñón que empuja las dos cremalleras
+     (una por dedo). Si el torque del servo es τ y el radio del piñón es r, el servo reparte su
+     torque entre los dos dedos: τ = 2·F·r, así que cada dedo empuja con F = τ / (2·r).
+     Piñón medido en el CAD (pieza 015 del ZIP de docs/hardware): 16 mm de diámetro exterior,
+     radio de paso ≈ 7 mm (media vuelta del servo mueve el dedo π·7 ≈ 22 mm, la carrera del dedo).
+     Con τ ≈ 0.9 N·m (MG996R trabado a 4.8 V) da F ≈ 65 N por dedo como MÁXIMO teórico; los dientes
+     de ABS y el roce se comen parte. En la simulación se usa menos (gripper_force):
+       - basta y sobra para levantar los objetos de la mesa: con roce μ = 1 y dos dedos, la pinza
+         sostiene hasta 2·μ·F = 40 N, unos 4 kg;
+       - una fuerza grande contra un objeto rígido hace temblar el contacto en el motor de física.
+     Gazebo NUNCA deja que el dedo empuje más que el "effort" de su <limit>: por eso es el tope de
+     fuerza. Al cerrar sobre un objeto, el dedo se frena contra él y sigue empujando con esta
+     fuerza, como el servo real trabado (el objeto, rígido, no se deforma).
+     gripper_damping: amortiguamiento del dedo (N·s/m). Con la fuerza tope, el dedo libre llega a
+     una velocidad de F/b = 20/400 = 0.05 m/s, la de su <limit velocity>. -->
+<xacro:property name="gripper_force" value="20.0"/>
+<xacro:property name="gripper_damping" value="400.0"/>
+
 <!-- Dedo derecho: se desliza en Y entre -7 mm y +16 mm. -->
 <joint name="right_finger_joint" type="${prismatic_joint_type}">
   <origin xyz="-0.0576 -0.0038 0.0135" rpy="0 0 0"/>
   <parent link="link_6_1"/>
   <child link="right_finger_link_1"/>
   <axis xyz="0.0 1.0 0.0"/>
-  <limit upper="0.016" lower="-0.007" effort="30" velocity="0.05"/>
+  <dynamics damping="${gripper_damping}"/>
+  <limit upper="0.016" lower="-0.007" effort="${gripper_force}" velocity="0.05"/>
 </joint>
 
-<!-- Dedo izquierdo: se desliza en Y; "mimic" lo hace copiar al derecho con signo opuesto (la pinza cierra simétrica). -->
+<!-- Dedo izquierdo: se desliza en Y; "mimic" lo hace copiar al derecho con signo opuesto (la pinza cierra simétrica).
+     En la simulación del brazo (arm_control:=true) NO lleva mimic: ahí cada dedo tiene su propio
+     PID de fuerza (andesrobot.arm_control.xacro) y se manda a los dos, en espejo, porque un dedo
+     que solo copia la fuerza del otro no tiene quien lo mantenga en su lugar y se va corriendo
+     con los movimientos del brazo (medido el 7-nov: quedó en -11 mm en vez de -16 al abrir). -->
 <joint name="left_finger_joint" type="${prismatic_joint_type}">
   <origin xyz="-0.0576 0.0038 -0.0135" rpy="0 0 0"/>
   <parent link="link_6_1"/>
   <child link="left_finger_link_1"/>
   <axis xyz="0.0 1.0 0.0"/>
-  <xacro:unless value="${lock_arm}"><mimic joint="right_finger_joint" multiplier="-1.0" offset="0.0"/></xacro:unless>
-  <limit upper="0.007" lower="-0.016" effort="30" velocity="0.05"/>
+  <xacro:unless value="${lock_arm or arm_control}"><mimic joint="right_finger_joint" multiplier="-1.0" offset="0.0"/></xacro:unless>
+  <dynamics damping="${gripper_damping}"/>
+  <limit upper="0.007" lower="-0.016" effort="${gripper_force}" velocity="0.05"/>
 </joint>
 
 <!-- Punto de agarre (TCP): centro entre las caras internas de los dedos, medido en sus mallas.

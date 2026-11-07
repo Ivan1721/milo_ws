@@ -13,7 +13,7 @@
 #   5. con MoveIt (el default de arm_sim): la mesa está en la escena de planificación, una pose
 #      2 cm dentro de la mesa se RECHAZA (MoveIt no encuentra camino y el brazo no se mueve), y
 #      al mirar la mesa con la cámara el OctoMap de la escena se llena de celdas
-#   6. la pinza abre a 0.016 m y cierra a -0.007 m, y el dedo izquierdo copia en espejo
+#   6. la pinza abre a 0.016 m y cierra a -0.007 m, con el dedo izquierdo en espejo
 #   7. al apagar no quedan procesos de ROS vivos
 # Con MOVEIT=false corre arm_ik_node en vez de MoveIt y salta el paso 5 (en Gazebo con mando por
 # posición un choque no frena el brazo, ver docs/BRAZO.md, "Limitaciones").
@@ -58,8 +58,13 @@ for i in $(seq 1 60); do
 done
 if [ $activos = 1 ]; then ok "1. 3 controladores activos a los $((i * 2)) s"; else fallo "1. controladores no activos en 120 s"; apagar; fi
 
-# 2. /joint_states con las articulaciones del brazo.
-nombres=$(timeout 10 ros2 topic echo /joint_states --once --field name 2>/dev/null | tr -d '\n')
+# 2. /joint_states con las articulaciones del brazo. Lo publican dos nodos (las ruedas, desde el
+# plugin de Gazebo, y el brazo, desde joint_state_broadcaster): se leen hasta 5 mensajes hasta
+# dar con el del brazo (con uno solo, a veces llegaba primero el de las ruedas).
+for intento in 1 2 3 4 5; do
+  nombres=$(timeout 10 ros2 topic echo /joint_states --once --field name 2>/dev/null | tr -d '\n')
+  echo "$nombres" | grep -q joint_1 && break
+done
 faltan=""
 for j in vertical_lift_joint joint_1 joint_2 joint_3 joint_4 joint_5 joint_6 right_finger_joint; do
   echo "$nombres" | grep -q "$j" || faltan="$faltan $j"
@@ -118,7 +123,8 @@ if [ "$MOVEIT" = true ]; then
   [ "${celdas:-0}" -gt 100 ] && ok "5c. OctoMap con datos tras mirar la mesa ($celdas bytes)" || fallo "5c. OctoMap vacío (${celdas:-0} bytes): ¿octomap:=false o falta moveit_ros_perception?"
 fi
 
-# 6. Pinza: abrir y cerrar; el dedo izquierdo (mimic) tiene que copiar con signo opuesto.
+# 6. Pinza: abrir y cerrar; los dos dedos se mandan en espejo (izquierdo = −derecho) y cada uno
+# tiene que llegar a su lado.
 # Lee la posición de los dos dedos de /joint_states (lo publican dos nodos, ruedas y brazo:
 # se espera el mensaje que trae los dedos).
 dedos() {
@@ -131,7 +137,7 @@ n = Node('lee_dedos')
 out = []
 def cb(m):
     if 'right_finger_joint' in m.name:
-        out.append((m.position[m.name.index('right_finger_joint')], m.position[m.name.index('left_finger_joint_mimic')]))
+        out.append((m.position[m.name.index('right_finger_joint')], m.position[m.name.index('left_finger_joint')]))
 n.create_subscription(JointState, '/joint_states', cb, 10)
 while rclpy.ok() and not out:
     rclpy.spin_once(n, timeout_sec=0.5)
@@ -144,7 +150,7 @@ for p in 0.016 -0.007; do
   # no se ejecuta; en ese caso se manda de nuevo.
   for intento in 1 2; do
     timeout 15 ros2 action send_goal /gripper_controller/follow_joint_trajectory control_msgs/action/FollowJointTrajectory \
-      "{trajectory: {joint_names: [right_finger_joint], points: [{positions: [$p], time_from_start: {sec: 1}}]}}" > /dev/null 2>&1
+      "{trajectory: {joint_names: [right_finger_joint, left_finger_joint], points: [{positions: [$p, $(awk "BEGIN{print -($p)}")], time_from_start: {sec: 1}}]}}" > /dev/null 2>&1
     sleep 1
     set -- $(dedos)
     [ -n "$1" ] && awk "BEGIN{exit !(($1 - $p) < 0.002 && ($1 - $p) > -0.002)}" && break

@@ -615,7 +615,7 @@ Cuando se manda una pose, lo que llega a ella es el TCP. El origen de `link_6_1`
 g(q_f) = 0.017 + 2\,q_f \quad\Rightarrow\quad g \in [0.003,\ 0.049]\ \text{m para } q_f \in [-0.007,\ 0.016]\ \text{m}
 ```
 
-Apertura entre las caras internas en función de `right_finger_joint`; el izquierdo lo imita con multiplicador −1 (*mimic*). Con $`q_f = 0`$ quedan 17 mm.
+Apertura entre las caras internas en función de `right_finger_joint`; el izquierdo va en espejo (−$`q_f`$): en el URDF lo imita con multiplicador −1 (*mimic*), y en la simulación del brazo cada dedo tiene su propio control y se mandan los dos con valores opuestos. Con $`q_f = 0`$ quedan 17 mm.
 
 **Se lee así:** la abertura de la pinza ($`g`$, distancia entre las caras de los dedos) depende de cuánto se desliza el dedo derecho ($`q_f`$). Es «2 ×» porque el dedo izquierdo copia al derecho en espejo: cada milímetro que se abre uno, se abre también el otro.
 
@@ -837,7 +837,7 @@ flowchart LR
   MG -- "FollowJointTrajectory" --> AC["arm_controller<br/>lift + joint_1..6"]
   IK -. "FollowJointTrajectory<br/>(solo arm_ik_node)" .-> AC
   CAM["cámara de la pinza<br/>/gripper_camera/depth/points"] -- "OctoMap" --> MG
-  GC["gripper_controller<br/>right_finger_joint"]
+  GC["gripper_controller<br/>dos dedos, por fuerza"]
   AC --> HW["gazebo_ros2_control<br/>GazeboSystem"]
   GC --> HW
   HW --> JSB["joint_state_broadcaster"]
@@ -888,7 +888,8 @@ Cómo quedó hecho (paquete `andesrobot_moveit_config`): el grupo `brazo` es la 
 
 ### Control en Gazebo
 
-- `andesrobot.arm_control.xacro`: hardware `GazeboSystem` con mando de **posición** para el lift, joint_1…6 y `right_finger_joint`. El dedo izquierdo es *mimic* y aparece como `left_finger_joint_mimic`.
+- `andesrobot.arm_control.xacro`: hardware `GazeboSystem` con mando de **posición** para el lift y joint_1…6, y de **esfuerzo** (fuerza) para los dos dedos.
+- **Pinza por fuerza (7 de noviembre, fase 1 de P15).** En palabras simples: el servo real de la pinza empuja hasta su fuerza máxima y se frena contra el objeto, que es más rígido; con mando por posición, en cambio, Gazebo ponía el dedo donde se le pedía aunque hubiera un objeto en medio. Ahora `gripper_controller` sigue la trayectoria con un PID (solo P, $`p`$ = 10 000 N/m) cuya fuerza Gazebo recorta al tope `gripper_force` = 20 N del URDF; el dedo tiene amortiguamiento `gripper_damping` = 400 N·s/m (resuelto de forma implícita) y contacto con roce 1, rigidez $`10^5`$ N/m y amortiguamiento 100 N·s/m. El tope sale de la mecánica: el piñón de la EBG-20 (pieza 015 del CAD) tiene un radio de paso de ≈ 7 mm, y con $`F = \tau / (2r)`$ el servo MG99x (τ ≈ 0.9 N·m) daría hasta ≈ 65 N por dedo; en la simulación basta con 20 N (con roce 1 y dos dedos sostiene ≈ 4 kg). Cada dedo tiene su propio PID y se mandan los dos en espejo: con el izquierdo como *mimic* el plugin solo le copiaba la fuerza, y al abrir quedó en −11 mm en vez de −16 porque nada lo mantenía en su lugar. `scripts/prueba_pinza.py` cierra sobre cajas fijas de 10 a 45 mm: los dedos quedan a 0.05 mm del ancho y tiemblan menos de 0.05 mm (20 de 20 cierres; con el contacto rígido por defecto 3 de cada 10 cierres saltaban de 3 a 6 mm). El robot real no cambia: la EBG-20 no tiene driver.
 - Con `arm_control:=true`, el plugin de joint states de Gazebo publica solo las ruedas; el brazo lo publica únicamente `joint_state_broadcaster`.
 - `arm_controllers.yaml` (100 Hz): `arm_controller` con el lift + joint_1…6 (acepta metas parciales) y `gripper_controller`. El `arm_controller` tiene **tolerancias de meta**: si al terminar la trayectoria (con 1 s de margen) una articulación quedó a más de 0.02 rad de su objetivo, o el lift a más de 5 mm, aborta, y `arm_ik_node` avisa «el brazo no llegó… ¿chocó con algo?». Ojo: en Gazebo eso solo pasa si la física logra frenar el brazo, y con el mando por posición casi nunca lo logra (sección 21, prueba del 17 de octubre). La pinza no tiene tolerancia a propósito: al agarrar un objeto, los dedos quedan frenados antes de llegar.
 - El launch quita los comentarios XML del URDF: `gazebo_ros2_control` en Humble no logra leerlo si los tiene, y el controller_manager nunca arranca.
@@ -1113,7 +1114,7 @@ Deja `color.png`, `ir.png`, `profundidad_mm.png` (16 bits en mm, como la real), 
 
 **Avance (5 de noviembre):** con `acercar:=true`, `manija_node` lleva la pinza hasta la manija en dos tramos: con la manija vista de forma estable va a 30 cm de ella (donde la profundidad todavía mide), la vuelve a detectar desde ahí y avanza a ciegas hasta 5 cm. En cada detección calcula cuánto le falta al efector final (`gripper_tcp`): la distancia total y cuánto avanzar en la dirección en que apunta la pinza y cuánto corregir de lado y en altura (`/manija/distancia`). Se probó de punta a punta sin Gazebo (`scripts/probar_manija_sin_gazebo.py`: brazo ideal, puerta plana, keypoints verdaderos con 1 píxel de ruido): la pinza queda a 0.050 m y la manija estimada a 0.3 mm de la verdadera. Esa prueba mostró que, como la palanca es delgada, el rayo de un keypoint puede pasar al lado y medir la hoja de detrás: la pinza habría avanzado 5 cm de más, hasta tocar la manija. Ahora un keypoint que cae sobre la hoja se corrige con el plano de la manija. Falta probarlo en Gazebo con MoveIt y el modelo real.
 
-**Avance (7 de noviembre):** la cámara se movió detrás de la muñeca (ver «Montaje en el modelo») y el acercamiento a la manija se probó por primera vez en la simulación completa (Gazebo, MoveIt y el modelo YOLO): la pinza terminó a 6.3 cm del punto de agarre, cuando el nodo creía haber quedado a 5.0 cm; la manija detectada estaba 1.3 cm más cerca de lo que está. Dos efectos del nuevo lugar: la pinza tapa el tercio de abajo de la imagen, y como la cámara ya no gira con la última articulación (joint_6), el brazo podía llegar a la misma pose con la imagen de cabeza; ahora se le pide a MoveIt que joint_6 quede a menos de 90° de cero.
+**Avance (7 de noviembre):** la cámara se movió detrás de la muñeca (ver «Montaje en el modelo») y el acercamiento a la manija se probó por primera vez en la simulación completa (Gazebo, MoveIt y el modelo YOLO): la pinza terminó a 6.3 cm del punto de agarre, cuando el nodo creía haber quedado a 5.0 cm; la manija detectada estaba 1.3 cm más cerca de lo que está. Dos efectos del nuevo lugar: la pinza tapa el tercio de abajo de la imagen, y como la cámara ya no gira con la última articulación (joint_6), el brazo podía llegar a la misma pose con la imagen de cabeza; ahora se le pide a MoveIt que joint_6 quede a menos de 90° de cero. El mismo día empezó el plan para agarrar objetos (P15): su primera fase dejó la pinza simulada mandada por fuerza, como la real (sección 13, «Control en Gazebo»).
 
 **Cómo sigue** (el plan acordado): con la profundidad, que funciona de 0.25 m hacia afuera, fijar la posición 3D de la manija mientras se acerca; cuando la cámara queda demasiado cerca y la profundidad se pierde, seguir guiando la pinza solo con la imagen a color y los keypoints ([control visual](#g-control-visual)); y por último bajar la manija y empujar. El control de fuerza (impedancia) y la IMU de la pinza quedan para después de saber si esto funciona.
 
@@ -1410,6 +1411,7 @@ Corridas dentro del contenedor (la última vez el 17 de octubre de 2026, en la r
 | Revisión del 17 de octubre, sin ventanas (`gui:=false rviz:=false`) | los 3 controladores activos a los 4 s del arranque; pose alcanzable (0.5048, −0.2163, 1.862) → TF (0.505, −0.216, 1.862); los 4 canales de la cámara a 14.8–15.0 Hz; la pinza abre a 0.016 y cierra a −0.007 (el dedo izquierdo copia en espejo); los tres objetos quedan sobre la mesa anclada al mundo; al apagar no quedan procesos huérfanos | ✅ bien |
 | 17 de octubre, sin MoveIt (`moveit:=false`): pinza mandada 2 cm **dentro** del tablero, desde arriba y desde el costado | en los dos casos el controlador reporta **éxito** y el TCP llega al milímetro: el contacto no frena el brazo, sino que **inclina la base 3° y la corre 3.5 cm hacia atrás**. Con las articulaciones mandadas en posición (infinitamente rígidas), el choque se transmite al robot entero. El abort del 9 de octubre fue un caso afortunado: las tolerancias de meta no son una detección confiable de choques en Gazebo | ⚠️ limitación (sección 23) |
 | 18 de octubre, **MoveIt 2** (`moveit:=true`), sin ventanas | `move_group` activo 2 s después de los controladores; la mesa aparece en la escena (`mesa_tablero`, `mesa_pata`); la pose de validación se planifica (32 puntos, 3.1 s) y el TCP llega a menos de 2 mm; **la pose 2 cm dentro del tablero se rechaza** (OMPL: ninguna solución de IK libre de choques, código FAILURE) y el brazo no se mueve; al mirar la mesa, el OctoMap de la cámara se llena (690 KB a 2 cm); la pinza abre y cierra; sin procesos huérfanos. Todo en `scripts/prueba_gazebo.sh` | ✅ bien |
+| 7 de noviembre, **pinza por fuerza** (`scripts/prueba_pinza.py`, sin ventanas): cajas fijas de 10, 20, 30, 40 y 45 mm entre los dedos | los dedos se frenan a 0.05 mm del ancho y tiemblan menos de 0.05 mm, 20 de 20 cierres; en vacío cierran del todo. Antes, con el contacto rígido de Gazebo, 3 de cada 10 cierres saltaban de 3 a 6 mm, y con el dedo izquierdo como *mimic* la pinza no abría del todo (−11 mm en vez de −16). La prueba de humo pasa completa | ✅ bien |
 
 El robot físico (hoverboard, lidar y mapeo real) no se probó como parte de este informe; la calibración del driver viene documentada como "ya probada en el robot".
 
@@ -1495,7 +1497,7 @@ ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped \
   "{header: {frame_id: base_footprint}, pose: {position: {x: 0.5048, y: -0.2163, z: 1.862},
     orientation: {x: -0.1252, y: 0.5501, z: -0.7869, w: 0.2502}}}"
 ros2 action send_goal /gripper_controller/follow_joint_trajectory control_msgs/action/FollowJointTrajectory \
-  "{trajectory: {joint_names: [right_finger_joint], points: [{positions: [0.016], time_from_start: {sec: 1}}]}}"
+  "{trajectory: {joint_names: [right_finger_joint, left_finger_joint], points: [{positions: [0.016, -0.016], time_from_start: {sec: 1}}]}}"
 ```
 
 ### Puerta y detector de la manija

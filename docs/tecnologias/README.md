@@ -77,7 +77,7 @@ están al final.
 
 **Cómo quedó configurado para Milo** (`andesrobot_moveit_config`): un grupo `brazo` con
 `vertical_lift_joint` + `joint_1…6` (el mismo de `arm_controller`) y un grupo `pinza` con
-`right_finger_joint`. El lift entra como un eje más, igual que hace TIAGo con su torso. Cómo usarlo
+`right_finger_joint` y `left_finger_joint` (en espejo). El lift entra como un eje más, igual que hace TIAGo con su torso. Cómo usarlo
 y sus límites: `andesrobot_arm/docs/BRAZO.md`, sección «MoveIt 2».
 
 ### Solvers de cinemática inversa para MoveIt

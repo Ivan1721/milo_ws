@@ -31,17 +31,57 @@
     <xacro:arm_position_joint name="joint_5"/>
     <xacro:arm_position_joint name="joint_6"/>
 
-    <!-- Pinza: se manda solo el dedo derecho; Gazebo mueve el izquierdo copiándolo con signo
-         opuesto (mimic). En /joint_states el izquierdo aparece como "left_finger_joint_mimic". -->
-    <xacro:arm_position_joint name="right_finger_joint"/>
-    <joint name="left_finger_joint">
-      <param name="mimic">right_finger_joint</param>
-      <param name="multiplier">-1</param>
-      <command_interface name="position"/>
-      <state_interface name="position"/>
-      <state_interface name="velocity"/>
-    </joint>
+    <!-- Pinza: los dedos se mandan por ESFUERZO (fuerza, en N), no por posición. Con posición,
+         Gazebo pone el dedo donde se le pide aunque haya un objeto en medio: lo atraviesa o lo
+         expulsa. Con esfuerzo, gripper_controller calcula la fuerza con un PID (ganancias en
+         arm_controllers.yaml) y Gazebo la recorta al tope gripper_force del URDF: al cerrar
+         sobre un objeto el dedo se frena contra él y sigue empujando con esa fuerza, como el
+         servo real trabado.
+         Cada dedo tiene su propio PID y se mandan los DOS, en espejo (izquierdo = −derecho).
+         Antes el izquierdo era "mimic" (el plugin le copiaba la fuerza del derecho), pero así no
+         tiene control de posición propio: cuando el derecho llega, la fuerza vale 0 y el
+         izquierdo queda suelto donde esté (medido el 7-nov: -11 mm en vez de -16 al abrir).
+         Si el objeto no está centrado, cada dedo se frena donde lo toca. -->
+    <xacro:macro name="dedo_esfuerzo" params="name">
+      <joint name="${name}">
+        <command_interface name="effort"/>
+        <state_interface name="position">
+          <param name="initial_value">0.0</param>
+        </state_interface>
+        <state_interface name="velocity"/>
+      </joint>
+    </xacro:macro>
+    <xacro:dedo_esfuerzo name="right_finger_joint"/>
+    <xacro:dedo_esfuerzo name="left_finger_joint"/>
   </ros2_control>
+
+  <!-- Física de los dedos en Gazebo.
+       implicitSpringDamper: el amortiguamiento gripper_damping es grande para un dedo de ~22 g;
+       calculado paso a paso de la forma simple (explícita) haría oscilar al dedo, así que se
+       resuelve de forma implícita, que es estable con cualquier valor.
+       mu1/mu2: roce de las caras de los dedos (1.0, como goma dura sobre plástico) para que el
+       objeto no resbale.
+       kp/kd: rigidez [N/m] y amortiguamiento [N·s/m] del contacto. Por defecto el contacto de
+       ODE es casi infinitamente rígido; con el dedo apretando 20 N, 3 de cada 10 cierres daban
+       saltos de 3 a 6 mm y uno atravesó la caja (medido el 7-nov con scripts/prueba_pinza.py).
+       Más blando y amortiguado, el dedo se hunde 20 N / 1e5 N/m = 0.2 mm como mucho (medido:
+       0.05 mm) y 10 de 10 cierres quedaron quietos (temblor < 0.05 mm). kd = 100 queda cerca
+       del amortiguamiento crítico del dedo (2·√(kp·m) ≈ 94 con m ≈ 22 g).
+       Probado y descartado: minDepth 0.5–1 mm y maxVel 0 (los dedos se hunden 0.5–1 mm en el
+       objeto y los saltos siguen). -->
+  <xacro:macro name="dedo_gazebo" params="lado">
+    <gazebo reference="${lado}_finger_joint">
+      <implicitSpringDamper>true</implicitSpringDamper>
+    </gazebo>
+    <gazebo reference="${lado}_finger_link_1">
+      <mu1>1.0</mu1>
+      <mu2>1.0</mu2>
+      <kp>100000.0</kp>
+      <kd>100.0</kd>
+    </gazebo>
+  </xacro:macro>
+  <xacro:dedo_gazebo lado="right"/>
+  <xacro:dedo_gazebo lado="left"/>
 
   <!-- Plugin que corre el controller_manager dentro de Gazebo. Lee el URDF desde
        robot_state_publisher y los controladores desde arm_controllers_file. -->

@@ -12,7 +12,7 @@ controller_manager:
     arm_controller:
       type: joint_trajectory_controller/JointTrajectoryController
 
-    # Pinza: solo el dedo derecho (el izquierdo lo copia Gazebo).
+    # Pinza: los dos dedos, mandados por fuerza y en espejo (izquierdo = −derecho).
     gripper_controller:
       type: joint_trajectory_controller/JointTrajectoryController
 
@@ -60,13 +60,36 @@ arm_controller:
 
 gripper_controller:
   ros__parameters:
+    # Las metas tienen que traer los dos dedos, con valores opuestos: abierta [0.016, -0.016],
+    # cerrada [-0.007, 0.007]. Una meta con un solo dedo se rechaza (sin allow_partial_joints_goal)
+    # para que la pinza no quede abierta de un lado.
     joints:
       - right_finger_joint
+      - left_finger_joint
     allow_nonzero_velocity_at_trajectory_end: false
     # Sin tolerancia de meta a propósito: al agarrar un objeto los dedos quedan frenados antes de
     # llegar a la posición pedida, y eso es lo esperado, no una falla.
+    # Mando por ESFUERZO (ver andesrobot.arm_control.xacro): el controlador sigue la trayectoria
+    # con un PID que da una fuerza [N] y Gazebo la recorta a gripper_force (20 N, en el URDF).
     command_interfaces:
-      - position
+      - effort
     state_interfaces:
       - position
       - velocity
+    # Ganancias del PID. Solo P: fuerza = p · (posición pedida − posición del dedo).
+    #   p = 10000 N/m: a 2 mm del objetivo el dedo ya empuja con los 20 N del tope. Al cerrar
+    #     sobre un objeto el objetivo queda "dentro" del objeto, el error no baja de unos mm y el
+    #     dedo empuja siempre con el tope: así se frena contra el objeto sin atravesarlo.
+    #   No hace falta D: el freno lo pone el amortiguamiento del dedo (gripper_damping, en el
+    #     URDF, resuelto por Gazebo de forma estable). Con p/b = 10000/400 el dedo llega a su
+    #     objetivo en ~0.04 s (constante de tiempo), y el lazo a 100 Hz queda estable
+    #     (p·dt/b = 0.25, hace falta < 2).
+    #   No hace falta I: el peso del dedo (~22 g, 0.2 N) deja un error de 0.02 mm.
+    # Al arrancar, el controlador avisa que falta 'ff_velocity_scale' (término de velocidad):
+    # no importa, vale 0 por defecto, que es lo que se quiere.
+    # Probado el 7-nov con scripts/prueba_pinza.py: contra cajas fijas de 10 a 45 mm los dedos
+    # quedan a 0.05 mm del ancho y tiemblan menos de 0.05 mm (30 de 30 cierres); en vacío
+    # cierran del todo.
+    gains:
+      right_finger_joint: {p: 10000.0, i: 0.0, d: 0.0, i_clamp: 0.0}
+      left_finger_joint: {p: 10000.0, i: 0.0, d: 0.0, i_clamp: 0.0}

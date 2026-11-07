@@ -142,10 +142,22 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   `--param` and fails to parse it when the URDF has XML comments (the controller manager never
   starts). The launch strips comments; keep that if you change how the URDF is produced.
 - `arm_control:=true` includes `andesrobot.arm_control.xacro` (`GazeboSystem`, **position** command
-  interfaces, `left_finger_joint` as `mimic` → appears as `left_finger_joint_mimic`) and removes the
-  arm joints from the Gazebo joint_state plugin so `joint_state_broadcaster` is their only publisher.
+  interfaces for lift + joint_1..6, **effort** for both fingers) and removes the arm joints from the
+  Gazebo joint_state plugin so `joint_state_broadcaster` is their only publisher.
+- Gripper by force since 2026-11-07 (P15 phase 1): `gripper_controller` (JTC, effort, P-only
+  `gains` p=10000) holds **both** `right_finger_joint` and `left_finger_joint`; goals must send both,
+  mirrored (`[q, -q]`, open 0.016, closed -0.007), single-finger goals are rejected. With
+  `arm_control:=true` the URDF drops the left finger's `<mimic>` (SRDF `pinza` group and
+  `moveit_controllers.yaml` list both): an effort mimic only copies the force, so the left finger
+  drifted (stopped at -11 mm when opening). Force cap = finger `<limit effort>` = `gripper_force`
+  20 N (Gazebo truncates SetForce to it; EBG-20 pinion pitch radius ≈ 7 mm from CAD part 015 → MG99x
+  max ≈ 65 N/finger), `gripper_damping` 400 N·s/m with `implicitSpringDamper`, finger contact
+  mu 1, kp 1e5, kd 100 (ODE's default rigid contact gave 3-6 mm jumps in 3/10 closes; minDepth /
+  maxVel 0 didn't help). `scripts/prueba_pinza.py` (sim running, best with `mesa:=false
+  camara:=false`) closes on static boxes of 10-45 mm: fingers stop within 0.05 mm, no jitter. Test
+  boxes must be shorter than the 21 mm finger pad (a 20 mm box hit the pad edge and jittered).
 - One `arm_controller` holds `vertical_lift_joint` + `joint_1..6` (so 7-DOF IK solutions move in
-  sync; `allow_partial_joints_goal: true`); `gripper_controller` holds `right_finger_joint`.
+  sync; `allow_partial_joints_goal: true`); `gripper_controller` holds both fingers (above).
 - Controllers are spawned only if `spawn_entity` exits 0.
 - Data flow: `arm_marker_node` (interactive marker at `gripper_tcp`) publishes `PoseStamped` on
   `/arm_target_pose`. With `moveit:=true` (default since 2026-10-18) `arm_moveit_node` turns it into

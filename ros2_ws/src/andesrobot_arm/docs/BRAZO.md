@@ -25,11 +25,12 @@ ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped \
     orientation: {x: -0.1252, y: 0.5501, z: -0.7869, w: 0.2502}}}"
 ```
 
-Abrir / cerrar la pinza (`right_finger_joint`: −0.007 cerrada … 0.016 abierta):
+Abrir / cerrar la pinza (`right_finger_joint`: −0.007 cerrada … 0.016 abierta; `left_finger_joint` siempre
+el valor opuesto: los dos dedos se mandan juntos, en espejo, y una meta con un solo dedo se rechaza):
 
 ```bash
 ros2 action send_goal /gripper_controller/follow_joint_trajectory control_msgs/action/FollowJointTrajectory \
-  "{trajectory: {joint_names: [right_finger_joint], points: [{positions: [0.016], time_from_start: {sec: 1}}]}}"
+  "{trajectory: {joint_names: [right_finger_joint, left_finger_joint], points: [{positions: [0.016, -0.016], time_from_start: {sec: 1}}]}}"
 ```
 
 Sin Docker (ROS Humble instalado en el PC): `ros2 launch andesrobot_arm arm_sim.launch.py`
@@ -47,6 +48,17 @@ andando): `bash /ros2_ws/src/andesrobot_arm/scripts/prueba_gazebo.sh`. Comprueba
 `/joint_states`, los 4 canales de la cámara, una pose alcanzable, y con MoveIt que la mesa está en
 la escena, que una pose dentro de la mesa se rechaza y que el OctoMap se llena; después la pinza, y
 apaga todo al final. `MOVEIT=false bash .../prueba_gazebo.sh` la corre con `arm_ik_node`.
+
+**Pinza por fuerza.** Los dedos se mandan por esfuerzo, no por posición: `gripper_controller` usa
+un PID (`gains` en `config/arm_controllers.yaml`) y Gazebo recorta la fuerza al tope
+`gripper_force` (20 N) del URDF, así que al cerrar sobre un objeto el dedo se frena contra él y
+sigue empujando, como el servo real trabado. Cada dedo tiene su PID (el izquierdo ya no es
+*mimic* en la simulación: así se iba corriendo con los movimientos del brazo). Por qué 20 N, el
+amortiguamiento y los parámetros de contacto: comentarios de `andesrobot.urdf.xacro` y
+`andesrobot.arm_control.xacro`. Prueba (con la simulación corriendo; mejor sin mesa ni cámara:
+`ros2 launch andesrobot_arm arm_sim.launch.py gui:=false rviz:=false mesa:=false camara:=false`):
+`python3 /ros2_ws/src/andesrobot_arm/scripts/prueba_pinza.py` pone cajas fijas de 10 a 45 mm entre
+los dedos y comprueba que se frenan a menos de 1 mm del ancho sin temblar (7-nov: 0.05 mm).
 
 ## MoveIt 2: planificar sin choques
 
