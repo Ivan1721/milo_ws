@@ -878,7 +878,7 @@
 <xacro:if value="${arm_control and not lock_arm}">
   <xacro:include filename="$(find andesrobot_description)/urdf/andesrobot.arm_control.xacro" />
 </xacro:if>
-<!-- Cámara Orbbec Gemini Plus sobre la pinza (solo con gripper_camera:=true): cuerpo, soporte,
+<!-- Cámara Orbbec Gemini Plus detrás de la muñeca (solo con gripper_camera:=true): cuerpo, soporte,
      frames de cada lente y sus sensores en Gazebo (color, profundidad + nube, infrarrojo).
      Por defecto no, así la simulación de mapeo no cambia. La activa andesrobot_arm/arm_sim.launch.py. -->
 <xacro:arg name="gripper_camera" default="false"/>

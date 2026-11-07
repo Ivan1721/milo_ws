@@ -75,6 +75,7 @@ Parámetros de `arm_moveit_node` (`--ros-args -p nombre:=valor`):
 | `velocity_scaling` / `acceleration_scaling` | 0.5 / 0.5 | fracción de los límites de `joint_limits.yaml` |
 | `tolerancia_pos` / `tolerancia_rot` | 2 mm / 0.02 rad | esfera y ángulo por eje que se aceptan como «llegó» |
 | `position_only` | false | ignorar la orientación |
+| `joint_6_max` | 1.5708 rad | la meta pide además \|joint_6\| ≤ este valor, para que la cámara (detrás de la muñeca) no quede de cabeza; 0 = sin esta restricción |
 | `mesa` / `mesa_frame` | true / `base_footprint` | publicar la mesa de prueba como obstáculo; `mesa:=false` del launch la apaga |
 
 Archivos de `andesrobot_moveit_config/config/`: `andesrobot.srdf` (grupos `brazo` y `pinza`,
@@ -241,9 +242,9 @@ ros2 run andesrobot_arm manija_node --ros-args -p use_sim_time:=true -p acercar:
 ```
 
 Para que la cámara vea la manija antes de lanzar el nodo, mandar primero la pinza a una pose de
-partida frente a ella (x 0.373, y −0.319, z 1.062 en `base_footprint`, pinza girada 180° en Z: la
-cámara queda a 45 cm de la manija). El comando, de dónde sale la pose y las alternativas a 55 y
-65 cm están en [`docs/prueba_desde_cero.md`](../../../../docs/prueba_desde_cero.md#9-pinza-frente-a-la-manija-y-acercamiento),
+partida frente a ella (x 0.387, y −0.319, z 1.086 en `base_footprint`, pinza horizontal girada
+180° en Z: la cámara queda a 55 cm de la manija). El comando, de dónde sale la pose y las
+alternativas a 45 y 65 cm están en [`docs/prueba_desde_cero.md`](../../../../docs/prueba_desde_cero.md#9-pinza-frente-a-la-manija-y-acercamiento),
 el orden de pruebas desde un PC vacío.
 
 `scripts/probar_manija_sin_gazebo.py` prueba el nodo de punta a punta **sin Gazebo ni YOLO** (un
@@ -253,6 +254,13 @@ y la manija estimada a 0.3 mm de la verdadera. Esa prueba encontró que el rayo 
 pasar al lado de la palanca y llevar la pinza 5 cm de más (hasta tocar la manija): por eso
 `corregir_saliente`. No reemplaza la prueba en Gazebo (MoveIt, la imagen y el modelo reales). Un
 nodo o script nuevo necesita `./sim.sh build`.
+
+**Probado en Gazebo (7-nov-2026)**, con la cámara detrás de la muñeca y desde la pose de partida:
+detecta la manija estable, va a la pose previa, la detecta de nuevo a 0.300 m y termina con
+«Listo: … 0.050 m». Medida con TF, la pinza quedó a 0.063 m del punto de agarre verdadero
+(x 0.745): el punto detectado estaba 1.3 cm más cerca. Los marcadores en RViz no se revisaron
+(prueba sin ventanas). El modelo se entrenó con fotos de la cámara anterior (sobre la pinza, sin
+el cuerpo de la pinza en la imagen) y aun así la detecta.
 
 **Primer resultado (19-10-2026)**, `yolov8s-pose` con 267 fotos de entrenamiento y 60 de
 validación (puertas que no vio), 100 épocas en 6 minutos (RTX 3070): encuentra la manija en las
@@ -292,8 +300,8 @@ una vez a `ros2_ws/modelos/gazebo/` (no va a git, ~370 MB); el launch suma esa c
 python3 /ros2_ws/src/andesrobot_arm/scripts/descargar_objetos.py               # una vez (internet)
 python3 /ros2_ws/src/andesrobot_arm/scripts/descargar_objetos.py --lista       # ids y clases
 ros2 launch andesrobot_arm arm_sim.launch.py objetos:=true octomap:=false      # terminal 1
-# Pinza frente a la mesa, cámara a 50 cm de los objetos mirando 40° hacia abajo:
-ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped "{header: {frame_id: base_footprint}, pose: {position: {x: 0.451, y: -0.009, z: 1.016}, orientation: {x: -0.1732, y: 0.0, z: -0.9849, w: 0.0}}}"
+# Pinza frente a la mesa, cámara a 50 cm del centro de la mesa mirando 40° hacia abajo:
+ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped "{header: {frame_id: base_footprint}, pose: {position: {x: 0.531, y: -0.009, z: 0.941}, orientation: {x: -0.1736, y: 0.0, z: -0.9848, w: 0.0}}}"
 ros2 run andesrobot_arm objeto_node --ros-args -p use_sim_time:=true -p clase:=cup -p acercar:=true
 # opciones: -p clase:=''  (la detección más segura, de cualquier clase)  -p confianza:=0.4
 #           -p distancia_previa:=0.30  -p distancia_final:=0.10  -p inclinacion:=20.0
@@ -311,7 +319,11 @@ de Milo, inclinada `inclinacion` grados hacia abajo, en los mismos dos tramos qu
 **Probado en Gazebo (6-nov-2026), clase `cup`:** desde la pose de arriba, detecta la taza (0.75),
 va a la pose previa (quedó a 0.300 m), la detecta de nuevo (0.66, el punto se movió 1 cm) y
 termina con la pinza a 0.103 m del punto detectado (pedido 0.10 m), justo frente a la taza. Esa
-prueba se hizo antes de corregir el orden de los colores (ver abajo); no se repitió después.
+prueba se hizo antes de corregir el orden de los colores (ver abajo). **Repetida el 7-nov-2026**,
+con los colores corregidos y la cámara detrás de la muñeca: detecta la taza blanca (0.83) en
+(0.79, −0.26, 0.79), llega a la pose previa (0.301 m) y termina a 0.100 m. Desde atrás la pinza
+ocupa el tercio de abajo de la imagen y el modelo a veces la llama `card` (0.22); `objeto_node` no
+se confunde porque busca la clase pedida.
 
 Qué hace `descargar_objetos.py` con cada modelo, y por qué (cada cosa salió de una prueba):
 - **Material:** sin arreglo los objetos se veían negros (sin color ambiente `Ka`, o `Ka` en 0) o
@@ -365,7 +377,7 @@ sumar fotos de estos objetos simulados al entrenamiento, como se hizo con la man
 
 ## Cámara de la pinza (Orbbec Gemini Plus)
 
-`./sim.sh brazo` monta la cámara sobre la pinza (`andesrobot_description/urdf/andesrobot.gripper_camera.xacro`,
+`./sim.sh brazo` monta la cámara detrás de la muñeca (`andesrobot_description/urdf/andesrobot.gripper_camera.xacro`,
 malla `meshes/orbbec_gemini_plus.stl`) y pone una mesa con tres objetos frente a Milo
 (`worlds/mesa_prueba.sdf`). Canales, con los mismos nombres que el driver real `OrbbecSDK_ROS2`
 lanzado con `camera_name:=gripper_camera`:
@@ -395,11 +407,26 @@ ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped \
     orientation: {x: 0.3827, y: 0.0, z: 0.9239, w: 0.0}}}"
 ```
 
-Montaje: soporte con bisagra sobre la cara superior de `link_6_1`, cámara mirando hacia donde apunta
-la pinza e inclinada 20° hacia abajo (`gripper_camera_tilt`). Frames: `gripper_camera_link` (cuerpo),
+Montaje (desde el 7-nov-2026; antes iba sobre la cara superior de `link_6_1`): un soporte en L
+atornillado a la **tapa trasera del eje 6** (la carcasa del motor de joint_6, parte de
+`link_5_1`, x = +0.056 m) sube por encima de la carcasa; arriba va la bisagra y la cámara mira
+hacia donde apunta la pinza, inclinada 20° hacia abajo (`gripper_camera_tilt`). Queda 16 cm
+detrás del TCP y 10 cm por encima. La L (aluminio de 3 mm, 0.04 kg) es un diseño estimado: no
+está fabricada ni pesada. Frames: `gripper_camera_mount` (bisagra), `gripper_camera_link` (cuerpo),
 `gripper_camera_{color,depth,ir}_frame` (cada lente) y sus `_optical_frame` (Z adelante, los de los
-mensajes). La profundidad empieza a 0.25 m: la cámara **no ve el objeto en el agarre final** (los
-dedos quedan a ~9 cm); se mide desde una pose previa y después se cierra sin ver.
+mensajes).
+
+Lo que cambia por ir detrás de la muñeca:
+- **La pinza tapa el tercio de abajo de la imagen.** Con la L más baja (placa a 5 mm de la
+  carcasa) tapaba la mitad y el objeto quedaba detrás de ella; por eso la bisagra está 3 cm más
+  arriba. Los dedos se ven apenas (las puntas), el resto de la pinza es una mancha blanca abajo.
+- **La cámara no gira con joint_6.** Para la misma pose del TCP, MoveIt puede elegir joint_6 ≈ 0
+  o ≈ ±π (media vuelta, con el resto del brazo acomodado); con ±π la pinza queda igual pero la
+  imagen sale **de cabeza** (medido: joint_6 = 2.99 rad). `arm_moveit_node` pide por eso
+  \|joint_6\| ≤ 90° en cada meta (`joint_6_max`): la cámara queda con su «arriba» hacia el +Z del
+  TCP, como antes. Con `moveit:=false` (`arm_ik_node`) eso no está y la imagen puede salir girada.
+- **Ve más cerca.** Un objeto a 0.10 m delante de los dedos queda a 0.27 m de la cámara, dentro
+  de la profundidad (desde 0.25 m). La manija a 5 cm (0.22 m) todavía no: ese tramo sigue a ciegas.
 
 Diferencias con la cámara real: la profundidad real llega en mm (`16UC1`) con ruido y huecos, y el IR
 real muestra el patrón de puntos del proyector; en Gazebo la profundidad es perfecta y el IR es una

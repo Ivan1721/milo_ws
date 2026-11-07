@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <!-- =============================================================================================
-  CÁMARA ORBBEC GEMINI PLUS SOBRE LA PINZA (solo con gripper_camera:=true)
+  CÁMARA ORBBEC GEMINI PLUS DETRÁS DE LA MUÑECA (solo con gripper_camera:=true)
 
   QUÉ ES
   Cámara 3D de luz estructurada binocular: un proyector infrarrojo dibuja un patrón y dos cámaras
@@ -24,7 +24,7 @@
   en la cámara real: no usarla).
 
   FRAMES (convención REP-103: X adelante, Y izquierda, Z arriba)
-    gripper_camera_mount            soporte fijo sobre la pinza (bisagra)
+    gripper_camera_mount            soporte en L en la tapa trasera del eje 6 (bisagra)
     gripper_camera_link             centro del cuerpo de la cámara
     gripper_camera_<canal>_frame    cada lente (X hacia donde mira la lente)
     gripper_camera_<canal>_optical_frame   el mismo punto en convención ÓPTICA (Z adelante,
@@ -44,48 +44,82 @@
 <xacro:property name="gemini_ir_y" value="0.0199"/>      <!-- [m] IR izquierda = profundidad -->
 <xacro:property name="gemini_color_y" value="0.0091"/>   <!-- [m] RGB -->
 
-<!-- ===== Montaje sobre la pinza =====
-  El soporte de la cámara tiene una bisagra: la placa de abajo se atornilla sobre la cara superior
-  del cuerpo de la pinza (link_6_1, z = +0.0325 m) y la de arriba sostiene la cámara. Girando la
-  bisagra se inclina la cámara hacia abajo para que mire hacia adelante de los dedos.
-  La pinza apunta hacia -X de link_6_1, así que la cámara va girada 180° en Z (yaw = pi).
-  gripper_camera_tilt = inclinación hacia abajo [rad]. Con 0.35 (20°) un objeto a 0.3 m o más
-  delante de la pinza queda en el centro de la imagen y la punta de los dedos se ve abajo. -->
+<!-- ===== Montaje detrás de la muñeca, en la tapa trasera del eje 6 =====
+  El motor del eje 6 (joint_6) está dentro de una carcasa cilíndrica de link_5_1: eje a lo largo
+  de X, a z = 0.0495 m, radio 40 mm, de x = -0.041 (donde sale la pinza) a x = +0.056 (tapa de
+  atrás). La cámara va atornillada a esa tapa trasera con un soporte en L:
+    - placa vertical (3 mm) apoyada en la tapa, que sube por encima de la carcasa;
+    - placa horizontal (2 mm) arriba, sobre la que va la bisagra del soporte de la cámara;
+    - la bisagra inclina la cámara hacia abajo para que mire hacia adelante, por encima de la pinza.
+  Como el soporte es de link_5_1 y NO de link_6_1, la cámara no gira con joint_6: la imagen queda
+  siempre derecha y lo que gira dentro de la imagen es la pinza. La pinza apunta hacia -X de
+  link_5_1 (joint_6 gira alrededor de -X), así que la cámara va girada 180° en Z (yaw = pi).
+  Queda unos 16 cm detrás del TCP y 10 cm por encima de él. Los dedos NO se ven (los tapa el
+  cuerpo de la pinza, que ocupa el tercio de abajo de la imagen), pero sí un objeto a 0.10 m
+  delante de ellos, y ese objeto queda a más de 0.25 m de la cámara (la distancia mínima de su
+  profundidad).
+  gripper_camera_tilt = inclinación hacia abajo [rad]. Con 0.35 (20°) un objeto a 0.10 m delante
+  del TCP queda cerca del centro de la imagen y uno a 0.30 m, unos 7° sobre el centro. -->
 <xacro:property name="gripper_camera_tilt" value="0.35"/>
-<xacro:property name="gripper_camera_hinge_x" value="-0.015"/>  <!-- [m] eje de la bisagra en link_6_1 -->
-<xacro:property name="gripper_camera_hinge_z" value="0.04025"/> <!-- [m] cara superior 0.0325 + placa 2 mm + radio 5.75 mm -->
+<xacro:property name="gripper_camera_cap_x" value="0.056"/>      <!-- [m] tapa trasera del eje 6 en link_5_1 -->
+<xacro:property name="gripper_camera_hinge_x" value="0.045"/>    <!-- [m] eje de la bisagra en link_5_1 -->
+<!-- [m] altura del eje de la bisagra: placa horizontal a 0.125-0.127 (3.55 cm sobre la carcasa,
+     que llega a 0.0895) + radio de la bisagra 5.75 mm. Desde atrás la pinza tapa la parte de abajo
+     de la imagen: con la placa a solo 5 mm de la carcasa tapaba la mitad (medido el 7-nov) y un
+     objeto a 0.10 m delante de los dedos quedaba escondido detrás de ella. 3 cm más arriba ese
+     objeto queda ~7° sobre el borde de la pinza en la imagen. -->
+<xacro:property name="gripper_camera_hinge_z" value="0.13275"/>
 <!-- Del eje de la bisagra al centro del cuerpo (sin inclinar): la placa del soporte va detrás del
      cuerpo y baja 28.35 mm bajo su centro (medido en el modelo STEP). -->
 <xacro:property name="gripper_camera_body_dx" value="0.01325"/>
 <xacro:property name="gripper_camera_body_dz" value="0.02835"/>
+<!-- Soporte en L (aluminio de 3 mm, estimado: no está medido ni pesado). Medidas en el frame de
+     la bisagra, que mira hacia adelante: la tapa trasera queda en x = hinge_x - cap_x (negativo,
+     atrás) y la placa vertical baja hasta z = 0.030 de link_5_1. -->
+<xacro:property name="gripper_camera_l_mass" value="0.04"/>      <!-- [kg] 2700 kg/m³ x 15 cm³ -->
+<xacro:property name="gripper_camera_l_ancho" value="0.0446"/>   <!-- [m] mismo ancho que la bisagra -->
+<xacro:property name="gripper_camera_l_bajo" value="0.030"/>     <!-- [m] borde de abajo, z en link_5_1 -->
 
 <!-- Frecuencia de los sensores simulados. La cámara real llega a 30 Hz; en Gazebo cada canal
      cuesta GPU, así que por defecto se simula a 15 Hz. -->
 <xacro:property name="gripper_camera_rate" value="15"/>
 
-<!-- ===== Soporte (bisagra), fijo sobre la pinza, sin inclinar ===== -->
+<!-- ===== Soporte en L + bisagra, fijo a la tapa trasera del eje 6, sin inclinar =====
+  El origen de este link es el eje de la bisagra; su +X mira hacia adelante (hacia la pinza). -->
+<xacro:property name="_l_x" value="${gripper_camera_hinge_x - gripper_camera_cap_x}"/>  <!-- tapa, en este frame -->
+<xacro:property name="_l_alto" value="${gripper_camera_hinge_z - 0.00675 - gripper_camera_l_bajo}"/>
 <link name="gripper_camera_mount">
-  <!-- Masa simbólica: Gazebo Classic descarta los links sin <inertial>. La masa del soporte va
-       incluida en los 0.122 kg de la cámara. -->
+  <!-- La masa de la bisagra va incluida en los 0.122 kg de la cámara; esta es la de la L
+       (caja del tamaño de la placa vertical, que es casi toda la masa). -->
   <inertial>
-    <mass value="0.001"/>
-    <inertia ixx="1e-6" iyy="1e-6" izz="1e-6" ixy="0" ixz="0" iyz="0"/>
+    <origin xyz="${_l_x - 0.0015} 0 ${-0.00675 - _l_alto/2}" rpy="0 0 0"/>
+    <mass value="${gripper_camera_l_mass}"/>
+    <inertia ixx="${gripper_camera_l_mass/12*(gripper_camera_l_ancho**2 + _l_alto**2)}" ixy="0" ixz="0"
+             iyy="${gripper_camera_l_mass/12*(0.003**2 + _l_alto**2)}" iyz="0"
+             izz="${gripper_camera_l_mass/12*(0.003**2 + gripper_camera_l_ancho**2)}"/>
   </inertial>
-  <!-- Bisagra: cilindro de 11.5 mm a lo ancho (eje Y) + placa de abajo apoyada en la pinza. -->
+  <!-- Bisagra: cilindro de 11.5 mm a lo ancho (eje Y). -->
   <visual>
     <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
     <geometry><cylinder radius="0.00575" length="0.0446"/></geometry>
     <material name="caster_black"/>
   </visual>
+  <!-- Placa horizontal de la L: desde 4 mm delante de la bisagra hasta la placa vertical. -->
   <visual>
-    <origin xyz="-0.008 0 -0.00675" rpy="0 0 0"/>
-    <geometry><box size="0.016 0.0446 0.002"/></geometry>
+    <origin xyz="${(0.004 + _l_x - 0.003)/2} 0 -0.00675" rpy="0 0 0"/>
+    <geometry><box size="${0.004 - _l_x + 0.003} ${gripper_camera_l_ancho} 0.002"/></geometry>
+    <material name="caster_black"/>
+  </visual>
+  <!-- Placa vertical de la L, atornillada a la tapa trasera. -->
+  <visual>
+    <origin xyz="${_l_x - 0.0015} 0 ${-0.00675 - _l_alto/2}" rpy="0 0 0"/>
+    <geometry><box size="0.003 ${gripper_camera_l_ancho} ${_l_alto}"/></geometry>
     <material name="caster_black"/>
   </visual>
 </link>
 <joint name="gripper_camera_mount_joint" type="fixed">
   <origin xyz="${gripper_camera_hinge_x} 0 ${gripper_camera_hinge_z}" rpy="0 0 ${pi}"/>
-  <parent link="link_6_1"/>
+  <parent link="link_5_1"/>
   <child link="gripper_camera_mount"/>
 </joint>
 

@@ -38,6 +38,7 @@ import numpy as np
 import rclpy
 from geometry_msgs.msg import Point, PointStamped, PoseStamped
 from rclpy.duration import Duration
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from rclpy.time import Time
@@ -334,7 +335,7 @@ def main():
     nodo = ManijaNode()
     try:
         rclpy.spin(nodo)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):   # Ctrl+C o "timeout"/kill
         pass
     nodo.destroy_node()
     rclpy.try_shutdown()

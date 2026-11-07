@@ -23,8 +23,8 @@ from rclpy.node import Node
 from geometry_msgs.msg import Pose, PoseStamped, Vector3
 from moveit_msgs.action import MoveGroup
 from moveit_msgs.msg import (
-    BoundingVolume, CollisionObject, Constraints, MoveItErrorCodes, OrientationConstraint,
-    PlanningScene, PositionConstraint)
+    BoundingVolume, CollisionObject, Constraints, JointConstraint, MoveItErrorCodes,
+    OrientationConstraint, PlanningScene, PositionConstraint)
 from shape_msgs.msg import SolidPrimitive
 
 # Códigos de resultado de MoveIt (moveit_msgs/MoveItErrorCodes), explicados.
@@ -96,6 +96,14 @@ class ArmMoveItNode(Node):
         self.tol_pos = self.declare_parameter('tolerancia_pos', 0.002).value
         self.tol_rot = self.declare_parameter('tolerancia_rot', 0.02).value
         self.position_only = self.declare_parameter('position_only', False).value
+        # La cámara va detrás de la muñeca, en link_5_1, y NO gira con joint_6. Para una misma
+        # pose del TCP MoveIt puede elegir joint_6 ≈ 0 o ≈ ±pi (media vuelta, con el resto del
+        # brazo acomodado): con ±pi la pinza queda igual pero la cámara queda de cabeza (medido el
+        # 7-nov: joint_6 = 2.99 rad, imagen al revés). Por eso la meta pide además
+        # |joint_6| <= joint_6_max: así la cámara queda con su "arriba" hacia el +Z del TCP, como
+        # cuando iba sobre la pinza. La pinza es simétrica (dos dedos iguales), así que ±90° de
+        # giro le alcanzan para cualquier agarre. 0 o menos = sin esta restricción.
+        self.joint_6_max = self.declare_parameter('joint_6_max', 1.5708).value
         # Mesa de prueba (worlds/mesa_prueba.sdf) como obstáculo conocido; mesa:=false si se
         # lanzó arm_sim con mesa:=false. Va en base_footprint (el frame del modelo): la escena de
         # MoveIt solo conoce los frames del robot, no los demás de TF ("Unknown frame: odom").
@@ -172,6 +180,10 @@ class ArmMoveItNode(Node):
             ori.absolute_z_axis_tolerance = self.tol_rot
             ori.weight = 1.0
             meta.orientation_constraints.append(ori)
+        if self.joint_6_max > 0:
+            j6 = JointConstraint(joint_name='joint_6', position=0.0, weight=1.0)
+            j6.tolerance_above = j6.tolerance_below = float(self.joint_6_max)
+            meta.joint_constraints.append(j6)
 
         goal = MoveGroup.Goal()
         req = goal.request

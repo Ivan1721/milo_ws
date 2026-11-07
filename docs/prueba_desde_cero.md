@@ -159,27 +159,30 @@ Sin `octomap:=false`, MoveIt toma la puerta que ve la cámara como obstáculo y 
 manija.
 
 ```bash
-ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped "{header: {frame_id: base_footprint}, pose: {position: {x: 0.373, y: -0.319, z: 1.062}, orientation: {x: 0.0441, y: 0.0, z: -0.999, w: 0.0}}}"
+ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped "{header: {frame_id: base_footprint}, pose: {position: {x: 0.387, y: -0.319, z: 1.086}, orientation: {x: 0.0, y: 0.0, z: 1.0, w: 0.0}}}"
 ```
 
 **Debe pasar:** el brazo llega y en RViz la pinza queda frente a la puerta apuntando a la manija.
-En la imagen de `/gripper_camera/color/image_raw` se ve la manija.
+En la imagen de `/gripper_camera/color/image_raw` se ve la manija cerca del centro, con la pinza
+ocupando el tercio de abajo (la cámara la mira desde atrás).
 
 **De dónde sale la pose** (calculada con el URDF y la cinemática del repositorio):
 - **La manija:** su punto de agarre está en x 0.745, y −0.31, z 1.0 m respecto de
   `base_footprint`, mientras la base no se haya movido desde que partió la simulación.
-- **La cámara:** va 6 cm por encima de la punta de la pinza (`gripper_tcp`) e inclinada 20° hacia
-  abajo. Por eso la pose deja la cámara a 45 cm de la manija y 15° más arriba, mirándola de frente.
-  45 cm está dentro de lo que la profundidad mide bien (desde 0.25 m).
-- **La orientación** (`z: -0.999`) es la pinza girada 180° en Z, apuntando hacia la puerta (+X).
+- **La cámara:** va detrás de la muñeca, en la tapa trasera del eje 6: 16 cm detrás de la punta
+  de la pinza (`gripper_tcp`), 10 cm más arriba e inclinada 20° hacia abajo. Por eso la pose deja
+  la cámara a 55 cm de la manija, mirándola desde arriba con esos 20°, y la pinza a 37 cm de ella.
+  55 cm está dentro de lo que la profundidad mide bien (desde 0.25 m).
+- **La orientación** (`z: 1.0`) es la pinza girada 180° en Z, horizontal, apuntando hacia la
+  puerta (+X).
 
 Si MoveIt no llega, la misma orientación sirve más lejos:
 
 | Distancia de la cámara a la manija | `x` | `y` | `z` |
 |---|---:|---:|---:|
-| 45 cm (la de arriba) | 0.373 | −0.319 | 1.062 |
-| 55 cm | 0.276 | −0.319 | 1.088 |
-| 65 cm | 0.179 | −0.319 | 1.114 |
+| 45 cm (pinza a 27 cm: el nodo retrocede a 30 cm) | 0.481 | −0.319 | 1.052 |
+| 55 cm (la de arriba) | 0.387 | −0.319 | 1.086 |
+| 65 cm | 0.293 | −0.319 | 1.120 |
 
 También se puede arrastrar la esfera naranja en RViz hasta que la manija quede al centro de la
 imagen de la cámara.
@@ -198,7 +201,9 @@ avanza a ciegas hasta quedar a 5 cm.
 - En RViz los marcadores de `/manija/marcadores` caen sobre la manija, con un error de pocos mm.
 - MoveIt llega a la pose previa (30 cm) y después a 5 cm.
 - El log termina con «Listo: la pinza quedó a … m del punto de agarre», y esa distancia coincide
-  con la que se ve en RViz.
+  con la que se ve en RViz. En la prueba del 7-nov-2026 el log dijo 0.050 m y la pinza quedó a
+  0.063 m del punto de agarre verdadero: la manija detectada estaba 1.3 cm más cerca de lo que
+  está.
 
 **Si no funciona:**
 - **El log dice que las detecciones saltan:** súbele la tolerancia con `-p tol_estable:=0.04`.
@@ -230,11 +235,11 @@ ros2 launch andesrobot_arm arm_sim.launch.py objetos:=true octomap:=false
 vuelve a correr `descargar_objetos.py`: arregla el material). Para otros objetos:
 `objetos:=taza,platano,pringles` (los ids salen con `descargar_objetos.py --lista`).
 
-**Terminal 2** (`./sim.sh shell`): mandar la pinza a la pose de partida, con la cámara a 50 cm de los
-objetos mirando 40° hacia abajo.
+**Terminal 2** (`./sim.sh shell`): mandar la pinza a la pose de partida, con la cámara a 50 cm del
+centro de la mesa mirando 40° hacia abajo.
 
 ```bash
-ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped "{header: {frame_id: base_footprint}, pose: {position: {x: 0.451, y: -0.009, z: 1.016}, orientation: {x: -0.1732, y: 0.0, z: -0.9849, w: 0.0}}}"
+ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped "{header: {frame_id: base_footprint}, pose: {position: {x: 0.531, y: -0.009, z: 0.941}, orientation: {x: -0.1736, y: 0.0, z: -0.9848, w: 0.0}}}"
 ```
 
 **Terminal 2:** detectar la taza y acercar la pinza.
@@ -244,9 +249,10 @@ ros2 run andesrobot_arm objeto_node --ros-args -p use_sim_time:=true -p clase:=c
 ```
 
 **Debe pasar:**
-- El log dice `veo: cup` y la posición de la taza, cerca de x 0.77, y 0.10, z 0.80.
+- El log dice `veo: cup` y la posición de la taza, cerca de x 0.79, y −0.26, z 0.79.
 - La pinza va a 30 cm de la taza, la detecta de nuevo y termina con «Listo: la pinza quedó a … m
-  del objeto», cerca de 0.10 m. Así salió en la prueba del 6-nov-2026 (0.103 m).
+  del objeto», cerca de 0.10 m. Así salió en la prueba del 7-nov-2026 (0.100 m), ya con la
+  cámara detrás de la muñeca.
 
 **Ojo:** en la simulación el modelo reconoce pocas clases: en la medición del 7-nov, las tazas, el
 tenedor y apenas el juego de cartas (4 de 26 objetos). Con `clase:=bowl`, por ejemplo, el nodo

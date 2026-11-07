@@ -403,7 +403,7 @@ necesita reconstruir toda la escena, solo lo suficiente del objeto, y su código
 
 | Requisito | Milo | Veredicto |
 | --- | --- | --- |
-| Cámara de profundidad en la pinza (*eye-in-hand*) | Gemini Plus sobre la pinza, simulada | ✅ es la configuración típica de NBV para manipulación |
+| Cámara de profundidad en la pinza (*eye-in-hand*) | Gemini Plus detrás de la muñeca, simulada | ✅ es la configuración típica de NBV para manipulación |
 | Rango útil de la cámara | 0.25–2.5 m; mejor entre 0.3 y 0.8 m | ✅ las vistas candidatas se ponen a 0.4–0.6 m del objeto |
 | Mover la cámara alrededor del objeto | 7 ejes, 0.85 m de radio, lift de 1 m | ✅ por arriba, por delante y por los costados de un objeto sobre una mesa; ⚠️ no por detrás (la base no se mueve: es de otro equipo) |
 | Llegar a cada vista sin chocar | MoveIt 2 ya planifica sin choques (integrado el 18-oct-2026: OMPL + OctoMap de la cámara); la IK propia (`moveit:=false`) no revisa choques | ✅ |

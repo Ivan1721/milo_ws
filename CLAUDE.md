@@ -171,8 +171,15 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   the metapackage) and `moveit-setup-assistant`.
 - Uses mesh collisions by default (`simple_collision:=false`) because the simple boxes leave the arm
   without collision.
-- `gripper_camera:=true` (on by default in `arm_sim`, arg `camara`) adds the Orbbec Gemini Plus on
-  top of the gripper (`andesrobot.gripper_camera.xacro`, mesh `orbbec_gemini_plus.stl`): Gazebo
+- `gripper_camera:=true` (on by default in `arm_sim`, arg `camara`) adds the Orbbec Gemini Plus
+  behind the wrist since 2026-11-07 (`andesrobot.gripper_camera.xacro`, mesh `orbbec_gemini_plus.stl`):
+  an estimated L bracket on the rear cap of the joint_6 housing (`link_5_1`, x = +0.056), hinge
+  raised 3 cm above it (lower, the gripper body hid half the image), 20° tilt; it sits 16 cm behind
+  and 10 cm above the TCP, the gripper fills the bottom third of the image, and it does NOT roll
+  with joint_6, so `arm_moveit_node` adds a goal JointConstraint |joint_6| <= `joint_6_max` (π/2)
+  or MoveIt may pick joint_6 ≈ π and the image comes out upside down (`arm_ik_node` has no such
+  guard). Start poses in `docs/prueba_desde_cero.md` and `evaluar_objetos.VISTAS` were recomputed
+  for it. Regenerate SRDF pairs if the mount moves again. Gazebo
   color, depth (+points) and IR sensors publishing `/gripper_camera/{color,depth,ir}/image_raw`,
   `/gripper_camera/depth/points`, same names as the real `OrbbecSDK_ROS2` driver. Plugin topics are
   renamed with `<remapping>`. `ros2 run andesrobot_arm capturar_camara` saves one image per channel to
@@ -219,22 +226,23 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   the table) were dropped. `objeto_node` (geometry in `objetos.py`, tested) uses the team's
   27-class YOLO11n detection model `ros2_ws/modelos/objetos/best.pt` (gitignored, copied by
   hand): median of 25 depth rays from the box center → 3D point, then the same two-step
-  `manija.Acercamiento` (0.30 m, then `distancia_final` 0.10 m). Tested 2026-11-06 with `cup`:
-  ends 0.103 m from the point (before the color fix below; not re-run).
+  `manija.Acercamiento` (0.30 m, then `distancia_final` 0.10 m). Tested 2026-11-07 with `cup` (color fix + new
+  camera): ends 0.100 m from the point.
   `scripts/evaluar_objetos.py` spawns each object alone at (0.80, 0), views it from 3 poses and
   logs YOLO results (CSV in gitignored `ros2_ws/resultados/objetos/`): 2026-11-07 the model
   recognizes only 4/26 (both cups, fork, card at 0.13) and sees the bare table as `card` from
   above; photos look right, so it's a sim-vs-real gap (P14).
 - `image_to_array` returns RGB but Ultralytics treats numpy input as BGR: every node that feeds a
   camera frame to YOLO flips channels (`[:, :, ::-1]`). Before 2026-11-07 `manija_node` and
-  `objeto_node` fed swapped colors (`manija_node` not re-tested since).
+  `objeto_node` fed swapped colors (both re-tested after the fix).
 - Arm masses: gripper scaled from the CAD's steel to ABS (`gripper_mass_scale`); stepper motors and
   the gripper servo are fixed `motor_joint_N`/`gripper_servo_link` inertial-only links on the link
   before each joint. Sources in `docs/hardware/README.md` at the repo root (the docs there are
   gitignored third-party files).
 - Gazebo tests leave orphan nodes (old `robot_state_publisher`s publishing another
   `robot_description`) that make the next `arm_sim` crash: kill every ROS process before relaunching.
-- `andesrobot_arm/manija.py` (pure numpy, `test/test_manija.py` with a synthetic door) turns the handle keypoints into 3D points (color-pixel ray marched against the depth image, door-plane fallback when the shiny handle blanks the depth), validates the detection and computes the pre-grasp pose and the lever arc; `manija_node.py` runs YOLO live and publishes `/manija/{agarre,pose_previa,marcadores}` plus the TCP-to-handle distance (`/manija/distancia`, `/manija/agarre_tcp`, `distancia_desde_tcp`); `acercar:=true` drives the gripper in two legs (`Acercamiento`: stable detection → pre-grasp at 0.30 m → re-detect → blind leg to `distancia_final` 0.05 m, retry after `tiempo_max`; launch the door with `octomap:=false`). Keypoints that land on the door plane (ray grazed the thin lever) are moved onto the handle plane along their ray (`corregir_saliente`). `scripts/probar_manija_sin_gazebo.py` tests the node end to end with a fake world (ideal arm via TF, flat door depth, true keypoints; needs ROS, not Gazebo/YOLO). The node is **untested in Gazebo**; the TCP approach axis is local −X.
+- `andesrobot_arm/manija.py` (pure numpy, `test/test_manija.py` with a synthetic door) turns the handle keypoints into 3D points (color-pixel ray marched against the depth image, door-plane fallback when the shiny handle blanks the depth), validates the detection and computes the pre-grasp pose and the lever arc; `manija_node.py` runs YOLO live and publishes `/manija/{agarre,pose_previa,marcadores}` plus the TCP-to-handle distance (`/manija/distancia`, `/manija/agarre_tcp`, `distancia_desde_tcp`); `acercar:=true` drives the gripper in two legs (`Acercamiento`: stable detection → pre-grasp at 0.30 m → re-detect → blind leg to `distancia_final` 0.05 m, retry after `tiempo_max`; launch the door with `octomap:=false`). Keypoints that land on the door plane (ray grazed the thin lever) are moved onto the handle plane along their ray (`corregir_saliente`). `scripts/probar_manija_sin_gazebo.py` tests the node end to end with a fake world (ideal arm via TF, flat door depth, true keypoints; needs ROS, not Gazebo/YOLO). Tested in Gazebo 2026-11-07 (headless, new camera): logs 0.050 m, TF shows 0.063 m from the
+  true grasp point (detection 1.3 cm short); RViz markers not checked. The TCP approach axis is local −X.
 - There is no arm driver for the real robot yet: arm control is sim-only.
 - The real camera does work (`launch/camara_real.launch.py`: `orbbec_camera` v1.2.9 patched, measured
   2026-10-30 at 30 Hz, details in `docs/BRAZO.md`). Same topics and frame ids as the sim, because

@@ -46,10 +46,11 @@ CATALOGO = AQUI.parent / 'config' / 'objetos.yaml'
 MODELOS = Path('/ros2_ws/modelos/gazebo')
 SITIO = (0.80, 0.0)          # donde va cada objeto: al centro de la primera fila
 # Poses del TCP (x, y, z, qx, qy, qz, qw en base_footprint) con la cámara mirando a (0.80, 0,
-# 0.77): calculadas con el URDF el 6-nov (la cámara va 6 cm sobre la pinza, inclinada 20°).
+# 0.77): calculadas con el URDF el 7-nov (la cámara va detrás de la muñeca, 16 cm detrás del TCP
+# y 10 cm arriba, inclinada 20°). La evaluación del 7-nov (4 de 26) usó las de la cámara anterior.
 VISTAS = {
-    'frente30': (0.413, -0.009, 0.951, -0.0867, 0.0, -0.9962, 0.0),   # cámara a 50 cm, 30°
-    'frente40': (0.451, -0.009, 1.016, -0.1732, 0.0, -0.9849, 0.0),   # cámara a 50 cm, 40°
+    'frente30': (0.505, -0.009, 0.892, -0.0872, 0.0, -0.9962, 0.0),   # cámara a 50 cm, 30°
+    'frente40': (0.531, -0.009, 0.941, -0.1736, 0.0, -0.9848, 0.0),   # cámara a 50 cm, 40°
     'arriba': (0.5, 0.0, 1.4, 0.3827, 0.0, 0.9239, 0.0),               # pinza 45° hacia abajo
 }
 

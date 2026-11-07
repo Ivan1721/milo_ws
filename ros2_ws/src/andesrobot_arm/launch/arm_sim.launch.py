@@ -2,7 +2,7 @@
 
 Orden de lo que pasa:
  1. Se procesa el xacro de Milo con lock_arm:=false y arm_control:=true (brazo, lift y pinza
-    con ros2_control) y gripper_camera:=true (cámara Orbbec sobre la pinza), y se publica en
+    con ros2_control) y gripper_camera:=true (cámara Orbbec detrás de la muñeca), y se publica en
     /robot_description.
  2. Gazebo abre el mundo y spawn_entity.py pone a Milo y la mesa de prueba frente a él.
  3. Si Milo apareció bien, el spawner arranca los controladores del brazo.
@@ -289,7 +289,7 @@ def generate_launch_description():
         DeclareLaunchArgument('simple_collision', default_value='false',
                               description='true = colisiones con cajas en vez de mallas CAD'),
         DeclareLaunchArgument('camara', default_value='true',
-                              description='Cámara Orbbec Gemini Plus sobre la pinza'),
+                              description='Cámara Orbbec Gemini Plus detrás de la muñeca'),
         DeclareLaunchArgument('mesa', default_value='true',
                               description='Mesa con objetos de prueba frente a Milo'),
         DeclareLaunchArgument('puerta', default_value='false',

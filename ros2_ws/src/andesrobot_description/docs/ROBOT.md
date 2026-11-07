@@ -38,7 +38,7 @@ El plano de escaneo (+30 mm sobre la base del sensor) es estimado: confirmar con
 | `hoverboard_port` | /dev/hoverboard | puerto serie del hoverboard |
 | `arm_control` | false | true = brazo, lift y pinza con ros2_control en Gazebo (`andesrobot.arm_control.xacro`; lo usa `andesrobot_arm`) |
 | `arm_controllers_file` | (vacío) | YAML de controladores para el plugin `gazebo_ros2_control` (con `arm_control`) |
-| `gripper_camera` | false | true = cámara Orbbec Gemini Plus sobre la pinza con sus sensores de Gazebo (`andesrobot.gripper_camera.xacro`; lo usa `andesrobot_arm`) |
+| `gripper_camera` | false | true = cámara Orbbec Gemini Plus detrás de la muñeca con sus sensores de Gazebo (`andesrobot.gripper_camera.xacro`; lo usa `andesrobot_arm`) |
 
 ## Brazo
 - 6 articulaciones `revolute` (joint_1..6) + lift prismático (`vertical_lift_joint`, −0.4…0.6 m) + pinza.
@@ -52,8 +52,9 @@ El plano de escaneo (+30 mm sobre la base del sensor) es estimado: confirmar con
   articulación (propiedades `nema*_mass`). Brazo: 4.42 → 8.05 kg; robot completo: 30.4 → 34.0 kg
   (los números de vuelco de "Masa y estabilidad" son con la masa anterior). Reductores EBA en 0
   hasta tener sus STL. Fuentes en `docs/hardware/README.md` (raíz del repo).
-- Cámara (con `gripper_camera:=true`): Orbbec Gemini Plus sobre la cara superior de `link_6_1`,
-  inclinada 20° (`gripper_camera_tilt`). Topics y frames en `andesrobot_arm/docs/BRAZO.md`.
+- Cámara (con `gripper_camera:=true`): Orbbec Gemini Plus en un soporte en L atornillado a la tapa
+  trasera del eje 6 (`link_5_1`, x = +0.056 m; no gira con joint_6), inclinada 20°
+  (`gripper_camera_tilt`). Topics, frames y por qué ahí en `andesrobot_arm/docs/BRAZO.md`.
 
 ## Pendiente antes del robot real
 - Los límites del brazo son provisorios (±π): medir los topes físicos y los motores y cambiar `arm_lower`/`arm_upper`/`arm_effort`/`arm_velocity`.

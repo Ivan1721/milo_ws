@@ -64,7 +64,7 @@
   <disable_collisions link1="base_link" link2="lidar_link_1" reason="Adjacent"/>
   <disable_collisions link1="base_link" link2="right_wheel_link_1" reason="Adjacent"/>
   <disable_collisions link1="base_link" link2="vertical_column_link_1" reason="Adjacent"/>
-  <disable_collisions link1="gripper_camera_link" link2="link_6_1" reason="Adjacent"/>
+  <disable_collisions link1="gripper_camera_link" link2="link_5_1" reason="Adjacent"/>
   <disable_collisions link1="left_finger_link_1" link2="link_6_1" reason="Adjacent"/>
   <disable_collisions link1="lift_carriage_link_1" link2="vertical_column_link_1" reason="Adjacent"/>
   <disable_collisions link1="link_1_1" link2="link_2_1" reason="Adjacent"/>
@@ -91,9 +91,11 @@
   <disable_collisions link1="front_caster_link_1" link2="link_2_1" reason="Never"/>
   <disable_collisions link1="front_caster_link_1" link2="right_wheel_link_1" reason="Never"/>
   <disable_collisions link1="front_caster_link_1" link2="vertical_column_link_1" reason="Never"/>
+  <disable_collisions link1="gripper_camera_link" link2="imu_link_1" reason="Never"/>
   <disable_collisions link1="gripper_camera_link" link2="left_finger_link_1" reason="Never"/>
+  <disable_collisions link1="gripper_camera_link" link2="link_3_1" reason="Never"/>
   <disable_collisions link1="gripper_camera_link" link2="link_4_1" reason="Never"/>
-  <disable_collisions link1="gripper_camera_link" link2="link_5_1" reason="Never"/>
+  <disable_collisions link1="gripper_camera_link" link2="link_6_1" reason="Never"/>
   <disable_collisions link1="gripper_camera_link" link2="right_finger_link_1" reason="Never"/>
   <disable_collisions link1="imu_link_1" link2="left_wheel_link_1" reason="Never"/>
   <disable_collisions link1="imu_link_1" link2="lidar_link_1" reason="Never"/>

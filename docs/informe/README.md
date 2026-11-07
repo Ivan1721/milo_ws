@@ -347,7 +347,7 @@ En Fusion el robot se modeló girado 180° en Z. Por eso las uniones a nivel de 
 | `sim_lidar / sim_imu` | true | apagar sensores simulados para depurar |
 | `use_hardware / hoverboard_port` | false / `/dev/hoverboard` | agrega el ros2_control del hoverboard (robot real) |
 | `arm_control / arm_controllers_file` | false / vacío | brazo, lift y pinza con ros2_control en Gazebo |
-| `gripper_camera` | false | cámara Orbbec Gemini Plus sobre la pinza, con sus sensores en Gazebo (sección 14) |
+| `gripper_camera` | false | cámara Orbbec Gemini Plus detrás de la muñeca, con sus sensores en Gazebo (sección 14) |
 
 ![Vista 3D de Milo: base de perfiles con dos ruedas y rueda loca, columna vertical gris, y brazo azul de seis ejes con la pinza naranja arriba.](../../ros2_ws/src/andesrobot_arm/docs/figuras/fig_3d.png)
 
@@ -939,8 +939,8 @@ La pinza lleva una **Orbbec Gemini Plus**, una cámara 3D de luz estructurada bi
 Todo está en `andesrobot_description/urdf/andesrobot.gripper_camera.xacro`, que se incluye con el argumento `gripper_camera:=true` (apagado por defecto: la simulación de mapeo no cambia). `./sim.sh brazo` lo activa.
 
 - **Malla:** el modelo STEP propio de la cámara (cuerpo + placa del soporte), convertido a `meshes/orbbec_gemini_plus.stl` con FreeCAD. En el STEP las lentes miran a +Z; el `origin` del visual lo gira a la convención de ROS.
-- **Soporte:** la placa de abajo de la bisagra va sobre la cara superior de `link_6_1`; la cámara gira en la bisagra y queda inclinada 20° hacia abajo (`gripper_camera_tilt`), mirando hacia donde apunta la pinza. La bisagra se modeló como un cilindro y una placa, porque el STEP no la incluye.
-- **Masa:** 0.122 kg en el cuerpo, que Gazebo suma a `link_6_1`.
+- **Soporte (desde el 7 de noviembre):** una pieza en L atornillada a la tapa trasera del eje 6 (la carcasa del motor de joint_6, que es parte de `link_5_1`) sube por encima de la carcasa; arriba va la bisagra, y la cámara gira en ella y queda inclinada 20° hacia abajo (`gripper_camera_tilt`), mirando hacia donde apunta la pinza. Queda 16 cm detrás de la punta de la pinza y 10 cm por encima. Antes iba sobre la cara superior de la pinza (`link_6_1`). La L es un diseño estimado (aluminio de 3 mm): todavía no está fabricada. La bisagra se modeló como un cilindro y una placa, porque el STEP no la incluye.
+- **Masa:** 0.122 kg en el cuerpo y 0.04 kg en la L (estimado), que Gazebo suma a `link_5_1`.
 - **Frames:** `gripper_camera_mount`, `gripper_camera_link` (cuerpo), y por cada lente `gripper_camera_{color,depth,ir}_frame` (X adelante, donde va el sensor de Gazebo) y su `_optical_frame` (Z adelante, X derecha, Y abajo: el `frame_id` de los mensajes).
 
 ### Canales
@@ -1112,6 +1112,8 @@ Deja `color.png`, `ir.png`, `profundidad_mm.png` (16 bits en mm, como la real), 
 **Avance (30 de octubre):** ya hay un nodo `manija_node` que detecta la manija en vivo y la ubica en 3D con la profundidad (o con el plano de la puerta cuando la manija brillante la hace fallar), y la geometría para la pose previa y el arco de la palanca (`andesrobot_arm/manija.py`, con pruebas sobre una puerta sintética). **El nodo no se ha probado en la simulación.** Falta probarlo, ejecutar el movimiento y el detector con fotos reales.
 
 **Avance (5 de noviembre):** con `acercar:=true`, `manija_node` lleva la pinza hasta la manija en dos tramos: con la manija vista de forma estable va a 30 cm de ella (donde la profundidad todavía mide), la vuelve a detectar desde ahí y avanza a ciegas hasta 5 cm. En cada detección calcula cuánto le falta al efector final (`gripper_tcp`): la distancia total y cuánto avanzar en la dirección en que apunta la pinza y cuánto corregir de lado y en altura (`/manija/distancia`). Se probó de punta a punta sin Gazebo (`scripts/probar_manija_sin_gazebo.py`: brazo ideal, puerta plana, keypoints verdaderos con 1 píxel de ruido): la pinza queda a 0.050 m y la manija estimada a 0.3 mm de la verdadera. Esa prueba mostró que, como la palanca es delgada, el rayo de un keypoint puede pasar al lado y medir la hoja de detrás: la pinza habría avanzado 5 cm de más, hasta tocar la manija. Ahora un keypoint que cae sobre la hoja se corrige con el plano de la manija. Falta probarlo en Gazebo con MoveIt y el modelo real.
+
+**Avance (7 de noviembre):** la cámara se movió detrás de la muñeca (ver «Montaje en el modelo») y el acercamiento a la manija se probó por primera vez en la simulación completa (Gazebo, MoveIt y el modelo YOLO): la pinza terminó a 6.3 cm del punto de agarre, cuando el nodo creía haber quedado a 5.0 cm; la manija detectada estaba 1.3 cm más cerca de lo que está. Dos efectos del nuevo lugar: la pinza tapa el tercio de abajo de la imagen, y como la cámara ya no gira con la última articulación (joint_6), el brazo podía llegar a la misma pose con la imagen de cabeza; ahora se le pide a MoveIt que joint_6 quede a menos de 90° de cero.
 
 **Cómo sigue** (el plan acordado): con la profundidad, que funciona de 0.25 m hacia afuera, fijar la posición 3D de la manija mientras se acerca; cuando la cámara queda demasiado cerca y la profundidad se pierde, seguir guiando la pinza solo con la imagen a color y los keypoints ([control visual](#g-control-visual)); y por último bajar la manija y empujar. El control de fuerza (impedancia) y la IMU de la pinza quedan para después de saber si esto funciona.
 
