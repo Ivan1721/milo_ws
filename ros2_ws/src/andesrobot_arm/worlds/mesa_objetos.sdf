@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<!-- Mesa sola para el escenario de objetos reales (la pone arm_sim.launch.py con objetos:=true).
+     Es la misma mesa de mesa_prueba.sdf (tablero de 0.6 x 0.8 m a 0.72 m de alto, borde a 0.70 m
+     del eje de las ruedas), así coincide con la mesa que arm_moveit_node publica como obstáculo en
+     la escena de MoveIt. Sin los cubos de colores: encima van una taza y un bowl escaneados de
+     verdad (Google Scanned Objects), que el launch pone aparte con spawn_entity.py porque vienen
+     de otra carpeta (ros2_ws/modelos/gazebo/, ver scripts/descargar_objetos.py).
+     El escenario se basa en sim_cup_bowl (crear_mundo.py): misma mesa de 0.6 x 0.8 m, la taza y
+     el bowl separados 20 cm a lo ancho de la mesa. -->
+<sdf version="1.6">
+  <model name="mesa_objetos">
+    <static>false</static>
+    <!-- Anclada al mundo con un joint fijo, como en mesa_prueba.sdf (el brazo mandado en posición
+         desliza cualquier cuerpo libre que toque). -->
+    <joint name="mesa_fija" type="fixed">
+      <parent>world</parent>
+      <child>mesa</child>
+    </joint>
+    <link name="mesa">
+      <pose>1.0 0 0 0 0 0</pose>
+      <inertial>
+        <pose>0 0 0.36 0 0 0</pose>
+        <mass>30.0</mass>
+        <inertia><ixx>3.0</ixx><iyy>3.0</iyy><izz>3.0</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <collision name="tablero_c"><pose>0 0 0.70 0 0 0</pose>
+        <geometry><box><size>0.6 0.8 0.04</size></box></geometry></collision>
+      <visual name="tablero_v"><pose>0 0 0.70 0 0 0</pose>
+        <geometry><box><size>0.6 0.8 0.04</size></box></geometry>
+        <material><ambient>0.55 0.37 0.22 1</ambient><diffuse>0.55 0.37 0.22 1</diffuse></material></visual>
+      <collision name="pata_c"><pose>0 0 0.34 0 0 0</pose>
+        <geometry><box><size>0.5 0.7 0.68</size></box></geometry></collision>
+      <visual name="pata_v"><pose>0 0 0.34 0 0 0</pose>
+        <geometry><box><size>0.5 0.7 0.68</size></box></geometry>
+        <material><ambient>0.35 0.25 0.15 1</ambient><diffuse>0.35 0.25 0.15 1</diffuse></material></visual>
+    </link>
+  </model>
+</sdf>

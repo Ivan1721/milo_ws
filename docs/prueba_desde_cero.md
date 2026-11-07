@@ -7,7 +7,8 @@ depende del anterior: **si uno falla, arréglalo antes de seguir**. Escrito el 5
 > **En palabras simples:** primero se instala Docker y se construye la "caja" con todo el software
 > (la imagen). Después se abre la simulación del brazo y se corren las pruebas automáticas. Al final
 > se pone una puerta frente a Milo, se manda la pinza a un punto desde donde la cámara ve la manija
-> y un programa la detecta y acerca la pinza solo, hasta quedar a 5 cm.
+> y un programa la detecta y acerca la pinza solo, hasta quedar a 5 cm. Lo mismo con una taza
+> sobre una mesa.
 
 Cada paso dice qué escribir y qué **debe pasar**. Si no pasa, anótalo con el mensaje de error.
 Documentos relacionados: [`README.md`](../README.md) (instalación),
@@ -26,10 +27,11 @@ Documentos relacionados: [`README.md`](../README.md) (instalación),
 7. [pick_ik y Ruckig](#7-pick_ik-y-ruckig)
 8. [Modelo de la manija](#8-modelo-de-la-manija)
 9. [Pinza frente a la manija y acercamiento](#9-pinza-frente-a-la-manija-y-acercamiento)
-10. [Corrida larga sin deriva](#10-corrida-larga-sin-deriva)
-11. [Cámara real](#11-cámara-real)
-12. [Sin internet](#12-sin-internet)
-13. [Glosario](#13-glosario)
+10. [Pinza frente a un objeto de la mesa](#10-pinza-frente-a-un-objeto-de-la-mesa)
+11. [Corrida larga sin deriva](#11-corrida-larga-sin-deriva)
+12. [Cámara real](#12-cámara-real)
+13. [Sin internet](#13-sin-internet)
+14. [Glosario](#14-glosario)
 
 ---
 
@@ -99,7 +101,7 @@ python3 /ros2_ws/src/andesrobot_arm/scripts/probar_manija_sin_gazebo.py
 ```
 
 **Debe pasar:**
-- El brazo da `49 passed` y el filtro de seguridad `11 passed`.
+- El brazo da `57 passed` y el filtro de seguridad `11 passed`.
 - La prueba de la manija termina en `BIEN`, con la pinza a unos 0.05 m del punto de agarre.
 
 ## 6. Prueba de humo de Gazebo
@@ -203,7 +205,52 @@ avanza a ciegas hasta quedar a 5 cm.
 - **Se ve la manija pero no la detecta:** baja la confianza con `-p confianza:=0.3`.
 - **El log dice que `acercar` está apagado:** falta `-p acercar:=true`.
 
-## 10. Corrida larga sin deriva
+## 10. Pinza frente a un objeto de la mesa
+
+Lo mismo que con la manija, pero con el modelo de objetos del reglamento (27 clases: cup, bowl,
+bottle...) y una taza y un bowl sobre la mesa. Detalle en
+[`BRAZO.md`](../ros2_ws/src/andesrobot_arm/docs/BRAZO.md), «Objetos sobre la mesa».
+
+**Antes, una vez por computador:** el modelo de objetos tampoco va en git. Copia su `best.pt` a
+`ros2_ws/modelos/objetos/best.pt`, y baja la taza y el bowl (necesita internet; quedan en
+`ros2_ws/modelos/gazebo/`):
+
+```bash
+./sim.sh shell
+python3 /ros2_ws/src/andesrobot_arm/scripts/descargar_objetos.py
+```
+
+**Terminal 1** (`./sim.sh shell`):
+
+```bash
+ros2 launch andesrobot_arm arm_sim.launch.py objetos:=true octomap:=false
+```
+
+**Debe pasar:** en Gazebo hay una taza y un bowl **blancos** sobre la mesa (si se ven negros,
+vuelve a correr `descargar_objetos.py`: arregla el material).
+
+**Terminal 2** (`./sim.sh shell`): mandar la pinza a la pose de partida, con la cámara a 50 cm de los
+objetos mirando 40° hacia abajo.
+
+```bash
+ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped "{header: {frame_id: base_footprint}, pose: {position: {x: 0.451, y: -0.009, z: 1.016}, orientation: {x: -0.1732, y: 0.0, z: -0.9849, w: 0.0}}}"
+```
+
+**Terminal 2:** detectar la taza y acercar la pinza.
+
+```bash
+ros2 run andesrobot_arm objeto_node --ros-args -p use_sim_time:=true -p clase:=cup -p acercar:=true
+```
+
+**Debe pasar:**
+- El log dice `veo: cup` y la posición de la taza, cerca de x 0.77, y 0.10, z 0.80.
+- La pinza va a 30 cm de la taza, la detecta de nuevo y termina con «Listo: la pinza quedó a … m
+  del objeto», cerca de 0.10 m. Así salió en la prueba del 6-nov-2026 (0.103 m).
+
+**Ojo:** el modelo no reconoce el bowl de este escenario (de frente no lo ve; desde arriba lo llama
+`cup`). Con `clase:=bowl` el nodo dirá «no veo bowl».
+
+## 11. Corrida larga sin deriva
 
 Antes, la base se corría 41 cm en una corrida de 300 fotos. Con la puerta lanzada como en el paso 9:
 
@@ -214,7 +261,7 @@ python3 generar_dataset_manija.py --n 300 --variar 5 --semilla 1 --salida /ros2_
 
 **Debe pasar:** llega a 300 fotos sin detenerse por deriva (cierra P13).
 
-## 11. Cámara real
+## 12. Cámara real
 
 Solo si la Gemini Plus está conectada. La regla USB se instala una vez por computador:
 
@@ -234,14 +281,14 @@ Después:
 
 **Debe pasar:** se ven color, profundidad e infrarrojo a unos 30 Hz.
 
-## 12. Sin internet
+## 13. Sin internet
 
 Desconecta el computador de la red y repite los pasos 3 y 9.
 
 **Debe pasar:** todo funciona igual. Así se comprueba que YOLO no intenta descargar nada
 (`YOLO_AUTOINSTALL=false`).
 
-## 13. Glosario
+## 14. Glosario
 
 | Término | Qué es |
 |---|---|

@@ -12,11 +12,14 @@ Uso:  ros2 launch andesrobot_arm arm_sim.launch.py   [gui:=false] [rviz:=false]
                                                     [camara:=false] [mesa:=false]
                                                     [moveit:=false] [octomap:=false]
                                                     [ik:=pick_ik] [suavizado:=ruckig]
-                                                    [puerta:=true]
+                                                    [puerta:=true] [objetos:=true]
 Con ik:=pick_ik usa el solver pick_ik en vez de KDL, y con suavizado:=ruckig acota también el
 tirón de la trayectoria (los dos sin probar todavía; ver docs/BRAZO.md y moveit_opciones.py).
 Con puerta:=true pone la puerta de prueba (worlds/puerta_prueba.sdf: se abre empujando, manija de
 palanca a 1 m) en vez de la mesa.
+Con objetos:=true la mesa lleva una taza y un bowl escaneados de verdad en vez de los cubos de
+colores (worlds/mesa_objetos.sdf + Google Scanned Objects, que hay que bajar una vez con
+scripts/descargar_objetos.py); para el detector de objetos, objeto_node.
 Con moveit:=true (default) arranca move_group (MoveIt 2) con la configuración de
 andesrobot_moveit_config y arm_moveit_node reemplaza a arm_ik_node: las poses de
 /arm_target_pose se planifican sin choques (robot, mesa y, con octomap:=true, lo que ve la
@@ -31,8 +34,9 @@ import os
 import xacro
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription, LogInfo,
-                            OpaqueFunction, RegisterEventHandler)
+from launch.actions import (AppendEnvironmentVariable, DeclareLaunchArgument,
+                            IncludeLaunchDescription, LogInfo, OpaqueFunction,
+                            RegisterEventHandler)
 from launch.conditions import IfCondition
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -42,6 +46,16 @@ from launch_ros.substitutions import FindPackageShare
 from moveit_configs_utils import MoveItConfigsBuilder
 
 from andesrobot_arm.moveit_opciones import aplicar_ruckig, archivo_cinematica
+
+# Modelos de Gazebo bajados con scripts/descargar_objetos.py (en tu PC
+# ~/milo_ws/ros2_ws/modelos/gazebo, fuera de git) y los objetos de objetos:=true:
+# nombre en Fuel -> (nombre en Gazebo, x, y, giro en Z [rad]). Frente a Milo, dentro del
+# alcance del brazo (a 0.75 m de altura llega hasta x ~ 0.89 m) y separados 22 cm.
+MODELOS_GAZEBO = '/ros2_ws/modelos/gazebo'
+OBJETOS_MESA = {
+    'Threshold_Porcelain_Coffee_Mug_All_Over_Bead_White': ('cup', 0.80, 0.11, 0.0),
+    'Threshold_Bead_Cereal_Bowl_White': ('bowl', 0.80, -0.11, 0.0),
+}
 
 
 def _strip_comments(node):
@@ -122,6 +136,9 @@ def launch_setup(context):
     # Escenario: la puerta reemplaza a la mesa (las dos ocuparían el mismo lugar frente a Milo).
     puerta = LaunchConfiguration('puerta').perform(context) == 'true'
     con_mesa = LaunchConfiguration('mesa').perform(context) == 'true' and not puerta
+    # objetos:=true cambia los cubos de colores por la taza y el bowl (sobre la misma mesa).
+    objetos = LaunchConfiguration('objetos').perform(context) == 'true' and not puerta
+    con_mesa = con_mesa or objetos
 
     # robot_state_publisher: publica /robot_description y las TF, con el reloj de Gazebo.
     rsp = Node(
@@ -198,8 +215,8 @@ def launch_setup(context):
     # Mesa con tres objetos frente a Milo (worlds/mesa_prueba.sdf): algo que la cámara vea a
     # 0.6-1 m (en la arena no hay nada a menos de 2.5 m, el alcance de la profundidad) y que el
     # brazo alcance.
-    escenario = 'puerta_prueba' if puerta else 'mesa_prueba'
-    objetos = Node(
+    escenario = ('puerta_prueba' if puerta else 'mesa_objetos' if objetos else 'mesa_prueba')
+    mueble = Node(
         package='gazebo_ros',
         executable='spawn_entity.py',
         arguments=['-file', os.path.join(get_package_share_directory('andesrobot_arm'),
@@ -207,7 +224,21 @@ def launch_setup(context):
                    '-entity', escenario],
         output='screen',
     )
-    extra = [objetos] if (puerta or con_mesa) else []
+    extra = [mueble] if (puerta or con_mesa) else []
+    if objetos:
+        # Taza y bowl de Google Scanned Objects: "-database" busca el modelo por nombre en
+        # GAZEBO_MODEL_PATH (generate_launch_description le suma MODELOS_GAZEBO). Su origen está
+        # en la base del objeto: z = 0.72, la altura del tablero.
+        faltan = [n for n in OBJETOS_MESA if not os.path.isdir(os.path.join(MODELOS_GAZEBO, n))]
+        if faltan:
+            extra.append(LogInfo(msg='[arm_sim] Faltan ' + ', '.join(faltan) + ' en '
+                                 + MODELOS_GAZEBO + ': python3 /ros2_ws/src/andesrobot_arm/'
+                                 'scripts/descargar_objetos.py'))
+        for nombre, (entidad, x, y, yaw) in OBJETOS_MESA.items():
+            extra.append(Node(
+                package='gazebo_ros', executable='spawn_entity.py', output='screen',
+                arguments=['-database', nombre, '-entity', entidad, '-x', str(x), '-y', str(y),
+                           '-z', '0.725', '-Y', str(yaw)]))
     return [rsp, spawn, controllers, after_controllers, marker, rviz] + extra
 
 
@@ -240,6 +271,11 @@ def generate_launch_description():
                               description='Mesa con objetos de prueba frente a Milo'),
         DeclareLaunchArgument('puerta', default_value='false',
                               description='Puerta de prueba (abre empujando) en vez de la mesa'),
+        DeclareLaunchArgument('objetos', default_value='false',
+                              description='Taza y bowl reales sobre la mesa en vez de los cubos '
+                                          '(bajarlos antes con scripts/descargar_objetos.py)'),
+        # Antes de abrir Gazebo: que encuentre también los modelos bajados de Fuel.
+        AppendEnvironmentVariable('GAZEBO_MODEL_PATH', MODELOS_GAZEBO),
         DeclareLaunchArgument('moveit', default_value='true',
                               description='true = MoveIt 2 planifica sin choques '
                                           '(arm_moveit_node); false = IK propia (arm_ik_node)'),

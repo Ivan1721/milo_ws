@@ -201,7 +201,17 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   factor of the full arm sim and base driving not re-measured yet): a 300-image run drifted 0.41 m/24°
   and MoveIt then failed 1/3 of views. The generator therefore sets `acceleration_scaling` 0.2 on
   `arm_moveit_node` at runtime, skips views with the TCP < 12 cm from the leaf, and stops at 15 cm
-  drift (relaunch the sim, continue with `--inicio`). `scripts/entrenar_manija.py --tarea pose|seg|det` hard-links
+  drift (relaunch the sim, continue with `--inicio`).
+- Objects: `objetos:=true` spawns `worlds/mesa_objetos.sdf` (same table as `mesa_prueba`, so
+  MoveIt's table matches) plus a Google Scanned Objects cup and bowl via `spawn_entity -database`
+  from `ros2_ws/modelos/gazebo/` (gitignored; `scripts/descargar_objetos.py` fetches them from
+  Fuel and fixes their material: texture copied next to the mesh and `Ka` added, else they render
+  black). The launch appends that folder to `GAZEBO_MODEL_PATH`. `objeto_node` (geometry in
+  `objetos.py`, tested) uses the team's 27-class YOLO11n detection model
+  `ros2_ws/modelos/objetos/best.pt` (gitignored, copied by hand): median of 25 depth rays from the
+  box center → 3D point, then the same two-step `manija.Acercamiento` (0.30 m, then
+  `distancia_final` 0.10 m). Tested 2026-11-06 with `cup`: ends 0.103 m from the point. The model
+  doesn't recognize this bowl (calls it `cup` from above). `scripts/entrenar_manija.py --tarea pose|seg|det` hard-links
   the split into Ultralytics' images/labels layout and fine-tunes yolov8s-* into
   `ros2_ws/modelos/entrenamientos/`.
 - Arm masses: gripper scaled from the CAD's steel to ABS (`gripper_mass_scale`); stepper motors and

@@ -270,6 +270,50 @@ del brazo (`--aceleracion 0.2`), no intenta vistas que dejen el TCP a menos de 1
 relanza la simulación y se sigue con `--inicio N` (lo dice el mensaje). Esto también importa para
 empujar la puerta de verdad: la fuerza del brazo puede mover la base.
 
+## Objetos sobre la mesa (modelo de objetos del reglamento)
+
+Igual que con la manija, pero con objetos: un modelo YOLO **de detección** entrenado con el
+dataset del reglamento (`dataset_reglamento2`, YOLO11n, 27 clases: bag, book, bottle, bowl, box,
+card, cereal_box, cleaning_supply, clothing, colgate_box, cup, drink, electronic_device, food,
+fork, fruit, key, knife, pitcher, plate, pringles, redbull_can, rubik_cube, spoon, tool, tray,
+writing_tool) encuentra el objeto y `objeto_node` lleva la pinza frente a él. Los pesos van en
+`ros2_ws/modelos/objetos/best.pt` (no van a git: se copian a mano).
+
+**Escenario** (`objetos:=true`, basado en `sim_cup_bowl`): la misma mesa de siempre (así MoveIt
+ya la conoce como obstáculo) con una taza y un bowl escaneados de objetos reales (Google Scanned
+Objects, CC-BY 4.0) en (0.80, ±0.11) m. Los modelos se bajan una vez de Gazebo Fuel a
+`ros2_ws/modelos/gazebo/` (no va a git); el launch suma esa carpeta a `GAZEBO_MODEL_PATH`:
+
+```bash
+python3 /ros2_ws/src/andesrobot_arm/scripts/descargar_objetos.py               # una vez (internet)
+ros2 launch andesrobot_arm arm_sim.launch.py objetos:=true octomap:=false      # terminal 1
+# Pinza frente a la mesa, cámara a 50 cm de los objetos mirando 40° hacia abajo:
+ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped "{header: {frame_id: base_footprint}, pose: {position: {x: 0.451, y: -0.009, z: 1.016}, orientation: {x: -0.1732, y: 0.0, z: -0.9849, w: 0.0}}}"
+ros2 run andesrobot_arm objeto_node --ros-args -p use_sim_time:=true -p clase:=cup -p acercar:=true
+# opciones: -p clase:=''  (la detección más segura, de cualquier clase)  -p confianza:=0.4
+#           -p distancia_previa:=0.30  -p distancia_final:=0.10  -p inclinacion:=20.0
+```
+
+Cómo pasa de la caja a un punto 3D (`andesrobot_arm/objetos.py`, 8 pruebas en
+`test/test_objetos.py`): el modelo solo da un rectángulo, así que se toman 25 píxeles de su parte
+central, cada uno es un rayo que se sigue hasta la profundidad (la misma `punto_en_rayo` de la
+manija) y el punto del objeto es la **mediana** (no se mueve si unos pocos rayos tocan la mesa).
+Es un punto de la cara que mira a la cámara, no el centro del objeto. La pinza llega desde el lado
+de Milo, inclinada `inclinacion` grados hacia abajo, en los mismos dos tramos que la manija
+(`manija.Acercamiento`): 30 cm, detectar de nuevo y `distancia_final`. Publica `/objeto/punto`,
+`/objeto/pose_previa`, `/objeto/marcadores`, `/objeto/distancia` y `/objeto/punto_tcp`.
+
+**Probado en Gazebo (6-nov-2026), clase `cup`:** desde la pose de arriba, detecta la taza (0.75),
+va a la pose previa (quedó a 0.300 m), la detecta de nuevo (0.66, el punto se movió 1 cm) y
+termina con la pinza a 0.103 m del punto detectado (pedido 0.10 m), justo frente a la taza. Dos
+cosas encontradas:
+- **Los objetos se veían negros:** su material no tenía color ambiente y la textura estaba en otra
+  carpeta. `descargar_objetos.py` lo arregla (copia la textura y agrega `Ka`).
+- **El modelo no reconoce este bowl:** de frente no lo detecta ni con confianza 0.1, y desde
+  arriba lo llama `cup` (0.75). La taza sí, de 0.66 a 0.85 según el ángulo. Es un límite del
+  modelo con este objeto simulado, no del nodo; para el bowl habría que sumar fotos al
+  entrenamiento.
+
 ## Cámara de la pinza (Orbbec Gemini Plus)
 
 `./sim.sh brazo` monta la cámara sobre la pinza (`andesrobot_description/urdf/andesrobot.gripper_camera.xacro`,
@@ -368,6 +412,8 @@ MoveIt 2, que es lo que corre por defecto: figura C del informe, `scripts/fig_la
 | `arm_marker_node` | marcador en RViz sobre `gripper_tcp`; al soltar publica en `/arm_target_pose` (frame `base_footprint`) |
 | `capturar_camara` | guarda una imagen de cada canal de la cámara de la pinza (`ros2 run andesrobot_arm capturar_camara`) |
 | `scripts/prueba_gazebo.sh` | prueba de humo sin ventanas (ver «Usarlo») |
+| `objeto_node` | detecta un objeto del reglamento (`clase`, por ejemplo `cup`) con `modelos/objetos/best.pt` y lleva la pinza frente a él (ver «Objetos sobre la mesa») |
+| `scripts/descargar_objetos.py` | baja la taza y el bowl de Gazebo Fuel para `objetos:=true` |
 | `scripts/generar_dataset_manija.py` | fotos de la manija ya etiquetadas, con variantes al azar de la puerta |
 | `scripts/entrenar_manija.py` | afina YOLO (pose, máscara o caja) con esas fotos |
 | `scripts/figuras.py`, `fig_*.py` | figuras de la geometría y de los lazos de control (ver «Geometría») |
