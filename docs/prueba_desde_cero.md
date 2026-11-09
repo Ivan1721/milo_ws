@@ -217,7 +217,9 @@ bottle...) y objetos escaneados sobre la mesa (26, del catálogo `config/objetos
 [`BRAZO.md`](../ros2_ws/src/andesrobot_arm/docs/BRAZO.md), «Objetos sobre la mesa».
 
 **Antes, una vez por computador:** el modelo de objetos tampoco va en git. Copia su `best.pt` a
-`ros2_ws/modelos/objetos/best.pt`, y baja los objetos (necesita internet; ~370 MB en
+`ros2_ws/modelos/objetos/best.pt` (desde el 9-nov-2026, el del equipo entrenado con
+`dataset_reglamento3`; el anterior se guarda en `ros2_ws/modelos/objetos/anterior_2026-11-06/`, para
+el tenedor), y baja los objetos (necesita internet; ~370 MB en
 `ros2_ws/modelos/gazebo/`):
 
 ```bash
@@ -254,9 +256,11 @@ ros2 run andesrobot_arm objeto_node --ros-args -p use_sim_time:=true -p clase:=c
   del objeto», cerca de 0.10 m. Así salió en la prueba del 7-nov-2026 (0.100 m), ya con la
   cámara detrás de la muñeca.
 
-**Ojo:** en la simulación el modelo reconoce pocas clases: en la medición del 7-nov, las tazas, el
-tenedor y apenas el juego de cartas (4 de 26 objetos). Con `clase:=bowl`, por ejemplo, el nodo
-dirá «no veo bowl». Para medirlo de nuevo, con la simulación de arriba corriendo (~17 min):
+**Ojo:** en la simulación el modelo reconoce solo algunas clases. Con el modelo del 9-nov: las dos
+tazas, los dos bowls, la manzana, el plato, el Rubik, el martillo y apenas la cuchara (9 de 26
+objetos; el anterior, en la misma corrida, 3 de 26). No reconoce el tenedor, y ve la pinza como
+`plate`. Con una clase que no reconoce, el nodo dirá «no veo …». Para medirlo de nuevo, con la
+simulación de arriba corriendo (~17 min):
 
 ```bash
 python3 /ros2_ws/src/andesrobot_arm/scripts/evaluar_objetos.py
@@ -264,6 +268,35 @@ python3 /ros2_ws/src/andesrobot_arm/scripts/evaluar_objetos.py
 
 **Debe pasar:** termina con una tabla por objeto y «Reconocidos en al menos una vista: N de 26»,
 y deja el CSV en `ros2_ws/resultados/objetos/` y las fotos en `ros2_ws/capturas/evaluacion_*`.
+
+### Prueba con el equipo: la cadena completa con un modelo nuevo
+
+Cuando llega un modelo nuevo, este script prueba de una vez si la cadena completa funciona con él
+(cámara → YOLO → profundidad → MoveIt → brazo → pinza). Arranca una simulación limpia para cada
+prueba, sin ventanas, y escribe una línea OK o FALLO por prueba (~20 min en total):
+
+```bash
+bash /ros2_ws/src/andesrobot_arm/scripts/prueba_objetos.sh
+```
+
+Corre cuatro pruebas: `acercar cup` (la pinza va frente a la taza, como arriba) y
+`agarrar tenedor`, `agarrar cuchara` y `agarrar martillo` (`agarre_node`: busca el objeto, baja,
+aprieta, levanta y retrae el brazo). Sirve también para una sola prueba
+(`... prueba_objetos.sh agarrar tenedor`) o para otro modelo
+(`MODELO=/ros2_ws/modelos/objetos/anterior_2026-11-06/best.pt bash ...`). Cada línea anota dónde
+quedó la base: si se corrió más de 1 cm, esa prueba no vale (la base resbaló, P13).
+
+**Resultado del 9-nov-2026 con el modelo nuevo** (base quieta en todas):
+
+| Prueba | Resultado | Qué pasó |
+|---|---|---|
+| acercar cup | **OK** 2 de 2 | la pinza quedó a 0.101 y 0.106 m de la taza (meta 0.10) |
+| agarrar tenedor | **OK** 2 de 4 | lo encuentra desde la vista 2 (confianza 0.5–0.8) y lo levanta (dedos a 27–28 mm); 1 vez, ya levantado, MoveIt no pudo retraer el brazo (código −4); 1 vez no lo encontró en 5 min |
+| agarrar cuchara | FALLO 2 de 2 | la ve poco (0.2–0.5); una vez no la vio estable, la otra la midió (174 × 36 mm) pero el controlador abortó la bajada (código −4) |
+| agarrar martillo | FALLO 2 de 2 | lo ve bien (0.7–0.8) y lo mide (228 × 18 mm, 46 mm de alto), pero MoveIt solo encuentra el 90 % de la bajada en línea recta |
+
+**Debe pasar:** al menos `acercar cup` y `agarrar tenedor` en OK. Las fallas de la cuchara y el
+martillo no son del modelo (los encuentra): son del agarre, pendientes en P15.
 
 ## 11. Corrida larga sin deriva
 

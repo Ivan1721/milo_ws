@@ -142,7 +142,7 @@ carriage plate with no printed round base, so `joint_1` sits at `arm_base_link_1
 `link_6_1`, no sensor). Arm meshes and the arm_control/gripper_camera/sim xacros were identical.
 All SRDF pairs were regenerated from scratch; the `cabeza_link`–`link_3_1` pair is `Default`
 (they overlap at the zero pose Gazebo starts in), so MoveIt does not check arm vs head (P16).
-After it the smoke test, `agarre_node tenedor` and `manija_node acercar:=true` passed with no pose changes. The CAD was modeled rotated 180° about Z, fixed
+After it the smoke test, `agarre_node tenedor` and `manija_node acercar:=true` passed with no pose changes. With rev. 1 the base rolled forward ~2 mm per arm move (58.5 mm/30, `deriva_base`), so `arm_sim.launch.py` raises the diff-drive `max_wheel_torque` 5 → 100 N·m in the arm sim only (−0.1 mm; the team's xacro keeps 5 for driving). Object model replaced 2026-11-09 by the team's `dataset_reglamento3` YOLO11n (same 27 classes, old one in `modelos/objetos/anterior_2026-11-06/`): 9/26 in `evaluar_objetos.py` vs 3/26 for the old one in the same run (it misses the fork there because `frente40` hides it behind the gripper, but sees it from `agarre_node`'s views). `scripts/prueba_objetos.sh` (fresh headless sim per test, OK/FALLO lines, `MODELO=` for another .pt) is the team test: 2026-11-09 cup approach 2/2, fork grasp 2/4 (one retract failed with -4, one never found it), spoon 0/2 (descent aborted -4), hammer 0/2 (Cartesian descent 90 %). The CAD was modeled rotated 180° about Z, fixed
 with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` likely needs the same.
 
 **Arm in simulation** (`./sim.sh brazo` → `andesrobot_arm/launch/arm_sim.launch.py`):

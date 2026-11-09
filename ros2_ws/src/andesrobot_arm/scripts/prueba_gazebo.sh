@@ -46,7 +46,9 @@ apagar() {
 }
 trap apagar INT TERM
 
-if pgrep -f gzserver >/dev/null; then echo "Ya hay un gzserver corriendo: apágalo primero (./sim.sh stop)."; exit 1; fi
+# Solo cuentan los gzserver vivos: los zombis (estado Z, ya terminados, que quedan de pruebas
+# anteriores hasta que el contenedor se reinicia) no ocupan el puerto.
+if ps -eo stat,cmd | grep -v grep | grep gzserver | grep -qv '^Z'; then echo "Ya hay un gzserver corriendo: apágalo primero (./sim.sh stop)."; exit 1; fi
 echo "Arrancando arm_sim.launch.py sin ventanas (log: $LOG)..."
 MOVEIT="${MOVEIT:-true}"
 ros2 launch andesrobot_arm arm_sim.launch.py gui:=false rviz:=false moveit:=$MOVEIT > "$LOG" 2>&1 &

@@ -101,6 +101,15 @@ def robot_description_urdf(simple_collision, camara):
     # como argumento de línea de comandos, y si el URDF tiene comentarios no lo puede leer
     # (el controller_manager nunca arranca). El xacro de Milo tiene muchos: se borran aquí.
     _strip_comments(doc)
+    # Freno de las ruedas: el plugin diff_drive las sujeta con velocidad 0 y a lo más
+    # max_wheel_torque (5 N·m en andesrobot.sim.xacro, pensado para manejar sin hacer
+    # "caballito"). Con el modelo rev. 1 (9-nov) eso no basta: cada movimiento del brazo hace
+    # rodar la base hacia adelante (58 mm en 30 movimientos, medido con scripts/deriva_base/;
+    # con 100 N·m, 0.1 mm), la cámara deja de apuntar a la mesa y la base termina chocando con
+    # ella. En esta simulación nadie maneja la base, así que aquí se sube a 100 N·m sin tocar el
+    # xacro del equipo (con max_wheel_acceleration 0.8 el arranque sigue siendo suave).
+    for torque in doc.getElementsByTagName('max_wheel_torque'):
+        torque.firstChild.data = '100'
     return doc.toxml()
 
 

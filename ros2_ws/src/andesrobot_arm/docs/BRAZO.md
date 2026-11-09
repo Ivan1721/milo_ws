@@ -407,6 +407,20 @@ cm muchos objetos se ven chicos. Detectar la mesa como `card` es un falso positi
 sumar fotos de estos objetos simulados al entrenamiento, como se hizo con la manija (P14 en
 `docs/PENDIENTES.md`).
 
+**Modelo nuevo del equipo (9-nov-2026).** Mismas 27 clases, entrenado con `dataset_reglamento3`; el anterior quedó en `ros2_ws/modelos/objetos/anterior_2026-11-06/`. Con la base ya frenada (ver abajo), en la misma simulación: **9 de 26** con el nuevo y 3 de 26 con el anterior.
+
+| Objeto | Nuevo (frente 30° / 40° / arriba) | Anterior |
+|---|---|---|
+| bowl blanco / bowl turquesa | 0.91 / 0.88 / 0.77 · 0.94 / 0.91 / 0.82 | – / – |
+| taza blanca / taza | 0.79 / 0.44 / – · 0.85 / 0.87 / 0.14 | 0.53 / 0.63 |
+| Rubik / martillo / manzana | 0.69 / 0.40 / – · 0.63 / 0.58 / – · 0.33 / 0.47 / – | – |
+| plato / cuchara | 0.13 / 0.40 / 0.15 · – / – / 0.12 | – |
+| juego de cartas | – | – / – / 0.30 |
+
+El nuevo ya no ve la mesa como `card`, pero ve la pinza y la bandeja como `plate` y las Pringles como `drink`. En esta evaluación el tenedor no sale con ninguno (en `frente40` queda detrás de la pinza), pero desde las vistas de `agarre_node` el modelo nuevo sí lo ve (0.5–0.8): lo agarró en 2 de 4 corridas de `scripts/prueba_objetos.sh` (resultados en `docs/prueba_desde_cero.md`, paso 10). El equipo probó el modelo con una RealSense real: 17 de 21 objetos (fallan plato llano, portaminas, botella de jabón y espátula).
+
+**Freno de las ruedas en `arm_sim`.** Con el modelo rev. 1 la base avanzaba ~3 cm por objeto evaluado (58.5 mm en 30 movimientos medido con `scripts/deriva_base/`; con 100 N·m de freno, 0.1 mm), hasta chocar con la mesa. `arm_sim.launch.py` sube `max_wheel_torque` del plugin diff_drive de 5 a 100 N·m solo en esta simulación.
+
 ### Agarrar un objeto por su nombre (`agarre_node`)
 
 ```bash
