@@ -132,8 +132,17 @@ safety filter's output is remapped to `/diff_drive_controller/cmd_vel_unstamped`
 fingers become `fixed`; used by the mapping sim because the unactuated arm would collapse),
 `simple_collision` (primitive boxes on `base_link`, including a fixed "brazo" box; arm links then have
 **no** collision), `sim_lidar`/`sim_imu`, `use_hardware`/`hoverboard_port`, `arm_control` +
-`arm_controllers_file`. Frames: `base_footprint` on the ground under the wheel axle; `base_link` at the
-axle (z = 0.08255); `laser` is the C1 optical frame. The CAD was modeled rotated 180° about Z, fixed
+`arm_controllers_file`, `gripper_camera`. Frames: `base_footprint` on the ground under the wheel axle;
+`base_link` at the profile center (z = 0.08935, axle 6.8 mm below it); `laser` is the C1 optical frame.
+Since 2026-11-08 the package is the structure team's **rev. 1** (repo
+`AndesRobot-Oficial/Structure-Embedded-Systems_MILO`, folder `milo_description`, copied in as is:
+V-slot frame, head with RealSense, electronics, real masses 36.8 kg, no ballast; arm bolted to the
+carriage plate with no printed round base, so `joint_1` sits at `arm_base_link_1` and the arm is
+30 mm lower than before; `lock_arm:=true` fixes the arm in a folded pose; `gripper_imu_link` on
+`link_6_1`, no sensor). Arm meshes and the arm_control/gripper_camera/sim xacros were identical.
+All SRDF pairs were regenerated from scratch; the `cabeza_link`–`link_3_1` pair is `Default`
+(they overlap at the zero pose Gazebo starts in), so MoveIt does not check arm vs head (P16).
+After it the smoke test, `agarre_node tenedor` and `manija_node acercar:=true` passed with no pose changes. The CAD was modeled rotated 180° about Z, fixed
 with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` likely needs the same.
 
 **Arm in simulation** (`./sim.sh brazo` → `andesrobot_arm/launch/arm_sim.launch.py`):
@@ -286,7 +295,9 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
 - `image_to_array` returns RGB but Ultralytics treats numpy input as BGR: every node that feeds a
   camera frame to YOLO flips channels (`[:, :, ::-1]`). Before 2026-11-07 `manija_node` and
   `objeto_node` fed swapped colors (both re-tested after the fix).
-- Arm masses: gripper scaled from the CAD's steel to ABS (`gripper_mass_scale`); stepper motors and
+- Arm masses (rev. 1): printed parts by voxels (PLA, 60 % infill), installed motors (J1/J3 NEMA23
+  0.70 kg, J2 1.60 kg, J4-6 NEMA17 0.28 kg; `calcular_torques.py` still uses the guide's holding
+  torques); arm 6.63 kg without the camera. Stepper motors and
   the gripper servo are fixed `motor_joint_N`/`gripper_servo_link` inertial-only links on the link
   before each joint. Sources in `docs/hardware/README.md` at the repo root (the docs there are
   gitignored third-party files).

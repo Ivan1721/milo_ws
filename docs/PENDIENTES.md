@@ -26,6 +26,7 @@ Cómo usarla:
 | P13 | La base resbala en Gazebo: arreglo aplicado, falta medirlo en la simulación completa | simulación | — |
 | P14 | Detector de objetos: reconoce 4 de 26 objetos simulados | brazo, simulación | — |
 | P15 | Agarrar objetos de la mesa (plan en 6 fases; fase 1 hecha, fase 2 con la caja, fase 5 con el tenedor) | brazo, simulación | P08 (fase 3) |
+| P16 | MoveIt no revisa el choque del brazo con la cabeza (rev. 1 del modelo) | brazo, simulación | — |
 
 ---
 
@@ -36,8 +37,8 @@ Cómo usarla:
 **Dónde mirar:** informe §6; `docs/hardware/README.md`.
 
 ## P02 · IMU MPU-9250 en el URDF, la simulación y su soporte
-**Contexto:** la IMU va bajo la cámara, en la pinza. Hoy no está en el modelo ni en la simulación (solo existe la IMU de la base).
-**Qué hacer:** (1) diseñar el soporte en Fusion 360; (2) agregar un `imu_link` al xacro con una articulación fija bajo la cámara (el CAD está girado 180° en Z; un hijo nuevo probablemente necesite `rpy="0 0 π"`); (3) publicar su dato en simulación con el plugin de IMU de Gazebo (plantilla: la IMU de la base en `andesrobot.sim.xacro`); (4) agregar una comprobación a `scripts/prueba_gazebo.sh`.
+**Contexto:** la IMU va bajo la cámara, en la pinza. La rev. 1 del modelo (8-nov, equipo de estructura) ya trae `gripper_imu_link` (caja de 20 × 16 × 4 mm, fija a `link_6_1` en x = −0.035, 1 g), pero sin sensor en la simulación y sin soporte diseñado.
+**Qué hacer:** (1) diseñar el soporte en Fusion 360 y corregir la posición de `gripper_imu_joint` (hoy está en el cuerpo de la pinza, no bajo la cámara: la cámara no gira con joint_6 y la IMU sí); (2) ~~agregar el link al xacro~~ (hecho en la rev. 1); (3) publicar su dato en simulación con el plugin de IMU de Gazebo (plantilla: la IMU de la base en `andesrobot.sim.xacro`); (4) agregar una comprobación a `scripts/prueba_gazebo.sh`.
 **Listo cuando:** `./sim.sh brazo` publica el topic con datos, el frame sale en TF y queda documentado (informe §14 o §4).
 **Dónde mirar:** `docs/tecnologias` §5; `docs/literatura` §7; `andesrobot_description/urdf/`.
 
@@ -57,8 +58,8 @@ Cómo usarla:
 **Depende de:** armar el brazo físico (P01).
 
 ## P05 · Pesar reductores y piezas impresas; recalcular masas y torques
-**Contexto:** las masas ya incluyen motores y pinza en ABS (8.05 kg el brazo completo). Faltan los reductores y las piezas impresas reales.
-**Ya hecho:** `andesrobot_arm/scripts/calcular_torques.py` calcula el torque estático de cada articulación con las masas del URDF (`andesrobot_arm/torques.py`, 5 pruebas en `test/test_torques.py`) y `--pesaje` imprime la tabla de piezas para pesar. Resultado preliminar, sin carga en la pinza (20 000 posturas al azar): `joint_2` ≈ 23 N·m, `joint_3` ≈ 8 N·m, `joint_4` ≈ 0.9 N·m, `joint_5` ≈ 0.3 N·m. `joint_2` ya supera el límite provisorio de 20 N·m. Con 0.5 kg en la pinza sube a ≈ 27 y 10 N·m. Ante la retención de los motores (2.4 / 1.85 / 0.65 N·m) pide reductores de al menos ≈ 19:1 en `joint_2` y ≈ 9:1 en `joint_3` con margen 2.
+**Contexto:** desde la rev. 1 del modelo (8-nov, equipo de estructura) las piezas impresas tienen la masa de su impresión (PLA por vóxeles) y los motores son los instalados: 6.63 kg el brazo sin la cámara. Faltan las partes metálicas de los reductores y pesar las piezas reales.
+**Ya hecho:** `andesrobot_arm/scripts/calcular_torques.py` calcula el torque estático de cada articulación con las masas del URDF (`andesrobot_arm/torques.py`, 5 pruebas en `test/test_torques.py`) y `--pesaje` imprime la tabla de piezas para pesar. Resultado preliminar con la rev. 1, sin carga en la pinza (20 000 posturas al azar): `joint_2` ≈ 17.8 N·m, `joint_3` ≈ 6.2 N·m, `joint_4` ≈ 0.7 N·m, `joint_5` ≈ 0.3 N·m (antes 23 / 8 / 0.9 / 0.3). Con 0.5 kg en la pinza sube a ≈ 21.7 y 8.5 N·m: `joint_2` con carga pasa el límite provisorio de 20 N·m. El script todavía compara con la retención de los motores de la guía (2.4 / 1.85 / 0.65 N·m), no con los instalados (J1/J3 1.26 N·m, J2 3 N·m, `ROBOT.md`): actualizar su tabla. Los reductores instalados son de 38.4:1, de sobra para lo que pide (≈ 15:1 en `joint_2` con margen 2).
 **Falta (tú):** (1) pesar las piezas con `calcular_torques.py --pesaje` y anotar el peso real; (2) pesar los reductores EBA-23 y EBA-17 y averiguar su relación de reducción (no está en los documentos del repo).
 **Falta (después de pesar):** poner las masas medidas en `andesrobot.urdf.xacro` (los reductores van como masa extra en el link del motor), volver a correr el script y reemplazar `arm_effort` por el torque calculado.
 **Listo cuando:** la tabla de masas de la sección 6 tiene los valores medidos, el URDF los usa, `arm_effort` sale del cálculo y las pruebas pasan.
@@ -142,3 +143,9 @@ Cómo usarla:
 **Robot real:** el MG99x es un servo hobby sin lectura de posición ni de fuerza, así que «el dedo se frenó» no se puede leer; habría que verlo con la cámara o un sensor. Trabado contra el objeto el servo gasta corriente y se calienta: mandarlo a un poco menos que el ancho del objeto, no a cerrar del todo.
 **Listo cuando:** el brazo levanta en simulación un objeto detectado con la cámara, sin intervención manual, y queda en el informe §14.
 **Dónde mirar:** `docs/literatura` §9; `docs/tecnologias` («Detección y agarre»); informe §13 («Control en Gazebo»); `scripts/prueba_pinza.py`; `andesrobot.arm_control.xacro`; `config/arm_controllers.yaml`; `andesrobot_arm/objetos.py` y `objeto_node.py`; P08 y P10.
+
+## P16 · MoveIt no revisa el choque del brazo con la cabeza
+**Contexto:** la rev. 1 del modelo (8-nov) agrega la cabeza (`cabeza_link`, RealSense + pantalla) en la cara frontal de la columna, a 1.36–1.51 m. Con el brazo en cero y el lift en 0, `link_3_1` la atraviesa, así que `collisions_updater` marca el par `cabeza_link`–`link_3_1` como `Default` y MoveIt deja de revisarlo. Hace falta porque Gazebo arranca el brazo en cero: sin el par, el estado inicial ya estaría en choque y MoveIt no planificaría nada. Además, con el carro sobre ~+0.43 m o el brazo estirado hacia arriba, el brazo choca con la cabeza (`ROBOT.md`).
+**Qué hacer:** (1) arrancar el brazo de Gazebo en la pose plegada (`<param name="initial_value">` en cada articulación de `andesrobot.arm_control.xacro`; valores en `ROBOT.md`); (2) regenerar los pares del SRDF sin ese `Default` (comando en `andesrobot_arm/docs/BRAZO.md`); (3) revisar que las poses de inicio de `docs/prueba_desde_cero.md` y las vistas de `agarre_node` sigan saliendo desde la pose plegada.
+**Listo cuando:** el SRDF no tiene el par `cabeza_link`–`link_3_1`, una pose del TCP dentro de la cabeza se rechaza, y la prueba de humo, `agarre_node tenedor` y `manija_node acercar:=true` siguen pasando.
+**Dónde mirar:** `andesrobot_moveit_config/config/andesrobot.srdf`; `andesrobot_description/urdf/andesrobot.arm_control.xacro`; `andesrobot_description/docs/ROBOT.md` («Pose plegada»).

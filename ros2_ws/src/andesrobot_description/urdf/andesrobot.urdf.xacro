@@ -41,8 +41,9 @@
 <xacro:include filename="$(find andesrobot_description)/urdf/andesrobot.materials.xacro" />
 <xacro:include filename="$(find andesrobot_description)/urdf/andesrobot.gazebo.xacro" />
 
-<!-- lock_arm:=true -> brazo, lift y dedos quedan FIXED (simular/mapear sin que el brazo se desplome).
-     Para RViz con sliders: lock_arm:=false (default). -->
+<!-- lock_arm:=true -> brazo, lift y dedos quedan FIXED en la POSE PLEGADA (brazo recogido dentro de la
+     huella de la base, carro abajo del todo): simular/mapear sin que el brazo se desplome.
+     Para RViz con sliders: lock_arm:=false (default); display.launch.py arranca los sliders en esa pose. -->
 <xacro:arg name="lock_arm" default="false"/>
 <!-- Convertir el texto "true"/"false" del argumento en un verdadero/falso de Python. -->
 <xacro:property name="lock_arm" value="${'$(arg lock_arm)' == 'true'}"/>
@@ -63,827 +64,1930 @@
 <!-- Interruptores de sensores simulados (para depurar). Los usa andesrobot.sim.xacro. -->
 <xacro:arg name="sim_lidar" default="true"/>
 <xacro:arg name="sim_imu" default="true"/>
-<!-- MATERIAL DE LA PINZA (gripper EBG-20 de Toolbox Robotics)
-     Las masas de este archivo vienen del CAD de Fusion: masa = volumen de la pieza x densidad del
-     material que tenía asignado. Casi todo quedó en ABS macizo (1.06 g/cm3), pero la pinza
-     (link_6_1 y los dos dedos) quedó en acero (7.85 g/cm3, el material por defecto de Fusion):
-     pesaba 1.07 kg. La pinza real es de ABS impreso, así que su masa e inercia se multiplican por
-     1.06 / 7.85 (misma forma, otro material: la inercia escala igual que la masa).
-     Ver docs/hardware/README.md en la raíz del repo. -->
-<xacro:property name="gripper_cad_density" value="7.85"/>  <!-- [g/cm3] acero, lo que usó el CAD -->
-<xacro:property name="gripper_density" value="1.06"/>      <!-- [g/cm3] ABS, el material real -->
-<xacro:property name="gripper_mass_scale" value="${gripper_density / gripper_cad_density}"/>
 <!--
   Convención REP-103 / REP-105 (estándar de ROS):
   +X = adelante, +Y = izquierda, +Z = arriba.
   En Fusion el robot se modeló mirando al revés (girado 180° en Z). Por eso varias piezas
   llevan rpy="0 0 3.14159" (giro de 180°) en sus joints/visuales: para dejar todo mirando a +X.
 -->
-<!-- base_footprint: punto en el suelo, justo bajo el centro del eje de las ruedas motrices.
+<!-- ====== Cuerpo del modelo (rev. 1, 2026-11-08): estructura V-slot, electrónica, carcasas, cabeza y masas calculadas.
+     Fusión de: repo Structure-Embedded-Systems_MILO + milo_teleop (estructura/masas) + milo_ws rama brazo (brazo/pinza/cámara). ====== -->
+  <!-- IMU de la pinza (andesrobot.gripper_imu.xacro) -->
+  <material name="imu_blue">
+    <color rgba="0.100 0.300 0.800 1.000"/>
+  </material>
+  <!-- mu1 / mu2 = coeficientes de fricción (en la dirección de avance y la lateral).
+     kp / kd = rigidez y amortiguación del contacto con el suelo (qué tan "duro" es el suelo para
+     la rueda): valores altos = la rueda no se hunde ni rebota. -->
+  <!-- Ruedas motrices: alta fricción -->
+  <!-- Rueda loca: sin fricción (gira libre) -->
+  <!-- masa total de estos links: 22.83 kg -->
+  <!--
+  Convención REP-103 / REP-105 (estándar de ROS):
+  +X = adelante, +Y = izquierda, +Z = arriba.
+  En Fusion el robot se modeló mirando al revés (girado 180° en Z). Por eso varias piezas
+  llevan rpy="0 0 3.14159" (giro de 180°) en sus joints/visuales: para dejar todo mirando a +X.
+-->
+  <!-- base_footprint: punto en el suelo, justo bajo el centro del eje de las ruedas motrices.
      Es la raíz del árbol y el frame que usan la odometría, el SLAM y el filtro de seguridad.
      No tiene forma ni masa: es solo un sistema de coordenadas. -->
-<link name="base_footprint"/>
-
-<joint name="base_footprint_joint" type="fixed">
-  <!-- base_link = centro del eje de las ruedas motrices (centro de rotación del diff drive), a la altura del radio de rueda -->
-  <origin xyz="0 0 0.08255" rpy="0 0 0"/>
-  <parent link="base_footprint"/>
-  <child link="base_link"/>
-</joint>
-
-<!-- base_link: el CHASIS (bastidor de aluminio). Su origen está en el centro del eje de ruedas.
+  <material name="tapa_negra">
+    <color rgba="0.05 0.05 0.05 1.0"/>
+  </material>
+  <link name="base_footprint"/>
+  <joint name="base_footprint_joint" type="fixed">
+    <!-- base_link = centro del eje de las ruedas motrices (centro de rotación del diff drive), a la altura del radio de rueda -->
+    <origin rpy="0 0 0" xyz="0 0 0.08935"/>
+    <!-- 0.08255 (radio de rueda) + 0.0068: con los SK16 el eje queda 6.8 mm bajo el origen de base_link -->
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+  </joint>
+  <!-- base_link: el CHASIS (bastidor de aluminio). Su origen está en el centro del eje de ruedas.
      Explico cada parte una vez aquí; los demás links tienen la misma estructura. -->
-<link name="base_link">
-  <!-- Física: centro de masa (origin), masa en kg e inercia (resistencia a girar) en kg·m². -->
-  <inertial>
-    <origin xyz="0.12174 0 0.110956" rpy="0 0 0"/>
-    <mass value="5.535097434861394"/>
-    <inertia ixx="0.228215" iyy="0.237521" izz="0.368547" ixy="-0.0" iyz="1e-06" ixz="-0.00405"/>
-  </inertial>
-  <!-- Cómo se ve: la malla del CAD, corrida a su lugar (origin) y escalada de mm a m. -->
-  <visual>
-    <origin xyz="0.13 0 0.520248" rpy="0 0 3.141592653589793"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <!-- Color definido en andesrobot.materials.xacro. -->
-    <material name="silver"/>
-  </visual>
-  <!-- Colisión con la malla CAD completa: solo si simple_collision es falso. -->
-  <xacro:unless value="${simple_collision}">
-  <collision>
-    <origin xyz="0.13 0 0.520248" rpy="0 0 3.141592653589793"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-  </xacro:unless>
-  <!-- Colisiones simplificadas (medidas de las mallas, en frame base_link) -->
-  <!-- En simulación (simple_collision:=true) todo el robot choca como estas 5 formas simples,
-       pegadas al chasis (el brazo va fijo). Es mucho más estable para Gazebo que las mallas. -->
-  <xacro:if value="${simple_collision}">
+  <link name="base_link">
+    <!-- Bastidor de 23 perfiles V-slot 3030 (6.96 m a 0.835 kg/m: perfil 3030 ranura 8 de Alux), con los 7 refuerzos
+         que abrazan la columna 6060 por sus 4 caras en el nivel inferior y superior (2026-11-08).
+         Antes tenía la masa del CAD original (7.73 kg, malla maciza de ABS). -->
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.1026 0.0000 0.1278"/>
+      <mass value="5.8118"/>
+      <inertia ixx="0.222355" ixy="0" ixz="0.00697789" iyy="0.231749" iyz="0" izz="0.346352"/>
+    </inertial>
+    <!-- Cómo se ve: la malla del CAD, corrida a su lugar (origin) y escalada de mm a m. -->
+    <!-- Bastidor de perfiles V-slot 3030 (23 tramos), mismas medidas que la malla CAD anterior (base_link.stl):
+         500x500 mm, de z=0.020 a 0.250, anillo abajo y arriba, 4 verticales y travesaños inferiores,
+         más el collar de la columna. Uniones del collar inferior con anclaje interno 3030 (no caben escuadras). -->
+    <visual>  <!-- anillo inferior, lateral -->
+      <origin rpy="0 1.5707963267948966 0" xyz="0.1300 -0.2350 0.035248"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000440"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- anillo inferior, lateral -->
+      <origin rpy="0 1.5707963267948966 0" xyz="0.1300 0.2350 0.035248"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000440"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- anillo inferior, trasero -->
+      <origin rpy="1.5707963267948966 0 0" xyz="-0.1050 0.0000 0.035248"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000440"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- anillo inferior, delantero -->
+      <origin rpy="1.5707963267948966 0 0" xyz="0.3650 0.0000 0.035248"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000440"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- anillo superior, lateral -->
+      <origin rpy="0 1.5707963267948966 0" xyz="0.1300 -0.2350 0.235248"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000440"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- anillo superior, lateral -->
+      <origin rpy="0 1.5707963267948966 0" xyz="0.1300 0.2350 0.235248"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000440"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- anillo superior, trasero -->
+      <origin rpy="1.5707963267948966 0 0" xyz="-0.1050 0.0000 0.235248"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000440"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- anillo superior, delantero -->
+      <origin rpy="1.5707963267948966 0 0" xyz="0.3650 0.0000 0.235248"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000440"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- vertical esquina -->
+      <origin rpy="0 0 0" xyz="-0.1050 -0.2350 0.135248"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000230"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- vertical esquina -->
+      <origin rpy="0 0 0" xyz="-0.1050 0.2350 0.135248"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000230"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- vertical esquina -->
+      <origin rpy="0 0 0" xyz="0.3650 -0.2350 0.135248"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000230"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- vertical esquina -->
+      <origin rpy="0 0 0" xyz="0.3650 0.2350 0.135248"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000230"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- travesaño inferior largo -->
+      <origin rpy="0 1.5707963267948966 0" xyz="0.1300 -0.1017 0.035248"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000440"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- travesaño inferior largo -->
+      <origin rpy="0 1.5707963267948966 0" xyz="0.1300 0.1017 0.035248"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000440"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- travesaño inferior corto -->
+      <origin rpy="1.5707963267948966 0 0" xyz="0.1300 0.0000 0.035248"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.0001734"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- travesaño inferior corto -->
+      <origin rpy="1.5707963267948966 0 0" xyz="-0.0450 0.0000 0.035248"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.0001734"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- refuerzo columna, nivel inferior: travesaño delantero (cara frontal del 6060) -->
+      <origin rpy="1.5707963267948966 0 0" xyz="0.0450 0.0000 0.035248"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.0001734"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- refuerzo columna, nivel inferior: tope lateral izq del 6060 -->
+      <origin rpy="0 1.5707963267948966 0" xyz="0.0000 0.0450 0.035248"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.0000600"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- refuerzo columna, nivel inferior: tope lateral der del 6060 -->
+      <origin rpy="0 1.5707963267948966 0" xyz="0.0000 -0.0450 0.035248"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.0000600"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- refuerzo columna, nivel superior: travesaño trasero de lado a lado (cara trasera del 6060) -->
+      <origin rpy="1.5707963267948966 0 0" xyz="-0.0450 0.0000 0.235248"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.0004400"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- refuerzo columna, nivel superior: travesaño delantero de lado a lado (cara frontal del 6060) -->
+      <origin rpy="1.5707963267948966 0 0" xyz="0.0450 0.0000 0.235248"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.0004400"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- refuerzo columna, nivel superior: tope lateral izq del 6060 -->
+      <origin rpy="0 1.5707963267948966 0" xyz="0.0000 0.0450 0.235248"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.0000600"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- refuerzo columna, nivel superior: tope lateral der del 6060 -->
+      <origin rpy="0 1.5707963267948966 0" xyz="0.0000 -0.0450 0.235248"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.0000600"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
     <collision name="chasis">
-      <origin xyz="0.13 0 0.115" rpy="0 0 0"/>
-      <geometry><box size="0.50 0.50 0.27"/></geometry>
+      <origin rpy="0 0 0" xyz="0.13 0 0.115"/>
+      <geometry>
+        <box size="0.50 0.50 0.27"/>
+      </geometry>
     </collision>
     <collision name="columna">
-      <origin xyz="0 0 0.77" rpy="0 0 0"/>
-      <geometry><box size="0.06 0.06 1.50"/></geometry>
+      <origin rpy="0 0 0" xyz="0 0 0.77"/>
+      <geometry>
+        <box size="0.06 0.06 1.50"/>
+      </geometry>
     </collision>
     <collision name="rplidar_c1">
-      <origin xyz="0.408 0 0.271" rpy="0 0 0"/>
-      <geometry><cylinder radius="0.028" length="0.042"/></geometry>
+      <origin rpy="0 0 0" xyz="0.408 0 0.271"/>
+      <geometry>
+        <cylinder length="0.042" radius="0.028"/>
+      </geometry>
     </collision>
+    <!-- simple_collision:=true (pensado con lock_arm:=true): el carro y el brazo PLEGADO chocan como dos cajas
+         pegadas al chasis (medidas de las mallas en la pose plegada, frame base_link). -->
+    <xacro:if value="${simple_collision}">
     <collision name="carro_lift">
-      <origin xyz="0.1225 0 0.789" rpy="0 0 0"/>
-      <geometry><box size="0.185 0.26 0.172"/></geometry>
+      <origin rpy="0 0 0" xyz="0.1225 0 0.3702"/>
+      <geometry>
+        <box size="0.185 0.26 0.135"/>
+      </geometry>
     </collision>
-    <collision name="brazo">
-      <origin xyz="0.221 0 1.3045" rpy="0 0 0"/>
-      <geometry><box size="0.308 0.11 0.859"/></geometry>
+    <collision name="brazo_plegado">
+      <origin rpy="0 0 0" xyz="0.1985 -0.0075 0.6382"/>
+      <geometry>
+        <box size="0.343 0.465 0.401"/>
+      </geometry>
     </collision>
-  </xacro:if>
-</link>
-
-<!-- Brazo, eslabón 1: base giratoria del brazo (gira en Z sobre arm_base_link_1). -->
-<link name="link_1_1">
-  <inertial>
-    <origin xyz="-0.01769557352244753 -9.412818198760994e-06 0.06365159642189822" rpy="0 0 0"/>
-    <mass value="0.4335455797309874"/>
-    <inertia ixx="0.00108" iyy="0.001163" izz="0.00117" ixy="-0.0" iyz="0.0" ixz="-6e-05"/>
-  </inertial>
-  <visual>
-    <origin xyz="-0.0075 -0.0 -0.3545" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/link_1_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <xacro:unless value="${simple_collision}">
-  <collision>
-    <origin xyz="-0.0075 -0.0 -0.3545" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/link_1_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-  </xacro:unless>
-</link>
-
-<!-- Brazo, eslabón 2: hombro. -->
-<link name="link_2_1">
-  <inertial>
-    <origin xyz="-0.06117091356976916 3.782915765605535e-05 0.1745118338257844" rpy="0 0 0"/>
-    <mass value="1.337954288424347"/>
-    <inertia ixx="0.026593" iyy="0.026587" izz="0.003039" ixy="-1e-06" iyz="9e-06" ixz="4e-05"/>
-  </inertial>
-  <visual>
-    <origin xyz="0.0575 -0.0 -0.4105" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/link_2_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <xacro:unless value="${simple_collision}">
-  <collision>
-    <origin xyz="0.0575 -0.0 -0.4105" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/link_2_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-  </xacro:unless>
-</link>
-
-<!-- Brazo, eslabón 3: codo. -->
-<link name="link_3_1">
-  <inertial>
-    <origin xyz="0.060349833319215604 -7.17139814212156e-06 0.14917664928098273" rpy="0 0 0"/>
-    <mass value="0.7555537404726129"/>
-    <inertia ixx="0.014049" iyy="0.014249" izz="0.001262" ixy="0.0" iyz="1e-06" ixz="-0.00134"/>
-  </inertial>
-  <visual>
-    <origin xyz="0.058577 -0.0 -0.760577" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/link_3_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <xacro:unless value="${simple_collision}">
-  <collision>
-    <origin xyz="0.058577 -0.0 -0.760577" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/link_3_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-  </xacro:unless>
-</link>
-
-<!-- Brazo, eslabón 4: muñeca (inclinación). -->
-<link name="link_4_1">
-  <inertial>
-    <origin xyz="-0.03758399899740222 -2.5185582457390994e-05 -0.009574293539618806" rpy="0 0 0"/>
-    <mass value="0.22273736647673667"/>
-    <inertia ixx="0.000311" iyy="0.000343" izz="0.000316" ixy="-0.0" iyz="-0.0" ixz="-2.6e-05"/>
-  </inertial>
-  <visual>
-    <origin xyz="0.032577 -0.0 -1.084077" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/link_4_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <xacro:unless value="${simple_collision}">
-  <collision>
-    <origin xyz="0.032577 -0.0 -1.084077" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/link_4_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-  </xacro:unless>
-</link>
-
-<!-- Brazo, eslabón 5: muñeca (giro). -->
-<link name="link_5_1">
-  <inertial>
-    <origin xyz="0.009039834811220046 -2.5441028107860334e-05 0.03771079682664524" rpy="0 0 0"/>
-    <mass value="0.22513890610008"/>
-    <inertia ixx="0.000319" iyy="0.000351" izz="0.000319" ixy="0.0" iyz="0.0" ixz="-2.4e-05"/>
-  </inertial>
-  <visual>
-    <origin xyz="0.082077 -0.0 -1.124077" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/link_5_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <xacro:unless value="${simple_collision}">
-  <collision>
-    <origin xyz="0.082077 -0.0 -1.124077" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/link_5_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-  </xacro:unless>
-</link>
-
-<!-- Brazo, eslabón 6: muñeca final, donde va la pinza. La malla es el cuerpo de la pinza EBG-20;
-     masa e inercia del CAD (acero) escaladas a ABS con gripper_mass_scale. -->
-<link name="link_6_1">
-  <inertial>
-    <origin xyz="-0.04672721914174861 0.0010341455962512703 -4.467579352440687e-05" rpy="0 0 0"/>
-    <mass value="${0.7388320393848112 * gripper_mass_scale}"/>
-    <inertia ixx="${0.000723 * gripper_mass_scale}" iyy="${0.000493 * gripper_mass_scale}" izz="${0.000757 * gripper_mass_scale}" ixy="${5e-06 * gripper_mass_scale}" iyz="${-1e-06 * gripper_mass_scale}" ixz="${-1e-06 * gripper_mass_scale}"/>
-  </inertial>
-  <visual>
-    <origin xyz="0.123077 -0.0 -1.173577" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/link_6_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <xacro:unless value="${simple_collision}">
-  <collision>
-    <origin xyz="0.123077 -0.0 -1.173577" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/link_6_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-  </xacro:unless>
-</link>
-
-<!-- Pinza: dedo derecho. -->
-<link name="right_finger_link_1">
-  <inertial>
-    <origin xyz="-0.0246083952902236 0.013356716518430598 -0.007375101628988023" rpy="0 0 0"/>
-    <mass value="${0.16542337365750662 * gripper_mass_scale}"/>
-    <inertia ixx="${4.2e-05 * gripper_mass_scale}" iyy="${6.6e-05 * gripper_mass_scale}" izz="${8.3e-05 * gripper_mass_scale}" ixy="${1.6e-05 * gripper_mass_scale}" iyz="${9e-06 * gripper_mass_scale}" ixz="${-1.6e-05 * gripper_mass_scale}"/>
-  </inertial>
-  <visual>
-    <origin xyz="0.180677 0.0038 -1.187077" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/right_finger_link_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <xacro:unless value="${simple_collision}">
-  <collision>
-    <origin xyz="0.180677 0.0038 -1.187077" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/right_finger_link_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-  </xacro:unless>
-</link>
-
-<!-- Pinza: dedo izquierdo. -->
-<link name="left_finger_link_1">
-  <inertial>
-    <origin xyz="-0.024608395290223434 -0.013356716294173003 0.007375804549700549" rpy="0 0 0"/>
-    <mass value="${0.16542337365750778 * gripper_mass_scale}"/>
-    <inertia ixx="${4.2e-05 * gripper_mass_scale}" iyy="${6.6e-05 * gripper_mass_scale}" izz="${8.3e-05 * gripper_mass_scale}" ixy="${-1.6e-05 * gripper_mass_scale}" iyz="${9e-06 * gripper_mass_scale}" ixz="${1.6e-05 * gripper_mass_scale}"/>
-  </inertial>
-  <visual>
-    <origin xyz="0.180677 -0.0038 -1.160077" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/left_finger_link_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <xacro:unless value="${simple_collision}">
-  <collision>
-    <origin xyz="0.180677 -0.0038 -1.160077" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/left_finger_link_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-  </xacro:unless>
-</link>
-
-<!-- Carro del elevador: sube y baja por la columna llevando el brazo. -->
-<link name="lift_carriage_link_1">
-  <inertial>
-    <origin xyz="-0.055357142857138136 -1.5546917979023206e-16 0.03714285714285398" rpy="0 0 0"/>
-    <mass value="0.4340700000000337"/>
-    <inertia ixx="0.003177" iyy="0.002312" izz="0.004025" ixy="-0.0" iyz="-0.0" ixz="0.000639"/>
-  </inertial>
-  <visual>
-    <origin xyz="-0.1 -0.0 -0.25" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/lift_carriage_link_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <xacro:unless value="${simple_collision}">
-  <collision>
-    <origin xyz="-0.1 -0.0 -0.25" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/lift_carriage_link_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-  </xacro:unless>
-</link>
-
-<!-- Rueda motriz izquierda (rueda de hoverboard 6.5", radio 0.08255 m). -->
-<link name="left_wheel_link_1">
-  <inertial>
-    <origin xyz="-2.7755575615628914e-17 -0.02249983226177152 8.78772389301119e-08" rpy="0 0 0"/>
-    <mass value="1.0211802503121636"/>
-    <inertia ixx="0.001912" iyy="0.003479" izz="0.001912" ixy="-0.0" iyz="0.0" ixz="0.0"/>
-  </inertial>
-  <visual>
-    <origin xyz="-0.13 0.15775 0.520496" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/left_wheel_link_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <collision>
-    <!-- cilindro ideal: r=0.08255, ancho 0.045 (medido de la malla) -->
-    <!-- rpy 1.5708 (90°) en x acuesta el cilindro para que su eje quede a lo ancho, como una rueda. -->
-    <origin xyz="0 -0.0225 0" rpy="1.5707963267948966 0 0"/>
-    <geometry>
-      <cylinder radius="0.08255" length="0.045"/>
-    </geometry>
-  </collision>
-</link>
-
-<!-- Rueda motriz derecha. -->
-<link name="right_wheel_link_1">
-  <inertial>
-    <origin xyz="-2.7755575615628914e-17 0.02249983226177152 0.0" rpy="0 0 0"/>
-    <mass value="1.0211802503121652"/>
-    <inertia ixx="0.001912" iyy="0.003479" izz="0.001912" ixy="0.0" iyz="-0.0" ixz="0.0"/>
-  </inertial>
-  <visual>
-    <origin xyz="-0.13 -0.15775 0.52" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/right_wheel_link_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <collision>
-    <!-- cilindro ideal: r=0.08255, ancho 0.045 (medido de la malla) -->
-    <origin xyz="0 0.0225 0" rpy="1.5707963267948966 0 0"/>
-    <geometry>
-      <cylinder radius="0.08255" length="0.045"/>
-    </geometry>
-  </collision>
-</link>
-
-<!-- IMU (acelerómetro + giroscopio). -->
-<link name="imu_link_1">
-  <inertial>
-    <origin xyz="0.0 0.0 -0.007499999999999951" rpy="0 0 0"/>
-    <mass value="0.0183804"/>
-    <inertia ixx="2e-06" iyy="2e-06" izz="4e-06" ixy="0.0" iyz="0.0" ixz="0.0"/>
-  </inertial>
-  <visual>
-    <origin xyz="-0.0 -0.0 0.5" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/imu_link_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <xacro:unless value="${simple_collision}">
-  <collision>
-    <origin xyz="-0.0 -0.0 0.5" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/imu_link_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-  </xacro:unless>
-</link>
-
-<!-- Rueda loca delantera. En el CAD venía como un "palo"; se modela como caster giratorio.
-     caster_height = montaje -> suelo (del CAD). caster_wheel_radius: MEDIR la rueda real y ajustar. -->
-<xacro:property name="caster_height" value="0.103"/>
-<xacro:property name="caster_wheel_radius" value="0.025"/>
-<xacro:property name="caster_wheel_width" value="0.020"/>
-<link name="front_caster_link_1">
-  <inertial>
-    <origin xyz="0.0 0.0 -0.0515" rpy="0 0 0"/>
-    <mass value="0.07717479433176005"/>
-    <inertia ixx="7.3e-05" iyy="7.3e-05" izz="9e-06" ixy="0.0" iyz="0.0" ixz="0.0"/>
-  </inertial>
-  <!-- placa de montaje -->
-  <visual>
-    <origin xyz="0 0 -0.0025" rpy="0 0 0"/>
-    <geometry><box size="0.05 0.05 0.005"/></geometry>
-    <material name="caster_black"/>
-  </visual>
-  <!-- cuerpo / horquilla -->
-  <visual>
-    <origin xyz="0 0 ${-(caster_height - 2*caster_wheel_radius)/2 - 0.0025}" rpy="0 0 0"/>
-    <geometry><cylinder radius="0.012" length="${caster_height - 2*caster_wheel_radius - 0.005}"/></geometry>
-    <material name="caster_black"/>
-  </visual>
-  <!-- rueda -->
-  <visual>
-    <origin xyz="0 0 ${-(caster_height - caster_wheel_radius)}" rpy="${pi/2} 0 0"/>
-    <geometry><cylinder radius="${caster_wheel_radius}" length="${caster_wheel_width}"/></geometry>
-    <material name="caster_black"/>
-  </visual>
-  <!-- colisión: esfera sin fricción (aprox. estándar de rueda loca en Gazebo) -->
-  <collision>
-    <origin xyz="0 0 ${-(caster_height - caster_wheel_radius)}" rpy="0 0 0"/>
-    <geometry><sphere radius="${caster_wheel_radius}"/></geometry>
-  </collision>
-</link>
-
-<!-- Carcasa del RPLIDAR C1. El frame exacto de medición es "laser" (más abajo). -->
-<link name="lidar_link_1">
-  <inertial>
-    <origin xyz="-0.058000000000000024 -1.9721522630525296e-33 0.02065000000000003" rpy="0 0 0"/>
-    <mass value="0.13533355807999994"/>
-    <inertia ixx="5.4e-05" iyy="5.4e-05" izz="7e-05" ixy="0.0" iyz="-0.0" ixz="0.0"/>
-  </inertial>
-  <visual>
-    <origin xyz="0.22 -0.0 0.27" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/lidar_link_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <xacro:unless value="${simple_collision}">
-  <collision>
-    <origin xyz="0.22 -0.0 0.27" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/lidar_link_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-  </xacro:unless>
-</link>
-
-<!-- Columna vertical (perfil de 1.5 m) por donde sube el carro del elevador. -->
-<link name="vertical_column_link_1">
-  <inertial>
-    <origin xyz="-0.03 0.0 0.75" rpy="0 0 0"/>
-    <mass value="5.724"/>
-    <inertia ixx="1.074967" iyy="1.074967" izz="0.003434" ixy="0.0" iyz="0.0" ixz="-0.0"/>
-  </inertial>
-  <visual>
-    <origin xyz="-0.16 -0.0 0.5" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/vertical_column_link_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <xacro:unless value="${simple_collision}">
-  <collision>
-    <origin xyz="-0.16 -0.0 0.5" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/vertical_column_link_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-  </xacro:unless>
-</link>
-
-<!-- Base del brazo, atornillada al carro del elevador. -->
-<link name="arm_base_link_1">
-  <inertial>
-    <origin xyz="4.338687172847182e-05 -0.00010909262325140833 0.017247921655867693" rpy="0 0 0"/>
-    <mass value="0.37739906837185044"/>
-    <inertia ixx="0.000595" iyy="0.000597" izz="0.001109" ixy="-1e-06" iyz="1e-06" ixz="-0.0"/>
-  </inertial>
-  <visual>
-    <origin xyz="-0.0075 -0.0 -0.3175" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/arm_base_link_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <xacro:unless value="${simple_collision}">
-  <collision>
-    <origin xyz="-0.0075 -0.0 -0.3175" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find andesrobot_description)/meshes/arm_base_link_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-  </xacro:unless>
-</link>
-
-<!-- ================================== ARTICULACIONES (joints) ==================================
+    </xacro:if>
+  </link>
+  <!-- Brazo, eslabón 1: base giratoria del brazo (gira en Z sobre arm_base_link_1). -->
+  <link name="link_1_1">
+    <inertial>
+      <!-- Pieza impresa en PLA (1.24 g/cm³): 4 paredes (1.6 mm), 7 capas techo/piso (1.4 mm), relleno 60 %.
+           Masa, centro de masa e inercia calculados de la malla por voxeles de 0.5 mm (408.9 cm³). -->
+      <origin rpy="0 0 0" xyz="-0.01311 0.00001 0.06439"/>
+      <mass value="0.3801"/>
+      <inertia ixx="9.9601e-04" ixy="-9.2665e-08" ixz="-4.3879e-05" iyy="1.0780e-03" iyz="2.1490e-07" izz="1.0451e-03"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="-0.0075 -0.0 -0.3545"/>
+      <geometry>
+        <mesh filename="file://$(find andesrobot_description)/meshes/link_1_1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <!-- Colisión con la malla CAD: solo si simple_collision es falso. -->
+    <xacro:unless value="${simple_collision}">
+    <collision>
+      <origin rpy="0 0 0" xyz="-0.0075 -0.0 -0.3545"/>
+      <geometry>
+        <mesh filename="file://$(find andesrobot_description)/meshes/link_1_1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+    </xacro:unless>
+  </link>
+  <!-- Brazo, eslabón 2: hombro. -->
+  <link name="link_2_1">
+    <inertial>
+      <!-- Pieza impresa en PLA (1.24 g/cm³): 4 paredes (1.6 mm), 7 capas techo/piso (1.4 mm), relleno 60 %.
+           Masa, centro de masa e inercia calculados de la malla por voxeles de 0.5 mm (1261.5 cm³). -->
+      <origin rpy="0 0 0" xyz="-0.06166 0.00004 0.17377"/>
+      <mass value="1.1570"/>
+      <inertia ixx="2.3695e-02" ixy="-9.4959e-08" ixz="7.7567e-05" iyy="2.3760e-02" iyz="5.7097e-06" izz="2.7043e-03"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0.0575 -0.0 -0.4105"/>
+      <geometry>
+        <mesh filename="file://$(find andesrobot_description)/meshes/link_2_1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <!-- Colisión con la malla CAD: solo si simple_collision es falso. -->
+    <xacro:unless value="${simple_collision}">
+    <collision>
+      <origin rpy="0 0 0" xyz="0.0575 -0.0 -0.4105"/>
+      <geometry>
+        <mesh filename="file://$(find andesrobot_description)/meshes/link_2_1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+    </xacro:unless>
+  </link>
+  <!-- Brazo, eslabón 3: codo. -->
+  <link name="link_3_1">
+    <inertial>
+      <!-- Pieza impresa en PLA (1.24 g/cm³): 4 paredes (1.6 mm), 7 capas techo/piso (1.4 mm), relleno 60 %.
+           Masa, centro de masa e inercia calculados de la malla por voxeles de 0.5 mm (712.4 cm³). -->
+      <origin rpy="0 0 0" xyz="0.06132 -0.00001 0.14817"/>
+      <mass value="0.6736"/>
+      <inertia ixx="1.2451e-02" ixy="9.5805e-08" ixz="-1.1313e-03" iyy="1.2621e-02" iyz="4.4111e-07" izz="1.1167e-03"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0.058577 -0.0 -0.760577"/>
+      <geometry>
+        <mesh filename="file://$(find andesrobot_description)/meshes/link_3_1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <!-- Colisión con la malla CAD: solo si simple_collision es falso. -->
+    <xacro:unless value="${simple_collision}">
+    <collision>
+      <origin rpy="0 0 0" xyz="0.058577 -0.0 -0.760577"/>
+      <geometry>
+        <mesh filename="file://$(find andesrobot_description)/meshes/link_3_1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+    </xacro:unless>
+  </link>
+  <!-- Brazo, eslabón 4: muñeca (inclinación). -->
+  <link name="link_4_1">
+    <inertial>
+      <!-- Pieza impresa en PLA (1.24 g/cm³): 4 paredes (1.6 mm), 7 capas techo/piso (1.4 mm), relleno 60 %.
+           Masa, centro de masa e inercia calculados de la malla por voxeles de 0.5 mm (210.1 cm³). -->
+      <origin rpy="0 0 0" xyz="-0.04027 -0.00001 -0.01026"/>
+      <mass value="0.1972"/>
+      <inertia ixx="2.8668e-04" ixy="-1.8992e-08" ixz="-1.9064e-05" iyy="3.1663e-04" iyz="-6.6382e-08" izz="2.8419e-04"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0.032577 -0.0 -1.084077"/>
+      <geometry>
+        <mesh filename="file://$(find andesrobot_description)/meshes/link_4_1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <!-- Colisión con la malla CAD: solo si simple_collision es falso. -->
+    <xacro:unless value="${simple_collision}">
+    <collision>
+      <origin rpy="0 0 0" xyz="0.032577 -0.0 -1.084077"/>
+      <geometry>
+        <mesh filename="file://$(find andesrobot_description)/meshes/link_4_1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+    </xacro:unless>
+  </link>
+  <!-- Brazo, eslabón 5: muñeca (giro). -->
+  <link name="link_5_1">
+    <inertial>
+      <!-- Pieza impresa en PLA (1.24 g/cm³): 4 paredes (1.6 mm), 7 capas techo/piso (1.4 mm), relleno 60 %.
+           Masa, centro de masa e inercia calculados de la malla por voxeles de 0.5 mm (212.3 cm³). -->
+      <origin rpy="0 0 0" xyz="0.00958 -0.00001 0.04022"/>
+      <mass value="0.1964"/>
+      <inertia ixx="2.8107e-04" ixy="5.8276e-08" ixz="-1.7814e-05" iyy="3.2051e-04" iyz="2.0678e-08" izz="2.9288e-04"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0.082077 -0.0 -1.124077"/>
+      <geometry>
+        <mesh filename="file://$(find andesrobot_description)/meshes/link_5_1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <!-- Colisión con la malla CAD: solo si simple_collision es falso. -->
+    <xacro:unless value="${simple_collision}">
+    <collision>
+      <origin rpy="0 0 0" xyz="0.082077 -0.0 -1.124077"/>
+      <geometry>
+        <mesh filename="file://$(find andesrobot_description)/meshes/link_5_1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+    </xacro:unless>
+  </link>
+  <!-- Brazo, eslabón 6: muñeca final, donde va la pinza. -->
+  <link name="link_6_1">
+    <inertial>
+      <!-- Pieza impresa en PLA (1.24 g/cm³): 4 paredes (1.6 mm), 7 capas techo/piso (1.4 mm), relleno 60 %.
+           Masa, centro de masa e inercia calculados de la malla por voxeles de 0.5 mm (94.1 cm³). -->
+      <origin rpy="0 0 0" xyz="-0.04402 0.00054 -0.00013"/>
+      <mass value="0.0936"/>
+      <inertia ixx="9.5872e-05" ixy="3.6959e-07" ixz="-2.1542e-07" iyy="6.9804e-05" iyz="-5.8304e-08" izz="1.0245e-04"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0.123077 -0.0 -1.173577"/>
+      <geometry>
+        <mesh filename="file://$(find andesrobot_description)/meshes/link_6_1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <!-- Colisión con la malla CAD: solo si simple_collision es falso. -->
+    <xacro:unless value="${simple_collision}">
+    <collision>
+      <origin rpy="0 0 0" xyz="0.123077 -0.0 -1.173577"/>
+      <geometry>
+        <mesh filename="file://$(find andesrobot_description)/meshes/link_6_1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+    </xacro:unless>
+  </link>
+  <!-- Pinza: dedo derecho. -->
+  <link name="right_finger_link_1">
+    <inertial>
+      <!-- Pieza impresa en PLA (1.24 g/cm³): 4 paredes (1.6 mm), 7 capas techo/piso (1.4 mm), relleno 60 %.
+           Masa, centro de masa e inercia calculados de la malla por voxeles de 0.5 mm (21.1 cm³). -->
+      <origin rpy="0 0 0" xyz="-0.02416 0.01348 -0.00710"/>
+      <mass value="0.0201"/>
+      <inertia ixx="5.4433e-06" ixy="1.9808e-06" ixz="-1.9680e-06" iyy="8.3687e-06" iyz="1.0427e-06" izz="1.0569e-05"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0.180677 0.0038 -1.187077"/>
+      <geometry>
+        <mesh filename="file://$(find andesrobot_description)/meshes/right_finger_link_1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <!-- Colisión con la malla CAD: solo si simple_collision es falso. -->
+    <xacro:unless value="${simple_collision}">
+    <collision>
+      <origin rpy="0 0 0" xyz="0.180677 0.0038 -1.187077"/>
+      <geometry>
+        <mesh filename="file://$(find andesrobot_description)/meshes/right_finger_link_1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+    </xacro:unless>
+  </link>
+  <!-- Pinza: dedo izquierdo. -->
+  <link name="left_finger_link_1">
+    <inertial>
+      <!-- Pieza impresa en PLA (1.24 g/cm³): 4 paredes (1.6 mm), 7 capas techo/piso (1.4 mm), relleno 60 %.
+           Masa, centro de masa e inercia calculados de la malla por voxeles de 0.5 mm (21.1 cm³). -->
+      <origin rpy="0 0 0" xyz="-0.02426 -0.01324 0.00738"/>
+      <mass value="0.0201"/>
+      <inertia ixx="5.4246e-06" ixy="-1.9524e-06" ixz="1.9472e-06" iyy="8.3276e-06" iyz="1.0288e-06" izz="1.0539e-05"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0.180677 -0.0038 -1.160077"/>
+      <geometry>
+        <mesh filename="file://$(find andesrobot_description)/meshes/left_finger_link_1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <!-- Colisión con la malla CAD: solo si simple_collision es falso. -->
+    <xacro:unless value="${simple_collision}">
+    <collision>
+      <origin rpy="0 0 0" xyz="0.180677 -0.0038 -1.160077"/>
+      <geometry>
+        <mesh filename="file://$(find andesrobot_description)/meshes/left_finger_link_1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+    </xacro:unless>
+  </link>
+  <!-- Carro del elevador: sube y baja por la columna llevando el brazo. -->
+  <link name="lift_carriage_link_1">
+    <inertial>
+      <origin rpy="0 0 0" xyz="-0.0553571 0 0.0371429"/>
+      <mass value="0.8"/>
+      <inertia ixx="0.00585609" ixy="0" ixz="0.00117796" iyy="0.00426075" iyz="0" izz="0.00741799"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="-0.1 -0.0 -0.25"/>
+      <geometry>
+        <mesh filename="file://$(find andesrobot_description)/meshes/lift_carriage_link_1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <!-- Colisión con la malla CAD: solo si simple_collision es falso. -->
+    <xacro:unless value="${simple_collision}">
+    <collision>
+      <origin rpy="0 0 0" xyz="-0.1 -0.0 -0.25"/>
+      <geometry>
+        <mesh filename="file://$(find andesrobot_description)/meshes/lift_carriage_link_1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+    </xacro:unless>
+  </link>
+  <!-- Rueda motriz izquierda (rueda de hoverboard 6.5", radio 0.08255 m). -->
+  <material name="rueda_negra">
+    <color rgba="0.10 0.10 0.10 1.0"/>
+  </material>
+  <link name="left_wheel_link_1">
+    <!-- Motor rueda hoverboard 6.5" 350 W: ~3 kg (repuesto 36 V 350 W listado en 3 kg; el Parallax de 6.5" pesa 3.6 kg) -->
+    <inertial>
+      <origin rpy="0 0 0" xyz="1.69549e-10 -0.0224998 8.55927e-08"/>
+      <mass value="3.0000"/>
+      <inertia ixx="0.00618025" ixy="0" ixz="0" iyy="0.011348" iyz="0" izz="0.00618025"/>
+    </inertial>
+    <visual>
+      <!-- Motor rueda hoverboard 6.5" (GrabCAD, John Frank). Ø158.8 mm, eje hacia adentro del robot. -->
+      <origin rpy="0 0 -1.5707963267948966" xyz="0 0.006 0"/>
+      <geometry>
+        <mesh filename="file://$(find andesrobot_description)/meshes/rueda_hoverboard_6_5.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="rueda_negra"/>
+    </visual>
+    <collision>
+      <!-- cilindro ideal: r=0.08255, ancho 0.045 (medido de la malla) -->
+      <!-- rpy 1.5708 (90°) en x acuesta el cilindro para que su eje quede a lo ancho, como una rueda. -->
+      <origin rpy="1.5707963267948966 0 0" xyz="0 -0.0225 0"/>
+      <geometry>
+        <cylinder length="0.045" radius="0.08255"/>
+      </geometry>
+    </collision>
+  </link>
+  <!-- Rueda motriz derecha. -->
+  <link name="right_wheel_link_1">
+    <!-- Motor rueda hoverboard 6.5" 350 W: ~3 kg (repuesto 36 V 350 W listado en 3 kg; el Parallax de 6.5" pesa 3.6 kg) -->
+    <inertial>
+      <origin rpy="0 0 0" xyz="1.69549e-10 0.0224998 -2.02646e-09"/>
+      <mass value="3.0000"/>
+      <inertia ixx="0.00618025" ixy="0" ixz="0" iyy="0.011348" iyz="0" izz="0.00618025"/>
+    </inertial>
+    <visual>
+      <!-- Motor rueda hoverboard 6.5" (GrabCAD, John Frank). Ø158.8 mm, eje hacia adentro del robot. -->
+      <origin rpy="0 0 1.5707963267948966" xyz="0 -0.006 0"/>
+      <geometry>
+        <mesh filename="file://$(find andesrobot_description)/meshes/rueda_hoverboard_6_5.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="rueda_negra"/>
+    </visual>
+    <collision>
+      <!-- cilindro ideal: r=0.08255, ancho 0.045 (medido de la malla) -->
+      <origin rpy="1.5707963267948966 0 0" xyz="0 0.0225 0"/>
+      <geometry>
+        <cylinder length="0.045" radius="0.08255"/>
+      </geometry>
+    </collision>
+  </link>
+  <!-- IMU (acelerómetro + giroscopio). -->
+  <!-- IMU de la base: Handsfree HFI-B9 (9 ejes, USB, 200 Hz; driver ROS: github.com/HANDS-FREE/handsfree_ros_imu, hfi_b9_ros.py).
+       El fabricante no publica medidas: cuerpo ~40 x 40 x 14 mm estimado de sus fotos, ~20 g. Origen = centro de la base del
+       módulo; ejes alineados con el robot (X adelante): montarla con la flecha X impresa hacia el frente. -->
+  <material name="imu_blanco">
+    <color rgba="0.93 0.93 0.92 1.0"/>
+  </material>
+  <material name="imu_conector">
+    <color rgba="0.95 0.90 0.78 1.0"/>
+  </material>
+  <link name="imu_link_1">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0.007"/>
+      <mass value="0.02"/>
+      <inertia ixx="2.993e-06" ixy="0" ixz="0" iyy="2.993e-06" iyz="0" izz="5.333e-06"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/imu_hfi_b9_cuerpo.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="imu_blanco"/>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/imu_hfi_b9_conector.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="imu_conector"/>
+    </visual>
+  </link>
+  <material name="rueda_loca_acero">
+    <color rgba="0.78 0.80 0.82 1.0"/>
+  </material>
+  <material name="rueda_loca_pu">
+    <color rgba="1.0 0.42 0.10 1.0"/>
+  </material>
+  <material name="rueda_loca_nucleo">
+    <color rgba="0.10 0.10 0.10 1.0"/>
+  </material>
+  <!-- Rueda loca: giratoria 3" con freno (Sodimac 152313554). Alto 100 mm, rueda PU Ø75x32, placa 62x93 (agujeros 45x75),
+       100 kg de carga. Origen = cara superior de la placa; la rueda va atrasada 28 mm del eje de giro (aquí en +x, que es -x del robot). -->
+  <link name="front_caster_link_1">
+    <!-- Rueda 3" con freno ~0.40 kg (similares de 75 mm con freno: 0.34 kg) + suplencia de aluminio 62x93x9.6 mm 0.149 kg -->
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.015 0 -0.045"/>
+      <mass value="0.5490"/>
+      <inertia ixx="0.000549" ixy="0" ixz="0" iyy="0.00061" iyz="0" izz="0.000366"/>
+    </inertial>
+    <!-- suplencia de aluminio de 9.6 mm entre el bastidor y la placa (el bastidor queda a 109.6 mm del suelo) -->
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0.0048"/>
+      <geometry>
+        <box size="0.062 0.093 0.0096"/>
+      </geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/rueda_loca_acero.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="rueda_loca_acero"/>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/rueda_loca_pu.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="rueda_loca_pu"/>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/rueda_loca_nucleo.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="rueda_loca_nucleo"/>
+    </visual>
+    <!-- colisión: esfera sin fricción del tamaño de la rueda (aprox. estándar de rueda loca en Gazebo) -->
+    <collision>
+      <origin rpy="0 0 0" xyz="0.028 0 -0.0625"/>
+      <geometry>
+        <sphere radius="0.0375"/>
+      </geometry>
+    </collision>
+  </link>
+  <!-- Carcasa del RPLIDAR C1. El frame exacto de medición es "laser" (más abajo). -->
+  <link name="lidar_link_1">
+    <!-- RPLIDAR C1 (Slamtec C1M1, STEP oficial vía DFRobot, sin placa adaptadora ni cable).
+         55.6 x 55.6 x 41.3 mm, 110 g. Apoyado sobre la placa de carcasa (+2 mm),
+         salida del cable hacia atrás del robot. Frame lidar_link_1 sin cambios. -->
+    <inertial>
+      <origin rpy="0 0 0" xyz="-0.058 0 0.0227"/>
+      <mass value="0.11"/>
+      <inertia ixx="4.4e-05" ixy="0.0" ixz="0.0" iyy="4.4e-05" iyz="0.0" izz="5.7e-05"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 3.141592653589793" xyz="-0.058 0 0.002"/>
+      <geometry>
+        <mesh filename="file://$(find andesrobot_description)/meshes/rplidar_c1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="lidar_negro"/>
+    </visual>
+  </link>
+  <material name="lidar_negro">
+    <color rgba="0.12 0.12 0.13 1.0"/>
+  </material>
+  <!-- Columna vertical (perfil de 1.5 m) por donde sube el carro del elevador. -->
+  <link name="vertical_column_link_1">
+    <inertial>
+      <origin rpy="0 0 0" xyz="-0.03 0 0.75"/>
+      <mass value="3.9"/>
+      <inertia ixx="0.73242" ixy="0" ixz="0" iyy="0.73242" iyz="0" izz="0.00234"/>
+    </inertial>
+    <visual>
+      <!-- Perfil V-slot 6060 de 1.5 m (malla de 1 m estirada en z; la sección no cambia) -->
+      <origin rpy="0 0 0" xyz="-0.03 0 0.75"/>
+      <geometry>
+        <mesh filename="file://$(find andesrobot_description)/meshes/vslot_6060_1m.stl" scale="0.001 0.001 0.0015"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <!-- Tapa plástica del extremo superior del 6060 (4 mm, con tetón que entra al hueco central) -->
+    <visual>
+      <origin rpy="0 0 0" xyz="-0.03 0 1.5"/>
+      <geometry>
+        <mesh filename="file://$(find andesrobot_description)/meshes/tapa_6060.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="tapa_negra"/>
+    </visual>
+  </link>
+  <!-- Base del brazo ELIMINADA (2026-11-08): el disco impreso Ø150x37 mm con nervios ya no existe.
+       arm_base_link_1 queda solo como frame (sin malla ni masa) en la cara superior de la placa del carro,
+       y el brazo (joint_1) va atornillado directo a la placa. -->
+  <link name="arm_base_link_1"/>
+  <!-- ================================== ARTICULACIONES (joints) ==================================
      Las articulaciones del brazo son "revolute" con límites PROVISORIOS: ±π (una vuelta completa,
      o sea sin restringir el rango), 20 N·m y 1 rad/s. Sirven para simular y para la cinemática
      inversa, pero NO son los topes reales: antes de mover el brazo real (o usar MoveIt), medir los
-     topes físicos y los motores y cambiar estas propiedades. Con lock_arm:=true son "fixed".
-
+     topes físicos y los motores y cambiar estas propiedades. Con lock_arm:=true son "fixed" y quedan
+     en la POSE PLEGADA (ángulos horneados en el origin; con revolute el origin es 0 = brazo estirado).
      Cada articulación tiene sus propios topes (joint_N_lower / joint_N_upper, en radianes, medidos
-     desde la pose cero del URDF y con el sentido positivo del eje de esa articulación). Mientras no
-     se midan, todos valen arm_lower / arm_upper (±π). Para poner un tope real basta cambiar el
-     número de la articulación que se midió; hoja de medición: docs/medicion_brazo.md. -->
-<xacro:property name="arm_lower" value="${-pi}"/>
-<xacro:property name="arm_upper" value="${pi}"/>
-<xacro:property name="arm_effort" value="20.0"/>
-<xacro:property name="arm_velocity" value="1.0"/>
-<xacro:property name="joint_1_lower" value="${arm_lower}"/>   <!-- [rad] provisorio -->
-<xacro:property name="joint_1_upper" value="${arm_upper}"/>
-<xacro:property name="joint_2_lower" value="${arm_lower}"/>
-<xacro:property name="joint_2_upper" value="${arm_upper}"/>
-<xacro:property name="joint_3_lower" value="${arm_lower}"/>
-<xacro:property name="joint_3_upper" value="${arm_upper}"/>
-<xacro:property name="joint_4_lower" value="${arm_lower}"/>
-<xacro:property name="joint_4_upper" value="${arm_upper}"/>
-<xacro:property name="joint_5_lower" value="${arm_lower}"/>
-<xacro:property name="joint_5_upper" value="${arm_upper}"/>
-<xacro:property name="joint_6_lower" value="${arm_lower}"/>
-<xacro:property name="joint_6_upper" value="${arm_upper}"/>
-<!-- Límite de cada articulación del brazo (las "fixed" no llevan límite). -->
-<xacro:macro name="arm_limit" params="lower upper">
-  <xacro:unless value="${lock_arm}">
-    <limit lower="${lower}" upper="${upper}" effort="${arm_effort}" velocity="${arm_velocity}"/>
-  </xacro:unless>
-</xacro:macro>
-
-<!-- ================= MOTORES DEL BRAZO (EB300 de Toolbox Robotics) =================
-  El CAD solo tiene las piezas impresas: los motores paso a paso no estaban en las masas.
-  Qué motor va en cada articulación sale de la guía eléctrica del EB300 (págs. 22-27); la masa,
-  de los datasheets de docs/hardware/ (README.md, en la raíz del repo):
-    joint_1, joint_2  NEMA23 82 mm  (23HS32-4004S, 2.4 N·m)  ~1.10 kg (el datasheet no la trae:
-                                                              extrapolada del de 3.10" = 1.07 kg)
-    joint_3           NEMA23 76 mm  (1.85 N·m)               ~1.07 kg
-    joint_4, 5, 6     NEMA17 60 mm  (0.65 N·m)               ~0.41 kg
-  Faltan los reductores planetarios impresos EBA-17/EBA-23: quedan en 0 hasta tener sus STL.
-
-  Cada motor va montado en el eslabón ANTERIOR a la articulación que mueve (el motor del hombro
-  va en la carcasa de link_1_1 y mueve link_2_1), coaxial con su eje. Se agrega como un link
-  fijo con solo <inertial>: Gazebo funde los links fijos con su padre, así que la masa, el
-  centro de masa y la inercia del eslabón quedan bien sin tocar los valores del CAD.
-  Simplificación: el centro del motor se pone en el origen de su articulación (sobre el eje).
-  Correrlo a lo largo del eje no cambia el torque que hace el peso en las articulaciones
-  paralelas a ese eje. Cuerpo del motor = caja de lado x lado x largo, con el largo en el eje. -->
-<xacro:property name="nema23_side" value="0.057"/>   <!-- [m] cara del NEMA23 -->
-<xacro:property name="nema17_side" value="0.042"/>   <!-- [m] cara del NEMA17 -->
-<xacro:property name="nema23_82_mass" value="1.10"/>  <!-- [kg] ver arriba -->
-<xacro:property name="nema23_76_mass" value="1.07"/>
-<xacro:property name="nema17_60_mass" value="0.41"/>
-
-<!-- arm_motor: un motor como link fijo.
-     parent / xyz / rpy = el mismo padre y origin que la articulación que mueve.
-     axis = eje del motor en ese frame ('x' o 'z'; el signo no importa para la inercia). -->
-<xacro:macro name="arm_motor" params="name parent xyz rpy mass side length axis">
-  <link name="${name}">
+     desde la pose cero del URDF y con el sentido positivo del eje de esa articulación). -->
+  <xacro:property name="arm_lower" value="${-pi}"/>
+  <xacro:property name="arm_upper" value="${pi}"/>
+  <xacro:property name="arm_effort" value="20.0"/>
+  <xacro:property name="arm_velocity" value="1.0"/>
+  <xacro:property name="joint_1_lower" value="${arm_lower}"/>   <!-- [rad] provisorio -->
+  <xacro:property name="joint_1_upper" value="${arm_upper}"/>
+  <xacro:property name="joint_2_lower" value="${arm_lower}"/>
+  <xacro:property name="joint_2_upper" value="${arm_upper}"/>
+  <xacro:property name="joint_3_lower" value="${arm_lower}"/>
+  <xacro:property name="joint_3_upper" value="${arm_upper}"/>
+  <xacro:property name="joint_4_lower" value="${arm_lower}"/>
+  <xacro:property name="joint_4_upper" value="${arm_upper}"/>
+  <xacro:property name="joint_5_lower" value="${arm_lower}"/>
+  <xacro:property name="joint_5_upper" value="${arm_upper}"/>
+  <xacro:property name="joint_6_lower" value="${arm_lower}"/>
+  <xacro:property name="joint_6_upper" value="${arm_upper}"/>
+  <!-- Límite de cada articulación del brazo (las "fixed" no llevan límite). -->
+  <xacro:macro name="arm_limit" params="lower upper">
+    <xacro:unless value="${lock_arm}">
+      <limit lower="${lower}" upper="${upper}" effort="${arm_effort}" velocity="${arm_velocity}"/>
+    </xacro:unless>
+  </xacro:macro>
+  <!-- Brazo 1: gira la base del brazo alrededor de Z (vertical). -->
+  <joint name="joint_1" type="${arm_joint_type}">
+    <!-- Brazo directo sobre la placa del carro (antes 3.7 cm más arriba, sobre la base con nervios). -->
+    <!-- lock_arm: pose plegada (rpy horneado); móvil: 0 = estirado. -->
+    <origin rpy="${'0 0 0.2775' if lock_arm else '0 0 0'}" xyz="0.0 0.0 0.0"/>
+    <parent link="arm_base_link_1"/>
+    <child link="link_1_1"/>
+    <!-- Eje de giro (0 0 1 = Z). -->
+    <axis xyz="0.0 0.0 1.0"/>
+    <!-- Amortiguación y roce de la articulación (solo para la simulación). -->
+    <dynamics damping="0.08" friction="0.02"/>
+    <xacro:arm_limit lower="${joint_1_lower}" upper="${joint_1_upper}"/>
+  </joint>
+  <!-- Brazo 2 (hombro): gira alrededor de X. -->
+  <joint name="joint_2" type="${arm_joint_type}">
+    <!-- lock_arm: pose plegada (rpy horneado); móvil: 0 = estirado. -->
+    <origin rpy="${'-0.5965 0 0' if lock_arm else '0 0 0'}" xyz="-0.065 0.0 0.056"/>
+    <parent link="link_1_1"/>
+    <child link="link_2_1"/>
+    <axis xyz="-1.0 0.0 0.0"/>
+    <dynamics damping="0.12" friction="0.03"/>
+    <xacro:arm_limit lower="${joint_2_lower}" upper="${joint_2_upper}"/>
+  </joint>
+  <!-- Brazo 3 (codo): gira alrededor de X. -->
+  <joint name="joint_3" type="${arm_joint_type}">
+    <!-- lock_arm: pose plegada (rpy horneado); móvil: 0 = estirado. -->
+    <origin rpy="${'2.4000 0 0' if lock_arm else '0 0 0'}" xyz="-0.001077 0.0 0.350077"/>
+    <parent link="link_2_1"/>
+    <child link="link_3_1"/>
+    <axis xyz="1.0 0.0 0.0"/>
+    <dynamics damping="0.12" friction="0.03"/>
+    <xacro:arm_limit lower="${joint_3_lower}" upper="${joint_3_upper}"/>
+  </joint>
+  <!-- Brazo 4 (muñeca): gira alrededor de X. -->
+  <joint name="joint_4" type="${arm_joint_type}">
+    <!-- lock_arm: pose plegada (rpy horneado); móvil: 0 = estirado. -->
+    <origin rpy="${'1.0642 0 0' if lock_arm else '0 0 0'}" xyz="0.026 0.0 0.3235"/>
+    <parent link="link_3_1"/>
+    <child link="link_4_1"/>
+    <axis xyz="-1.0 0.0 0.0"/>
+    <dynamics damping="0.06" friction="0.02"/>
+    <xacro:arm_limit lower="${joint_4_lower}" upper="${joint_4_upper}"/>
+  </joint>
+  <!-- Brazo 5 (muñeca): gira alrededor de Z. -->
+  <joint name="joint_5" type="${arm_joint_type}">
+    <!-- lock_arm: pose plegada (rpy horneado); móvil: 0 = estirado. -->
+    <origin rpy="${'0 0 1.8334' if lock_arm else '0 0 0'}" xyz="-0.0495 0.0 0.04"/>
+    <parent link="link_4_1"/>
+    <child link="link_5_1"/>
+    <axis xyz="0.0 0.0 1.0"/>
+    <dynamics damping="0.05" friction="0.02"/>
+    <xacro:arm_limit lower="${joint_5_lower}" upper="${joint_5_upper}"/>
+  </joint>
+  <!-- Brazo 6 (muñeca): gira alrededor de X. -->
+  <joint name="joint_6" type="${arm_joint_type}">
+    <!-- lock_arm: pose plegada (rpy horneado); móvil: 0 = estirado. -->
+    <origin rpy="${'-0.8381 0 0' if lock_arm else '0 0 0'}" xyz="-0.041 0.0 0.0495"/>
+    <parent link="link_5_1"/>
+    <child link="link_6_1"/>
+    <axis xyz="-1.0 0.0 0.0"/>
+    <dynamics damping="0.05" friction="0.02"/>
+    <xacro:arm_limit lower="${joint_6_lower}" upper="${joint_6_upper}"/>
+  </joint>
+  <!-- Punto de agarre (TCP): centro entre las caras internas de los dedos, medido en sus mallas.
+       La pinza apunta hacia -X de link_6_1. Las caras internas van de x = -0.083 a -0.121 m
+       (la punta de los dedos está en -0.1224) y son simétricas en Y y Z. El TCP queda a la mitad.
+       Es el frame que mueve la cinemática inversa (andesrobot_arm). -->
+  <link name="gripper_tcp"/>
+  <joint name="gripper_tcp_joint" type="fixed">
+    <origin xyz="-0.102 0.0 0.0" rpy="0 0 0"/>
+    <parent link="link_6_1"/>
+    <child link="gripper_tcp"/>
+  </joint>
+  <!-- rad (~10°) hacia los dedos -->
+  <!-- Motores INSTALADOS en Milo (no los de la guía del EB300, que pide NEMA23 de 82 mm de ~1.1 kg en J1-J2,
+       1.07 kg en J3 y NEMA17 de 0.41 kg): J1/J3 NEMA23 1.26 N·m 0.70 kg, J2 NEMA23 3 N·m 1.60 kg,
+       J4-J6 NEMA17 de Anet A8 0.28 kg. Faltan las piezas metálicas de los reductores EBA. -->
+  <!-- ===== Motores del brazo (solo masa e inercia, sin malla): un link fijo por motor, en el eslabón ANTERIOR
+       a la articulación que mueve, con su centro en el origen de esa articulación (misma convención que milo_ws).
+       Cuerpo = caja de lado x lado x largo, con el largo sobre el eje. ===== -->
+  <!-- NEMA23 1.26 N·m (tipo 23HS22-2804S), 57x57x56 mm, 0.70 kg -->
+  <link name="motor_joint_1">
     <inertial>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <mass value="${mass}"/>
-      <!-- Caja: I = m/12 (a² + b²) con a, b las medidas perpendiculares a cada eje. -->
-      <xacro:if value="${axis == 'x'}">
-        <inertia ixx="${mass/12*(2*side**2)}" ixy="0" ixz="0"
-                 iyy="${mass/12*(side**2 + length**2)}" iyz="0"
-                 izz="${mass/12*(side**2 + length**2)}"/>
-      </xacro:if>
-      <xacro:if value="${axis == 'z'}">
-        <inertia ixx="${mass/12*(side**2 + length**2)}" ixy="0" ixz="0"
-                 iyy="${mass/12*(side**2 + length**2)}" iyz="0"
-                 izz="${mass/12*(2*side**2)}"/>
-      </xacro:if>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <mass value="0.7"/>
+      <inertia ixx="3.7246e-04" ixy="0" ixz="0" iyy="3.7246e-04" iyz="0" izz="3.7905e-04"/>
     </inertial>
   </link>
-  <joint name="${name}_joint" type="fixed">
-    <origin xyz="${xyz}" rpy="${rpy}"/>
-    <parent link="${parent}"/>
-    <child link="${name}"/>
+  <joint name="motor_joint_1_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/>
+    <parent link="arm_base_link_1"/>
+    <child link="motor_joint_1"/>
   </joint>
-</xacro:macro>
-
-<!-- Un motor por articulación (xyz/rpy copiados del origin de cada joint_k, más abajo). -->
-<xacro:arm_motor name="motor_joint_1" parent="arm_base_link_1" xyz="0.0 0.0 0.037" rpy="0 0 0"
-                 mass="${nema23_82_mass}" side="${nema23_side}" length="0.082" axis="z"/>
-<xacro:arm_motor name="motor_joint_2" parent="link_1_1" xyz="-0.065 0.0 0.056" rpy="0 0 0"
-                 mass="${nema23_82_mass}" side="${nema23_side}" length="0.082" axis="x"/>
-<xacro:arm_motor name="motor_joint_3" parent="link_2_1" xyz="-0.001077 0.0 0.350077" rpy="0 0 0"
-                 mass="${nema23_76_mass}" side="${nema23_side}" length="0.076" axis="x"/>
-<xacro:arm_motor name="motor_joint_4" parent="link_3_1" xyz="0.026 0.0 0.3235" rpy="0 0 0"
-                 mass="${nema17_60_mass}" side="${nema17_side}" length="0.060" axis="x"/>
-<xacro:arm_motor name="motor_joint_5" parent="link_4_1" xyz="-0.0495 0.0 0.04" rpy="0 0 0"
-                 mass="${nema17_60_mass}" side="${nema17_side}" length="0.060" axis="z"/>
-<xacro:arm_motor name="motor_joint_6" parent="link_5_1" xyz="-0.041 0.0 0.0495" rpy="0 0 0"
-                 mass="${nema17_60_mass}" side="${nema17_side}" length="0.060" axis="x"/>
-
-<!-- Servo de la pinza (MG996R o similar, ~55 g), dentro del cuerpo de la pinza: en el centro de
-     link_6_1 (su malla va de x = -0.0725 a 0). Caja de 40 x 20 x 43 mm. -->
-<xacro:property name="gripper_servo_mass" value="0.055"/>
-<link name="gripper_servo_link">
-  <inertial>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <mass value="${gripper_servo_mass}"/>
-    <inertia ixx="${gripper_servo_mass/12*(0.020**2 + 0.043**2)}" ixy="0" ixz="0"
-             iyy="${gripper_servo_mass/12*(0.040**2 + 0.043**2)}" iyz="0"
-             izz="${gripper_servo_mass/12*(0.040**2 + 0.020**2)}"/>
-  </inertial>
-</link>
-<joint name="gripper_servo_joint" type="fixed">
-  <origin xyz="-0.036 0.0 0.0" rpy="0 0 0"/>
-  <parent link="link_6_1"/>
-  <child link="gripper_servo_link"/>
-</joint>
-<!-- Brazo 1: gira la base del brazo alrededor de Z (vertical). -->
-<joint name="joint_1" type="${arm_joint_type}">
-  <!-- Dónde queda el hijo respecto al padre (aquí 3.7 cm más arriba). -->
-  <origin xyz="0.0 0.0 0.037" rpy="0 0 0"/>
-  <parent link="arm_base_link_1"/>
-  <child link="link_1_1"/>
-  <!-- Eje de giro (0 0 1 = Z). -->
-  <axis xyz="0.0 0.0 1.0"/>
-  <!-- Amortiguación y roce de la articulación (solo para la simulación). -->
-  <dynamics damping="0.08" friction="0.02"/>
-  <xacro:arm_limit lower="${joint_1_lower}" upper="${joint_1_upper}"/>
-</joint>
-
-<!-- Brazo 2 (hombro): gira alrededor de X. -->
-<joint name="joint_2" type="${arm_joint_type}">
-  <origin xyz="-0.065 0.0 0.056" rpy="0 0 0"/>
-  <parent link="link_1_1"/>
-  <child link="link_2_1"/>
-  <axis xyz="-1.0 0.0 0.0"/>
-  <dynamics damping="0.12" friction="0.03"/>
-  <xacro:arm_limit lower="${joint_2_lower}" upper="${joint_2_upper}"/>
-</joint>
-
-<!-- Brazo 3 (codo): gira alrededor de X. -->
-<joint name="joint_3" type="${arm_joint_type}">
-  <origin xyz="-0.001077 0.0 0.350077" rpy="0 0 0"/>
-  <parent link="link_2_1"/>
-  <child link="link_3_1"/>
-  <axis xyz="1.0 0.0 0.0"/>
-  <dynamics damping="0.12" friction="0.03"/>
-  <xacro:arm_limit lower="${joint_3_lower}" upper="${joint_3_upper}"/>
-</joint>
-
-<!-- Brazo 4 (muñeca): gira alrededor de X. -->
-<joint name="joint_4" type="${arm_joint_type}">
-  <origin xyz="0.026 0.0 0.3235" rpy="0 0 0"/>
-  <parent link="link_3_1"/>
-  <child link="link_4_1"/>
-  <axis xyz="-1.0 0.0 0.0"/>
-  <dynamics damping="0.06" friction="0.02"/>
-  <xacro:arm_limit lower="${joint_4_lower}" upper="${joint_4_upper}"/>
-</joint>
-
-<!-- Brazo 5 (muñeca): gira alrededor de Z. -->
-<joint name="joint_5" type="${arm_joint_type}">
-  <origin xyz="-0.0495 0.0 0.04" rpy="0 0 0"/>
-  <parent link="link_4_1"/>
-  <child link="link_5_1"/>
-  <axis xyz="0.0 0.0 1.0"/>
-  <dynamics damping="0.05" friction="0.02"/>
-  <xacro:arm_limit lower="${joint_5_lower}" upper="${joint_5_upper}"/>
-</joint>
-
-<!-- Brazo 6 (muñeca): gira alrededor de X. -->
-<joint name="joint_6" type="${arm_joint_type}">
-  <origin xyz="-0.041 0.0 0.0495" rpy="0 0 0"/>
-  <parent link="link_5_1"/>
-  <child link="link_6_1"/>
-  <axis xyz="-1.0 0.0 0.0"/>
-  <dynamics damping="0.05" friction="0.02"/>
-  <xacro:arm_limit lower="${joint_6_lower}" upper="${joint_6_upper}"/>
-</joint>
-
-<!-- FUERZA DE LA PINZA. En la EBG-20 un servo MG99x gira un piñón que empuja las dos cremalleras
-     (una por dedo). Si el torque del servo es τ y el radio del piñón es r, el servo reparte su
-     torque entre los dos dedos: τ = 2·F·r, así que cada dedo empuja con F = τ / (2·r).
-     Piñón medido en el CAD (pieza 015 del ZIP de docs/hardware): 16 mm de diámetro exterior,
-     radio de paso ≈ 7 mm (media vuelta del servo mueve el dedo π·7 ≈ 22 mm, la carrera del dedo).
-     Con τ ≈ 0.9 N·m (MG996R trabado a 4.8 V) da F ≈ 65 N por dedo como MÁXIMO teórico; los dientes
-     de ABS y el roce se comen parte. En la simulación se usa menos (gripper_force):
-       - basta y sobra para levantar los objetos de la mesa: con roce μ = 1 y dos dedos, la pinza
-         sostiene hasta 2·μ·F = 40 N, unos 4 kg;
-       - una fuerza grande contra un objeto rígido hace temblar el contacto en el motor de física.
-     Gazebo NUNCA deja que el dedo empuje más que el "effort" de su <limit>: por eso es el tope de
-     fuerza. Al cerrar sobre un objeto, el dedo se frena contra él y sigue empujando con esta
-     fuerza, como el servo real trabado (el objeto, rígido, no se deforma).
-     gripper_damping: amortiguamiento del dedo (N·s/m). Con la fuerza tope, el dedo libre llega a
-     una velocidad de F/b = 20/400 = 0.05 m/s, la de su <limit velocity>. -->
-<xacro:property name="gripper_force" value="20.0"/>
-<xacro:property name="gripper_damping" value="400.0"/>
-
-<!-- Dedo derecho: se desliza en Y entre -7 mm y +16 mm. -->
-<joint name="right_finger_joint" type="${prismatic_joint_type}">
-  <origin xyz="-0.0576 -0.0038 0.0135" rpy="0 0 0"/>
-  <parent link="link_6_1"/>
-  <child link="right_finger_link_1"/>
-  <axis xyz="0.0 1.0 0.0"/>
-  <dynamics damping="${gripper_damping}"/>
-  <limit upper="0.016" lower="-0.007" effort="${gripper_force}" velocity="0.05"/>
-</joint>
-
-<!-- Dedo izquierdo: se desliza en Y; "mimic" lo hace copiar al derecho con signo opuesto (la pinza cierra simétrica).
+  <!-- NEMA23 2.9 N·m (clase 3 N·m: 23HS45-4204S), 57x57x113 mm, 1.60 kg -->
+  <link name="motor_joint_2">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <mass value="1.6"/>
+      <inertia ixx="8.6640e-04" ixy="0" ixz="0" iyy="2.1357e-03" iyz="0" izz="2.1357e-03"/>
+    </inertial>
+  </link>
+  <joint name="motor_joint_2_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="-0.065 0.0 0.056"/>
+    <parent link="link_1_1"/>
+    <child link="motor_joint_2"/>
+  </joint>
+  <!-- NEMA23 1.26 N·m (tipo 23HS22-2804S), 57x57x56 mm, 0.70 kg -->
+  <link name="motor_joint_3">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <mass value="0.7"/>
+      <inertia ixx="3.7905e-04" ixy="0" ixz="0" iyy="3.7246e-04" iyz="0" izz="3.7246e-04"/>
+    </inertial>
+  </link>
+  <joint name="motor_joint_3_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="-0.001077 0.0 0.350077"/>
+    <parent link="link_2_1"/>
+    <child link="motor_joint_3"/>
+  </joint>
+  <!-- NEMA17 de Anet A8 (42SHDC3025-24B, ~0.45 N·m), 42x42x40 mm, ~0.28 kg -->
+  <link name="motor_joint_4">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <mass value="0.28"/>
+      <inertia ixx="8.2320e-05" ixy="0" ixz="0" iyy="7.8493e-05" iyz="0" izz="7.8493e-05"/>
+    </inertial>
+  </link>
+  <joint name="motor_joint_4_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0.026 0.0 0.3235"/>
+    <parent link="link_3_1"/>
+    <child link="motor_joint_4"/>
+  </joint>
+  <!-- NEMA17 de Anet A8 (42SHDC3025-24B, ~0.45 N·m), 42x42x40 mm, ~0.28 kg -->
+  <link name="motor_joint_5">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <mass value="0.28"/>
+      <inertia ixx="7.8493e-05" ixy="0" ixz="0" iyy="7.8493e-05" iyz="0" izz="8.2320e-05"/>
+    </inertial>
+  </link>
+  <joint name="motor_joint_5_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="-0.0495 0.0 0.04"/>
+    <parent link="link_4_1"/>
+    <child link="motor_joint_5"/>
+  </joint>
+  <!-- NEMA17 de Anet A8 (42SHDC3025-24B, ~0.45 N·m), 42x42x40 mm, ~0.28 kg -->
+  <link name="motor_joint_6">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <mass value="0.28"/>
+      <inertia ixx="8.2320e-05" ixy="0" ixz="0" iyy="7.8493e-05" iyz="0" izz="7.8493e-05"/>
+    </inertial>
+  </link>
+  <joint name="motor_joint_6_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="-0.041 0.0 0.0495"/>
+    <parent link="link_5_1"/>
+    <child link="motor_joint_6"/>
+  </joint>
+  <!-- Servo de la pinza (MG996R, ~55 g), dentro del cuerpo de la pinza; caja 40 x 20 x 43 mm (como en milo_ws) -->
+  <link name="gripper_servo_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <mass value="0.055"/>
+      <inertia ixx="1.0308e-05" ixy="0" ixz="0" iyy="1.5808e-05" iyz="0" izz="9.1667e-06"/>
+    </inertial>
+  </link>
+  <joint name="gripper_servo_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="-0.036 0.0 0.0"/>
+    <parent link="link_6_1"/>
+    <child link="gripper_servo_link"/>
+  </joint>
+  <!-- Cámara Orbbec Gemini Plus de la muñeca: en andesrobot.gripper_camera.xacro (arg gripper_camera). -->
+  <link name="gripper_imu_link">
+    <!-- masa mínima: Gazebo descarta links sin masa (y el sensor con ellos) -->
+    <inertial>
+      <mass value="0.001"/>
+      <inertia ixx="1e-7" ixy="0" ixz="0" iyy="1e-7" iyz="0" izz="1e-7"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <box size="0.02 0.016 0.004"/>
+      </geometry>
+      <material name="imu_blue"/>
+    </visual>
+  </link>
+  <joint name="gripper_imu_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="-0.035 0 0"/>
+    <parent link="link_6_1"/>
+    <child link="gripper_imu_link"/>
+  </joint>
+  <!-- Dedo derecho: se desliza en Y entre -7 mm y +16 mm. -->
+  <!-- FUERZA DE LA PINZA. En la EBG-20 un servo MG99x gira un piñón que empuja las dos cremalleras
+       (una por dedo). Si el torque del servo es τ y el radio del piñón es r, el servo reparte su
+       torque entre los dos dedos: τ = 2·F·r, así que cada dedo empuja con F = τ / (2·r).
+       Piñón medido en el CAD (pieza 015 del ZIP de docs/hardware): 16 mm de diámetro exterior,
+       radio de paso ≈ 7 mm (media vuelta del servo mueve el dedo π·7 ≈ 22 mm, la carrera del dedo).
+       Con τ ≈ 0.9 N·m (MG996R trabado a 4.8 V) da F ≈ 65 N por dedo como MÁXIMO teórico; los dientes
+       de ABS y el roce se comen parte. En la simulación se usa menos (gripper_force):
+         - basta y sobra para levantar los objetos de la mesa: con roce μ = 1 y dos dedos, la pinza
+           sostiene hasta 2·μ·F = 40 N, unos 4 kg;
+         - una fuerza grande contra un objeto rígido hace temblar el contacto en el motor de física.
+       Gazebo NUNCA deja que el dedo empuje más que el "effort" de su <limit>: por eso es el tope de
+       fuerza. Al cerrar sobre un objeto, el dedo se frena contra él y sigue empujando con esta
+       fuerza, como el servo real trabado (el objeto, rígido, no se deforma).
+       gripper_damping: amortiguamiento del dedo (N·s/m). Con la fuerza tope, el dedo libre llega a
+       una velocidad de F/b = 20/400 = 0.05 m/s, la de su <limit velocity>. -->
+  <xacro:property name="gripper_force" value="20.0"/>
+  <xacro:property name="gripper_damping" value="400.0"/>
+  <joint name="right_finger_joint" type="${prismatic_joint_type}">
+    <origin rpy="0 0 0" xyz="-0.0576 -0.0038 0.0135"/>
+    <parent link="link_6_1"/>
+    <child link="right_finger_link_1"/>
+    <axis xyz="0.0 1.0 0.0"/>
+    <dynamics damping="${gripper_damping}"/>
+    <limit effort="${gripper_force}" lower="-0.007" upper="0.016" velocity="0.05"/>
+  </joint>
+  <!-- Dedo izquierdo: se desliza en Y; "mimic" lo hace copiar al derecho con signo opuesto (la pinza cierra simétrica).
      En la simulación del brazo (arm_control:=true) NO lleva mimic: ahí cada dedo tiene su propio
-     PID de fuerza (andesrobot.arm_control.xacro) y se manda a los dos, en espejo, porque un dedo
-     que solo copia la fuerza del otro no tiene quien lo mantenga en su lugar y se va corriendo
-     con los movimientos del brazo (medido el 7-nov: quedó en -11 mm en vez de -16 al abrir). -->
-<joint name="left_finger_joint" type="${prismatic_joint_type}">
-  <origin xyz="-0.0576 0.0038 -0.0135" rpy="0 0 0"/>
-  <parent link="link_6_1"/>
-  <child link="left_finger_link_1"/>
-  <axis xyz="0.0 1.0 0.0"/>
-  <xacro:unless value="${lock_arm or arm_control}"><mimic joint="right_finger_joint" multiplier="-1.0" offset="0.0"/></xacro:unless>
-  <dynamics damping="${gripper_damping}"/>
-  <limit upper="0.007" lower="-0.016" effort="${gripper_force}" velocity="0.05"/>
-</joint>
-
-<!-- Punto de agarre (TCP): centro entre las caras internas de los dedos, medido en sus mallas.
-     La pinza apunta hacia -X de link_6_1. Las caras internas van de x = -0.083 a -0.121 m
-     (la punta de los dedos está en -0.1224) y son simétricas en Y y Z. El TCP queda a la mitad.
-     Es el frame que mueve la cinemática inversa (andesrobot_arm). -->
-<link name="gripper_tcp"/>
-<joint name="gripper_tcp_joint" type="fixed">
-  <origin xyz="-0.102 0.0 0.0" rpy="0 0 0"/>
-  <parent link="link_6_1"/>
-  <child link="gripper_tcp"/>
-</joint>
-
-<!-- Elevador: el carro sube/baja en Z por la columna, de -0.4 m a +0.6 m. -->
-<joint name="vertical_lift_joint" type="${prismatic_joint_type}">
-  <origin xyz="-0.06 0.0 0.75" rpy="0 0 0"/>
-  <parent link="vertical_column_link_1"/>
-  <child link="lift_carriage_link_1"/>
-  <axis xyz="0.0 0.0 1.0"/>
-  <dynamics damping="5.0" friction="2.0"/>
-  <!-- Límites: recorrido en m (lower/upper), fuerza máx. en N (effort), velocidad máx. en m/s. -->
-  <limit upper="0.6" lower="-0.4" effort="150" velocity="0.20"/>
-</joint>
-
-<!-- Rueda izquierda: gira sin límite. Este nombre lo usan el diff drive simulado y ros2_control. -->
-<joint name="left_wheel_joint" type="continuous">
-  <origin xyz="0 0.15775 0" rpy="0 0 3.141592653589793"/>
-  <parent link="base_link"/>
-  <child link="left_wheel_link_1"/>
-  <axis xyz="0.0 -1.0 0.0"/>
-  <dynamics damping="0.02" friction="0.0"/>
-</joint>
-<!-- Las dos ruedas: joint con rpy yaw 180° y eje -Y. Girado 180°, el eje -Y queda como +Y:
+     PID de fuerza (andesrobot.arm_control.xacro) y se manda a los dos, en espejo. -->
+  <joint name="left_finger_joint" type="${prismatic_joint_type}">
+    <origin rpy="0 0 0" xyz="-0.0576 0.0038 -0.0135"/>
+    <parent link="link_6_1"/>
+    <child link="left_finger_link_1"/>
+    <axis xyz="0.0 1.0 0.0"/>
+    <xacro:unless value="${lock_arm or arm_control}"><mimic joint="right_finger_joint" multiplier="-1.0" offset="0.0"/></xacro:unless>
+    <dynamics damping="${gripper_damping}"/>
+    <limit effort="${gripper_force}" lower="-0.016" upper="0.007" velocity="0.05"/>
+  </joint>
+  <!-- Elevador: el carro sube/baja en Z por la columna, de -0.4 m a +0.6 m. -->
+  <joint name="vertical_lift_joint" type="${prismatic_joint_type}">
+    <!-- lock_arm: carro abajo del todo (recorrido -0.40 m) => z 0.35. Móvil: el 0 del joint está en z 0.75. -->
+    <origin rpy="0 0 0" xyz="-0.06 0.0 ${0.35 if lock_arm else 0.75}"/>
+    <parent link="vertical_column_link_1"/>
+    <child link="lift_carriage_link_1"/>
+    <axis xyz="0.0 0.0 1.0"/>
+    <dynamics damping="5.0" friction="2.0"/>
+    <!-- Límites: recorrido en m (lower/upper), fuerza máx. en N (effort), velocidad máx. en m/s. -->
+    <limit effort="150" lower="-0.4" upper="0.6" velocity="0.20"/>
+  </joint>
+  <!-- Rueda izquierda: gira sin límite. Este nombre lo usan el diff drive simulado y ros2_control. -->
+  <joint name="left_wheel_joint" type="continuous">
+    <origin rpy="0 0 3.141592653589793" xyz="0 0.15775 -0.0068"/>
+    <parent link="base_link"/>
+    <child link="left_wheel_link_1"/>
+    <axis xyz="0.0 -1.0 0.0"/>
+    <dynamics damping="0.02" friction="0.0"/>
+  </joint>
+  <!-- Las dos ruedas: joint con rpy yaw 180° y eje -Y. Girado 180°, el eje -Y queda como +Y:
      velocidad positiva = rueda avanza hacia +X (adelante). -->
-
-<!-- Rueda derecha. -->
-<joint name="right_wheel_joint" type="continuous">
-  <origin xyz="0 -0.15775 0" rpy="0 0 3.141592653589793"/>
-  <parent link="base_link"/>
-  <child link="right_wheel_link_1"/>
-  <axis xyz="0.0 -1.0 0.0"/>
-  <dynamics damping="0.02" friction="0.0"/>
-</joint>
-
-<!-- IMU pegada al chasis. -->
-<joint name="imu_joint" type="fixed">
-  <origin xyz="0.13 0 0.020248" rpy="0 0 3.141592653589793"/>
-  <parent link="base_link"/>
-  <child link="imu_link_1"/>
-</joint>
-
-<!-- Rueda loca pegada al chasis, 0.35 m delante del eje. -->
-<joint name="front_caster_joint" type="fixed">
-  <origin xyz="0.35 0 0.020248" rpy="0 0 3.141592653589793"/>
-  <parent link="base_link"/>
-  <child link="front_caster_link_1"/>
-</joint>
-
-<!-- Carcasa del lidar pegada al chasis, al frente. -->
-<joint name="lidar_joint" type="fixed">
-  <origin xyz="0.35 0 0.250248" rpy="0 0 3.141592653589793"/>
-  <parent link="base_link"/>
-  <child link="lidar_link_1"/>
-</joint>
-
-<!-- Columna pegada al chasis, sobre el eje de las ruedas. -->
-<joint name="base_to_vertical_column_joint" type="fixed">
-  <origin xyz="-0.03 0 0.020248" rpy="0 0 3.141592653589793"/>
-  <parent link="base_link"/>
-  <child link="vertical_column_link_1"/>
-</joint>
-
-<!-- Base del brazo pegada al carro del elevador. -->
-<joint name="carriage_to_arm_joint" type="fixed">
-  <origin xyz="-0.0925 0.0 0.0675" rpy="0 0 0"/>
-  <parent link="lift_carriage_link_1"/>
-  <child link="arm_base_link_1"/>
-</joint>
-
-<!-- RPLIDAR C1: plano de escaneo ~30 mm sobre la base del sensor, centro del sensor a x=-0.058 en lidar_link_1.
+  <!-- Rueda derecha. -->
+  <joint name="right_wheel_joint" type="continuous">
+    <origin rpy="0 0 3.141592653589793" xyz="0 -0.15775 -0.0068"/>
+    <parent link="base_link"/>
+    <child link="right_wheel_link_1"/>
+    <axis xyz="0.0 -1.0 0.0"/>
+    <dynamics damping="0.02" friction="0.0"/>
+  </joint>
+  <!-- IMU pegada al chasis. -->
+  <joint name="imu_joint" type="fixed">
+    <!-- sobre el acrílico (z = 0.0532), al centro, entre la columna y el regulador -->
+    <origin rpy="0 0 0" xyz="0.08 0 0.0532"/>
+    <parent link="base_link"/>
+    <child link="imu_link_1"/>
+  </joint>
+  <!-- Rueda loca 3" con freno, bajo el larguero delantero, 0.349 m delante del eje. -->
+  <joint name="front_caster_joint" type="fixed">
+    <origin rpy="0 0 3.141592653589793" xyz="0.349 0 0.0106"/>
+    <!-- bastidor (z=0.0202) - suplencia 9.6 mm; placa de 62 mm centrada para no pasar del frente del bastidor (x=0.38) -->
+    <parent link="base_link"/>
+    <child link="front_caster_link_1"/>
+  </joint>
+  <!-- Carcasa del lidar pegada al chasis, al frente. -->
+  <joint name="lidar_joint" type="fixed">
+    <origin rpy="0 0 3.141592653589793" xyz="0.35 0 0.250248"/>
+    <parent link="base_link"/>
+    <child link="lidar_link_1"/>
+  </joint>
+  <!-- Columna pegada al chasis, sobre el eje de las ruedas. -->
+  <joint name="base_to_vertical_column_joint" type="fixed">
+    <origin rpy="0 0 3.141592653589793" xyz="-0.03 0 0.020248"/>
+    <parent link="base_link"/>
+    <child link="vertical_column_link_1"/>
+  </joint>
+  <!-- Frame de montaje del brazo: cara superior de la placa del carro del elevador. -->
+  <joint name="carriage_to_arm_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="-0.0925 0.0 0.0675"/>
+    <parent link="lift_carriage_link_1"/>
+    <child link="arm_base_link_1"/>
+  </joint>
+  <!-- RPLIDAR C1: plano de escaneo ~30 mm sobre la base del sensor, centro del sensor a x=-0.058 en lidar_link_1.
      lidar_link_1 está girado 180° (CAD al revés), por eso yaw=pi aquí: el frame "laser" queda mirando +X del robot.
      Nombre "laser" = frame_id por defecto del driver rplidar_ros, así sirve igual en el robot real
      (en el real ajusta el yaw según cómo quede montado el conector del C1). -->
-<link name="laser">
-  <!-- masa mínima para que Gazebo Classic no descarte el link -->
-  <inertial>
-    <mass value="0.001"/>
-    <inertia ixx="1e-6" iyy="1e-6" izz="1e-6" ixy="0" ixz="0" iyz="0"/>
-  </inertial>
-</link>
-<joint name="laser_joint" type="fixed">
-  <origin xyz="-0.058 0.0 0.030" rpy="0 0 3.141592653589793"/>
-  <parent link="lidar_link_1"/>
-  <child link="laser"/>
-</joint>
-
-
-<!-- Lastre / baterías en el piso del chasis. Baja el centro de masa (sin esto el robot se vuelca:
-     COM a 0.69 m). Con 12 kg: COM a 0.45 m, aguanta ~2.3 m/s² lateral y ~2.7 m/s² al frenar.
-     Ajustar ballast_mass al peso REAL de baterías + electrónica cuando se conozca. -->
-<xacro:property name="ballast_mass" value="12.0"/>
-<xacro:property name="ballast_size_x" value="0.25"/>
-<xacro:property name="ballast_size_y" value="0.30"/>
-<xacro:property name="ballast_size_z" value="0.04"/>
-<link name="ballast_link">
-  <inertial>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <mass value="${ballast_mass}"/>
-    <inertia ixx="${ballast_mass/12*(ballast_size_y**2 + ballast_size_z**2)}" ixy="0" ixz="0"
-             iyy="${ballast_mass/12*(ballast_size_x**2 + ballast_size_z**2)}" iyz="0"
-             izz="${ballast_mass/12*(ballast_size_x**2 + ballast_size_y**2)}"/>
-  </inertial>
-  <visual>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <geometry><box size="${ballast_size_x} ${ballast_size_y} ${ballast_size_z}"/></geometry>
-    <material name="caster_black"/>
-  </visual>
-</link>
-<joint name="ballast_joint" type="fixed">
-  <!-- x=0.17 adelante del eje, apoyado a 0.065 m del suelo (dentro del chasis) -->
-  <origin xyz="0.17 0 ${0.085 - 0.08255}" rpy="0 0 0"/>
-  <parent link="base_link"/>
-  <child link="ballast_link"/>
-</joint>
+  <link name="laser">
+    <!-- masa mínima para que Gazebo Classic no descarte el link -->
+    <inertial>
+      <mass value="0.001"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+  </link>
+  <joint name="laser_joint" type="fixed">
+    <origin rpy="0 0 3.141592653589793" xyz="-0.058 0.0 0.030"/>
+    <parent link="lidar_link_1"/>
+    <child link="laser"/>
+  </joint>
+  <!-- Un "plugin" de Gazebo es código que corre dentro de la simulación y conecta Gazebo con ROS:
+     lee sensores simulados y publica topics, o recibe comandos y mueve articulaciones. -->
+  <!-- ======================= /joint_states desde Gazebo ======================= -->
+  <!-- Publica el ángulo de las articulaciones simuladas en /joint_states (30 Hz), para que
+     robot_state_publisher dibuje las ruedas girando. Las del brazo solo si no está bloqueado. -->
+    <!-- ===== Caja trasera de perfiles V-slot 3030 (malla de 1 m, escalada al largo de cada tramo) (14 tramos, 3.08 m a 0.835 kg/m, 2.57 kg), 50 cm de alto =====
+     Desde la mitad de la columna central hacia atrás (x 0.0..-0.12), ancho 30 cm,
+     desde la cara superior de la base (z=0.25) hasta 50 cm hacia arriba. -->
+  <material name="perfil_30x30">
+    <color rgba="0.35 0.35 0.38 1.0"/>
+  </material>
+  <link name="rear_box_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="-0.0600 0 0.5000"/>
+      <mass value="2.5718"/>
+      <inertia ixx="0.0784941" ixy="0" ixz="0" iyy="0.0575551" iyz="0" izz="0.0223776"/>
+    </inertial>
+    <visual>  <!-- vertical -->
+      <origin rpy="0 0 0" xyz="-0.1050 -0.1350 0.5000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000500"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- vertical -->
+      <origin rpy="0 0 0" xyz="-0.1050 0.1350 0.5000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000500"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- vertical -->
+      <origin rpy="0 0 0" xyz="-0.0150 -0.1350 0.5000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000500"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- vertical -->
+      <origin rpy="0 0 0" xyz="-0.0150 0.1350 0.5000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000500"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- lateral inferior -->
+      <origin rpy="0 1.5707963267948966 0" xyz="-0.0600 -0.1350 0.2650"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000060"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- lateral inferior -->
+      <origin rpy="0 1.5707963267948966 0" xyz="-0.0600 0.1350 0.2650"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000060"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- trasero inferior -->
+      <origin rpy="1.5707963267948966 0 0" xyz="-0.1050 0.0000 0.2650"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000240"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- delantero inferior (a la columna) -->
+      <origin rpy="1.5707963267948966 0 0" xyz="-0.0150 -0.0750 0.2650"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000090"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- delantero inferior (a la columna) -->
+      <origin rpy="1.5707963267948966 0 0" xyz="-0.0150 0.0750 0.2650"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000090"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- lateral superior -->
+      <origin rpy="0 1.5707963267948966 0" xyz="-0.0600 -0.1350 0.7350"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000060"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- lateral superior -->
+      <origin rpy="0 1.5707963267948966 0" xyz="-0.0600 0.1350 0.7350"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000060"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- trasero superior -->
+      <origin rpy="1.5707963267948966 0 0" xyz="-0.1050 0.0000 0.7350"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000240"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- delantero superior (a la columna) -->
+      <origin rpy="1.5707963267948966 0 0" xyz="-0.0150 -0.0750 0.7350"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000090"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <visual>  <!-- delantero superior (a la columna) -->
+      <origin rpy="1.5707963267948966 0 0" xyz="-0.0150 0.0750 0.7350"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/vslot_3030_1m.stl" scale="0.001 0.001 0.000090"/></geometry>
+      <material name="perfil_30x30"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="-0.0600 0 0.5000"/>
+      <geometry><box size="0.1200 0.3000 0.5000"/></geometry>
+    </collision>
+  </link>
+  <joint name="base_to_rear_box_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="rear_box_link"/>
+  </joint>
+  <!-- ===== Herrajes: 2 soportes de eje SK16 + 74 escuadras 90° para perfil 3030 =====
+     Escuadras en cada unión punta-cara de perfiles donde caben sin chocar, más 8 horizontales en las
+     esquinas de los anillos de la base (~24 g c/u). SK16 ~47 g c/u. Inercia como masas puntuales. -->
+  <material name="aluminio_herraje">
+    <color rgba="0.72 0.73 0.75 1.0"/>
+  </material>
+  <link name="herrajes_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.0454 0.0000 0.2571"/>
+      <mass value="1.870"/>
+      <inertia ixx="0.15556" ixy="0" ixz="0" iyy="0.15987" iyz="0" izz="0.09988"/>
+    </inertial>
+    <visual>  <!-- SK16 izq: base atornillada (M5, en la ranura) bajo el travesaño largo; sujeta el eje Ø16 del motor -->
+      <origin rpy="3.141592653589793 0 0" xyz="0 0.1017 0.0202"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/sk16.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>  <!-- SK16 der: base atornillada (M5, en la ranura) bajo el travesaño largo; sujeta el eje Ø16 del motor -->
+      <origin rpy="3.141592653589793 0 0" xyz="0 -0.1017 0.0202"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/sk16.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 1.570796" xyz="-0.09000 -0.23500 0.05025"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 -1.570796" xyz="0.35000 -0.23500 0.05025"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 1.570796" xyz="-0.09000 0.23500 0.05025"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 -1.570796" xyz="0.35000 0.23500 0.05025"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 3.141593" xyz="-0.10500 -0.22000 0.05025"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 0.000000" xyz="-0.10500 0.22000 0.05025"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 3.141593" xyz="0.36500 -0.22000 0.05025"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 0.000000" xyz="0.36500 0.22000 0.05025"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 0.000000 -1.570796" xyz="-0.09000 -0.23500 0.22025"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 0.000000 1.570796" xyz="0.35000 -0.23500 0.22025"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 0.000000 -1.570796" xyz="-0.09000 0.23500 0.22025"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 0.000000 1.570796" xyz="0.35000 0.23500 0.22025"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 0.000000 0.000000" xyz="-0.10500 -0.22000 0.22025"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 0.000000 3.141593" xyz="-0.10500 0.22000 0.22025"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 0.000000 0.000000" xyz="0.36500 -0.22000 0.22025"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 0.000000 3.141593" xyz="0.36500 0.22000 0.22025"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="3.141593 -1.570796 0.000000" xyz="-0.09000 -0.11670 0.03525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-0.000000 1.570796 0.000000" xyz="-0.09000 -0.08670 0.03525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-3.141593 1.570796 0.000000" xyz="0.35000 -0.11670 0.03525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="0.000000 -1.570796 0.000000" xyz="0.35000 -0.08670 0.03525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="3.141593 -1.570796 0.000000" xyz="-0.09000 0.08670 0.03525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-0.000000 1.570796 0.000000" xyz="-0.09000 0.11670 0.03525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-3.141593 1.570796 0.000000" xyz="0.35000 0.08670 0.03525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="0.000000 -1.570796 0.000000" xyz="0.35000 0.11670 0.03525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 1.570796 0.000000" xyz="0.11500 -0.08670 0.03525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 -1.570796 0.000000" xyz="0.14500 -0.08670 0.03525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 -1.570796 0.000000" xyz="0.11500 0.08670 0.03525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 1.570796 0.000000" xyz="0.14500 0.08670 0.03525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 -1.570796 0.000000" xyz="-0.03000 -0.22000 0.23525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 1.570796 0.000000" xyz="-0.03000 0.22000 0.23525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 1.570796 0.000000" xyz="0.03000 -0.22000 0.23525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 -1.570796 0.000000" xyz="0.06000 -0.22000 0.23525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 -1.570796 0.000000" xyz="0.03000 0.22000 0.23525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 1.570796 0.000000" xyz="0.06000 0.22000 0.23525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-0.000000 1.570796 0.000000" xyz="-0.03000 0.06000 0.23525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="0.000000 -1.570796 0.000000" xyz="0.03000 0.06000 0.23525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="3.141593 -1.570796 0.000000" xyz="-0.03000 -0.06000 0.23525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-3.141593 1.570796 0.000000" xyz="0.03000 -0.06000 0.23525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="0.000000 0.000000 3.141593" xyz="-0.10500 -0.15000 0.25000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="0.000000 0.000000 0.000000" xyz="-0.10500 0.15000 0.25000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 1.570796" xyz="-0.09000 -0.13500 0.28000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 -1.570796" xyz="-0.03000 -0.13500 0.28000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 1.570796" xyz="-0.09000 0.13500 0.28000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 -1.570796" xyz="-0.03000 0.13500 0.28000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 3.141593" xyz="-0.10500 -0.12000 0.28000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 0.000000" xyz="-0.10500 0.12000 0.28000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 3.141593" xyz="-0.01500 -0.12000 0.28000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 1.570796 0.000000" xyz="0.00000 -0.03000 0.26500"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 0.000000" xyz="-0.01500 -0.03000 0.28000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 -1.570796 0.000000" xyz="0.00000 0.03000 0.26500"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 3.141593" xyz="-0.01500 0.03000 0.28000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 0.000000" xyz="-0.01500 0.12000 0.28000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 0.000000 -1.570796" xyz="-0.09000 -0.13500 0.72000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 0.000000 1.570796" xyz="-0.03000 -0.13500 0.72000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 0.000000 -1.570796" xyz="-0.09000 0.13500 0.72000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 0.000000 1.570796" xyz="-0.03000 0.13500 0.72000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 0.000000 0.000000" xyz="-0.10500 -0.12000 0.72000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 0.000000 3.141593" xyz="-0.10500 0.12000 0.72000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 0.000000 0.000000" xyz="-0.01500 -0.12000 0.72000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 1.570796 0.000000" xyz="0.00000 -0.03000 0.73500"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 0.000000 3.141593" xyz="-0.01500 -0.03000 0.72000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 0.000000" xyz="-0.01500 -0.03000 0.75000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 -1.570796 0.000000" xyz="0.00000 0.03000 0.73500"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 0.000000 0.000000" xyz="-0.01500 0.03000 0.72000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 3.141593" xyz="-0.01500 0.03000 0.75000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>
+      <origin rpy="-1.570796 0.000000 3.141593" xyz="-0.01500 0.12000 0.72000"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>  <!-- horizontal, esquina de anillo de la base -->
+      <origin rpy="-0.000000 1.570796 0.000000" xyz="-0.09000 -0.22000 0.03525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>  <!-- horizontal, esquina de anillo de la base -->
+      <origin rpy="3.141593 -1.570796 0.000000" xyz="-0.09000 0.22000 0.03525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>  <!-- horizontal, esquina de anillo de la base -->
+      <origin rpy="0.000000 -1.570796 0.000000" xyz="0.35000 -0.22000 0.03525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>  <!-- horizontal, esquina de anillo de la base -->
+      <origin rpy="3.141593 1.570796 0.000000" xyz="0.35000 0.22000 0.03525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>  <!-- horizontal, esquina de anillo de la base -->
+      <origin rpy="-0.000000 1.570796 0.000000" xyz="-0.09000 -0.22000 0.23525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>  <!-- horizontal, esquina de anillo de la base -->
+      <origin rpy="3.141593 -1.570796 0.000000" xyz="-0.09000 0.22000 0.23525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>  <!-- horizontal, esquina de anillo de la base -->
+      <origin rpy="0.000000 -1.570796 0.000000" xyz="0.35000 -0.22000 0.23525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+    <visual>  <!-- horizontal, esquina de anillo de la base -->
+      <origin rpy="3.141593 1.570796 0.000000" xyz="0.35000 0.22000 0.23525"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/escuadra_3030.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="aluminio_herraje"/>
+    </visual>
+  </link>
+  <joint name="base_to_herrajes_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="herrajes_link"/>
+  </joint>
+  <!-- ===== Electrónica en la caja trasera: 6 TB6600, Jetson Orin Nano Dev Kit, Arduino Mega 2560 =====
+     Masas: TB6600 0.123 kg c/u (ficha Joy-it), Jetson Orin Nano Dev Kit 0.176 kg, Arduino Mega 0.037 kg (oficial). Inercia como masas puntuales. -->
+  <material name="tb6600_negro">
+    <color rgba="0.12 0.12 0.13 1.0"/>
+  </material>
+  <material name="tb6600_verde">
+    <color rgba="0.18 0.80 0.38 1.0"/>
+  </material>
+  <material name="tb6600_rojo">
+    <color rgba="0.88 0.45 0.45 1.0"/>
+  </material>
+  <material name="jetson_negro">
+    <color rgba="0.05 0.05 0.05 1.0"/>
+  </material>
+  <material name="jetson_gris">
+    <color rgba="0.60 0.59 0.58 1.0"/>
+  </material>
+  <material name="jetson_dorado">
+    <color rgba="0.85 0.75 0.20 1.0"/>
+  </material>
+  <material name="jetson_azul">
+    <color rgba="0.55 0.55 0.85 1.0"/>
+  </material>
+  <material name="jetson_verde">
+    <color rgba="0.10 0.80 0.25 1.0"/>
+  </material>
+  <material name="mega_pcb">
+    <color rgba="0.05 0.42 0.55 1.0"/>
+  </material>
+  <material name="mega_negro">
+    <color rgba="0.10 0.10 0.10 1.0"/>
+  </material>
+  <material name="mega_metal">
+    <color rgba="0.78 0.78 0.80 1.0"/>
+  </material>
+  <link name="electronica_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="-0.0232 -0.0000 0.4985"/>
+      <mass value="0.951"/>
+      <inertia ixx="0.01713" ixy="0" ixz="0" iyy="0.01120" iyz="0" izz="0.00629"/>
+    </inertial>
+    <!-- TB6600 izq #1: cara delantera de la caja, al lado de la columna, atornillado a la vertical lateral; disipador hacia el frente -->
+    <visual>
+      <origin rpy="3.141593 1.570796 0.000000" xyz="-0.0005 0.0945 0.3580"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/tb6600_negro.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="tb6600_negro"/>
+    </visual>
+    <visual>
+      <origin rpy="3.141593 1.570796 0.000000" xyz="-0.0005 0.0945 0.3580"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/tb6600_verde.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="tb6600_verde"/>
+    </visual>
+    <visual>
+      <origin rpy="3.141593 1.570796 0.000000" xyz="-0.0005 0.0945 0.3580"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/tb6600_rojo.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="tb6600_rojo"/>
+    </visual>
+    <!-- TB6600 izq #2: cara delantera de la caja, al lado de la columna, atornillado a la vertical lateral; disipador hacia el frente -->
+    <visual>
+      <origin rpy="3.141593 1.570796 0.000000" xyz="-0.0005 0.0945 0.4590"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/tb6600_negro.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="tb6600_negro"/>
+    </visual>
+    <visual>
+      <origin rpy="3.141593 1.570796 0.000000" xyz="-0.0005 0.0945 0.4590"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/tb6600_verde.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="tb6600_verde"/>
+    </visual>
+    <visual>
+      <origin rpy="3.141593 1.570796 0.000000" xyz="-0.0005 0.0945 0.4590"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/tb6600_rojo.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="tb6600_rojo"/>
+    </visual>
+    <!-- TB6600 izq #3: cara delantera de la caja, al lado de la columna, atornillado a la vertical lateral; disipador hacia el frente -->
+    <visual>
+      <origin rpy="3.141593 1.570796 0.000000" xyz="-0.0005 0.0945 0.5600"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/tb6600_negro.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="tb6600_negro"/>
+    </visual>
+    <visual>
+      <origin rpy="3.141593 1.570796 0.000000" xyz="-0.0005 0.0945 0.5600"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/tb6600_verde.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="tb6600_verde"/>
+    </visual>
+    <visual>
+      <origin rpy="3.141593 1.570796 0.000000" xyz="-0.0005 0.0945 0.5600"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/tb6600_rojo.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="tb6600_rojo"/>
+    </visual>
+    <!-- TB6600 der #1: cara delantera de la caja, al lado de la columna, atornillado a la vertical lateral; disipador hacia el frente -->
+    <visual>
+      <origin rpy="0.000000 -1.570796 0.000000" xyz="-0.0005 -0.0945 0.3580"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/tb6600_negro.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="tb6600_negro"/>
+    </visual>
+    <visual>
+      <origin rpy="0.000000 -1.570796 0.000000" xyz="-0.0005 -0.0945 0.3580"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/tb6600_verde.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="tb6600_verde"/>
+    </visual>
+    <visual>
+      <origin rpy="0.000000 -1.570796 0.000000" xyz="-0.0005 -0.0945 0.3580"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/tb6600_rojo.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="tb6600_rojo"/>
+    </visual>
+    <!-- TB6600 der #2: cara delantera de la caja, al lado de la columna, atornillado a la vertical lateral; disipador hacia el frente -->
+    <visual>
+      <origin rpy="0.000000 -1.570796 0.000000" xyz="-0.0005 -0.0945 0.4590"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/tb6600_negro.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="tb6600_negro"/>
+    </visual>
+    <visual>
+      <origin rpy="0.000000 -1.570796 0.000000" xyz="-0.0005 -0.0945 0.4590"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/tb6600_verde.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="tb6600_verde"/>
+    </visual>
+    <visual>
+      <origin rpy="0.000000 -1.570796 0.000000" xyz="-0.0005 -0.0945 0.4590"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/tb6600_rojo.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="tb6600_rojo"/>
+    </visual>
+    <!-- TB6600 der #3: cara delantera de la caja, al lado de la columna, atornillado a la vertical lateral; disipador hacia el frente -->
+    <visual>
+      <origin rpy="0.000000 -1.570796 0.000000" xyz="-0.0005 -0.0945 0.5600"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/tb6600_negro.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="tb6600_negro"/>
+    </visual>
+    <visual>
+      <origin rpy="0.000000 -1.570796 0.000000" xyz="-0.0005 -0.0945 0.5600"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/tb6600_verde.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="tb6600_verde"/>
+    </visual>
+    <visual>
+      <origin rpy="0.000000 -1.570796 0.000000" xyz="-0.0005 -0.0945 0.5600"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/tb6600_rojo.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="tb6600_rojo"/>
+    </visual>
+    <!-- Jetson Orin Nano Developer Kit (modelo NVIDIA, sin la caja), contra la cara trasera de la columna, arriba, puertos hacia abajo -->
+    <visual>
+      <origin rpy="1.570796 0.000000 -1.570796" xyz="-0.0258 0.0000 0.6704"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/jetson_orin_nano_negro.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="jetson_negro"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 -1.570796" xyz="-0.0258 0.0000 0.6704"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/jetson_orin_nano_gris.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="jetson_gris"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 -1.570796" xyz="-0.0258 0.0000 0.6704"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/jetson_orin_nano_dorado.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="jetson_dorado"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 -1.570796" xyz="-0.0258 0.0000 0.6704"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/jetson_orin_nano_azul.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="jetson_azul"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 -1.570796" xyz="-0.0258 0.0000 0.6704"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/jetson_orin_nano_verde.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="jetson_verde"/>
+    </visual>
+    <!-- Arduino Mega 2560 (contorno y componentes del .brd oficial), separadores de 6 mm contra la columna, USB hacia arriba -->
+    <visual>
+      <origin rpy="3.141593 1.570796 0.000000" xyz="-0.0360 0.0267 0.5446"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/arduino_mega_pcb.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="mega_pcb"/>
+    </visual>
+    <visual>
+      <origin rpy="3.141593 1.570796 0.000000" xyz="-0.0360 0.0267 0.5446"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/arduino_mega_negro.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="mega_negro"/>
+    </visual>
+    <visual>
+      <origin rpy="3.141593 1.570796 0.000000" xyz="-0.0360 0.0267 0.5446"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/arduino_mega_metal.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="mega_metal"/>
+    </visual>
+  </link>
+  <joint name="base_to_electronica_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="electronica_link"/>
+  </joint>
+  <!-- ===== Interior de la base: acrílico 3 mm, 2 baterías de hoverboard, mainboard y regulador 12V =====
+     Masas: acrílico 0.826 kg (PMMA 1.19 g/cm³), baterías 0.97 kg c/u (ficha 10S2P), mainboard 0.173 kg (volúmenes de su modelo), regulador 0.50 kg (fichas: 0.47-0.56). Inercia como masas puntuales. -->
+  <material name="acrilico">
+    <color rgba="0.85 0.93 0.97 0.35"/>
+  </material>
+  <material name="bateria_azul">
+    <color rgba="0.10 0.30 0.78 1.0"/>
+  </material>
+  <material name="bateria_cables">
+    <color rgba="0.02 0.02 0.02 1.0"/>
+  </material>
+  <material name="bateria_conector">
+    <color rgba="0.95 0.92 0.25 1.0"/>
+  </material>
+  <material name="mainboard_negro">
+    <color rgba="0.03 0.03 0.03 1.0"/>
+  </material>
+  <material name="mainboard_gris">
+    <color rgba="0.69 0.61 0.54 1.0"/>
+  </material>
+  <material name="mainboard_azul">
+    <color rgba="0.06 0.14 0.50 1.0"/>
+  </material>
+  <material name="mainboard_verde">
+    <color rgba="0.11 0.39 0.05 1.0"/>
+  </material>
+  <material name="regulador_aluminio">
+    <color rgba="0.80 0.81 0.83 1.0"/>
+  </material>
+  <link name="base_interior_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.2124 0.0000 0.0738"/>
+      <mass value="3.439"/>
+      <inertia ixx="0.04906" ixy="0" ixz="0" iyy="0.00973" iyz="0" izz="0.05753"/>
+    </inertial>
+    <!-- Plancha de acrílico 3 mm sobre los perfiles de abajo (muescas en esquinas y agujero para la columna) -->
+    <visual>
+      <origin rpy="0 0 0" xyz="0.1300 0.0000 0.0502"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/acrilico_base.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="acrilico"/>
+    </visual>
+    <!-- Batería hoverboard izq (modelo GrabCAD "10S2P 36V", 133 x 61.8 x 83 mm), acostada: adelante de la rueda, al lado de la mainboard; bisel arriba afuera, cables y XT60 hacia la mainboard -->
+    <visual>
+      <origin rpy="1.570796 0.000000 3.141593" xyz="0.3110 0.1165 0.0532"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/bateria_izq_azul.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="bateria_azul"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 3.141593" xyz="0.3110 0.1165 0.0532"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/bateria_izq_negro.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="bateria_cables"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 3.141593" xyz="0.3110 0.1165 0.0532"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/bateria_izq_dorado.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="bateria_conector"/>
+    </visual>
+    <!-- Batería hoverboard der (modelo GrabCAD "10S2P 36V", 133 x 61.8 x 83 mm), acostada: adelante de la rueda, al lado de la mainboard; bisel arriba afuera, cables y XT60 hacia la mainboard -->
+    <visual>
+      <origin rpy="1.570796 0.000000 0.000000" xyz="0.1780 -0.1165 0.0532"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/bateria_der_azul.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="bateria_azul"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 0.000000" xyz="0.1780 -0.1165 0.0532"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/bateria_der_negro.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="bateria_cables"/>
+    </visual>
+    <visual>
+      <origin rpy="1.570796 0.000000 0.000000" xyz="0.1780 -0.1165 0.0532"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/bateria_der_dorado.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="bateria_conector"/>
+    </visual>
+    <!-- Mainboard de la hoverboard (modelo descargado), al centro adelante -->
+    <visual>
+      <origin rpy="0 0 1.5707963267948966" xyz="0.3450 0.0000 0.0532"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/hoverboard_mainboard_negro.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="mainboard_negro"/>
+    </visual>
+    <visual>
+      <origin rpy="0 0 1.5707963267948966" xyz="0.3450 0.0000 0.0532"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/hoverboard_mainboard_gris.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="mainboard_gris"/>
+    </visual>
+    <visual>
+      <origin rpy="0 0 1.5707963267948966" xyz="0.3450 0.0000 0.0532"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/hoverboard_mainboard_azul.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="mainboard_azul"/>
+    </visual>
+    <visual>
+      <origin rpy="0 0 1.5707963267948966" xyz="0.3450 0.0000 0.0532"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/hoverboard_mainboard_verde.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="mainboard_verde"/>
+    </visual>
+    <!-- Regulador 36-48V a 12V 30A (modelo descargado), detrás de la mainboard, conector hacia ella -->
+    <visual>
+      <origin rpy="0 0 0" xyz="0.1390 0.0000 0.0532"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/regulador_36v_12v.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="regulador_aluminio"/>
+    </visual>
+  </link>
+  <joint name="base_to_base_interior_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="base_interior_link"/>
+  </joint>
+  <!-- ===== Monitor portátil 12" (genérico ~275 x 175 x 8 mm, ~0.5 kg; el MUCAI de 12" no tiene ficha publicada) =====
+       En la cara trasera de la columna 6060, entre la tapa de la caja trasera (0.75 m) y la punta de la columna
+       (1.52 m): centro a 1.135 m. Pantalla hacia atrás, inclinada 20° hacia arriba para una persona de pie detrás
+       (ojos a ~1.6 m, a ~1.3 m). Brazo impreso de 40 mm + placa a la ranura del perfil. Origen = centro de la espalda. -->
+  <material name="monitor_cuerpo">
+    <color rgba="0.20 0.20 0.22 1.0"/>
+  </material>
+  <material name="monitor_pantalla">
+    <color rgba="0.02 0.03 0.06 1.0"/>
+  </material>
+  <material name="monitor_soporte">
+    <color rgba="0.45 0.45 0.47 1.0"/>
+  </material>
+  <link name="monitor_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="-0.0038 0 0.0014"/>
+      <mass value="0.550"/>
+      <inertia ixx="0.004278" ixy="0" ixz="-0.000409" iyy="0.001279" iyz="0" izz="0.003303"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/monitor_cuerpo.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="monitor_cuerpo"/>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/monitor_pantalla.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="monitor_pantalla"/>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/monitor_soporte.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="monitor_soporte"/>
+    </visual>
+  </link>
+  <joint name="base_to_monitor_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="-0.070 0 1.135"/>
+    <parent link="base_link"/>
+    <child link="monitor_link"/>
+  </joint>
+  <!-- ===== Placas de carcasa 2 mm de la caja trasera (0.431 m2, PAI 1.05 g/cm³ ~0.90 kg), 50 cm de alto ===== -->
+  <material name="placa_carcasa">
+    <color rgba="0.80 0.82 0.85 0.55"/>
+  </material>
+  <link name="rear_box_panels_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="-0.0600 0 0.5000"/>
+      <mass value="0.902"/>
+      <inertia ixx="0.05507" ixy="0.00000" ixz="0.00000" iyy="0.04039" iyz="0.00000" izz="0.01570"/>
+    </inertial>
+    <visual>  <!-- placa lateral izquierda -->
+      <origin rpy="0 0 0" xyz="-0.0600 0.1510 0.5000"/>
+      <geometry><box size="0.1200 0.0020 0.5000"/></geometry>
+      <material name="placa_carcasa"/>
+    </visual>
+    <visual>  <!-- placa lateral derecha -->
+      <origin rpy="0 0 0" xyz="-0.0600 -0.1510 0.5000"/>
+      <geometry><box size="0.1200 0.0020 0.5000"/></geometry>
+      <material name="placa_carcasa"/>
+    </visual>
+    <visual>  <!-- placa trasera -->
+      <origin rpy="0 0 0" xyz="-0.1210 0.0000 0.5000"/>
+      <geometry><box size="0.0020 0.3040 0.5000"/></geometry>
+      <material name="placa_carcasa"/>
+    </visual>
+    <visual>  <!-- placa tapa superior -->
+      <origin rpy="0 0 0" xyz="-0.0610 0.0000 0.7510"/>
+      <geometry><box size="0.1220 0.3040 0.0020"/></geometry>
+      <material name="placa_carcasa"/>
+    </visual>
+    <visual>  <!-- placa delantera izq (al lado de la columna) -->
+      <origin rpy="0 0 0" xyz="0.0010 0.0910 0.5000"/>
+      <geometry><box size="0.0020 0.1220 0.5000"/></geometry>
+      <material name="placa_carcasa"/>
+    </visual>
+    <visual>  <!-- placa delantera der (al lado de la columna) -->
+      <origin rpy="0 0 0" xyz="0.0010 -0.0910 0.5000"/>
+      <geometry><box size="0.0020 0.1220 0.5000"/></geometry>
+      <material name="placa_carcasa"/>
+    </visual>
+  </link>
+  <joint name="rear_box_to_panels_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="rear_box_link"/>
+    <child link="rear_box_panels_link"/>
+  </joint>
+  <!-- ===== Placas de carcasa 2 mm de la base (0.793 m2, PAI 1.05 g/cm³ ~1.66 kg). Abajo abierta (ruedas). ===== -->
+  <link name="base_panels_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.1300 0 0.1150"/>
+      <mass value="1.664"/>
+      <inertia ixx="0.08958" ixy="0.00000" ixz="0.00000" iyy="0.08958" iyz="0.00000" izz="0.13870"/>
+    </inertial>
+    <visual>  <!-- placa lateral izquierda -->
+      <origin rpy="0 0 0" xyz="0.1300 0.2510 0.1150"/>
+      <geometry><box size="0.5000 0.0020 0.2700"/></geometry>
+      <material name="placa_carcasa"/>
+    </visual>
+    <visual>  <!-- placa lateral derecha -->
+      <origin rpy="0 0 0" xyz="0.1300 -0.2510 0.1150"/>
+      <geometry><box size="0.5000 0.0020 0.2700"/></geometry>
+      <material name="placa_carcasa"/>
+    </visual>
+    <visual>  <!-- placa trasera -->
+      <origin rpy="0 0 0" xyz="-0.1210 0.0000 0.1150"/>
+      <geometry><box size="0.0020 0.5040 0.2700"/></geometry>
+      <material name="placa_carcasa"/>
+    </visual>
+    <visual>  <!-- placa delantera -->
+      <origin rpy="0 0 0" xyz="0.3810 0.0000 0.1150"/>
+      <geometry><box size="0.0020 0.5040 0.2700"/></geometry>
+      <material name="placa_carcasa"/>
+    </visual>
+    <visual>  <!-- placa tapa trasera -->
+      <origin rpy="0 0 0" xyz="-0.0760 0.0000 0.2510"/>
+      <geometry><box size="0.0920 0.5040 0.0020"/></geometry>
+      <material name="placa_carcasa"/>
+    </visual>
+    <visual>  <!-- placa tapa delantera -->
+      <origin rpy="0 0 0" xyz="0.2060 0.0000 0.2510"/>
+      <geometry><box size="0.3520 0.5040 0.0020"/></geometry>
+      <material name="placa_carcasa"/>
+    </visual>
+    <visual>  <!-- placa tapa al lado de la columna izq -->
+      <origin rpy="0 0 0" xyz="0.0000 0.1410 0.2510"/>
+      <geometry><box size="0.0600 0.2220 0.0020"/></geometry>
+      <material name="placa_carcasa"/>
+    </visual>
+    <visual>  <!-- placa tapa al lado de la columna der -->
+      <origin rpy="0 0 0" xyz="0.0000 -0.1410 0.2510"/>
+      <geometry><box size="0.0600 0.2220 0.0020"/></geometry>
+      <material name="placa_carcasa"/>
+    </visual>
+  </link>
+  <joint name="base_to_panels_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="base_panels_link"/>
+  </joint>
+  <!-- ===== Cabeza (rescatada del STEP del robot antiguo "preparacion ros2 brazo milo v6", sub-ensamble "Configuración 1 v9") =====
+     Carcasa impresa + RealSense D435 + pantalla (modelo Venus Touch / CCGX), en la cara FRONTAL de la columna,
+     espalda de la carcasa pegada a la cara del 6060, techo 10 cm bajo el extremo superior del perfil
+     (base de la carcasa a 1.253 m sobre el pie de la columna). Mallas en mm con las coordenadas del STEP viejo;
+     el joint las lleva al frame de la columna (STEP x=130 mm, z=-500 mm = centro/pie de la columna).
+     Masas: carcasa PLA 650 g (voxeles, 4 paredes, 60 % relleno), D435 72 g (ficha Intel),
+     pantalla 150 g ESTIMADA (pesar). OJO: la cabeza ocupa el final del recorrido del carro: con el carro sobre ~+0.43 m
+     (vertical_lift, máx 0.6) o con el brazo estirado hacia arriba, chocan. -->
+  <material name="cabeza_carcasa"><color rgba="0.22 0.22 0.24 1.0"/></material>
+  <material name="cabeza_marco"><color rgba="0.03 0.03 0.03 1.0"/></material>
+  <material name="cabeza_vidrio"><color rgba="0.05 0.10 0.22 1.0"/></material>
+  <material name="cabeza_realsense"><color rgba="0.38 0.39 0.42 1.0"/></material>
+  <link name="cabeza_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="-0.00048 -0.00049 0.66631"/>
+      <mass value="0.8717"/>
+      <inertia ixx="4.159000e-03" ixy="1.706704e-08" ixz="-3.323805e-04" iyy="3.281323e-03" iyz="-1.770338e-06" izz="3.977038e-03"/>
+    </inertial>
+    <visual>  <!-- carcasa impresa -->
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/cabeza_carcasa.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="cabeza_carcasa"/>
+    </visual>
+    <visual>  <!-- pantalla: marco -->
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/cabeza_pantalla_marco.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="cabeza_marco"/>
+    </visual>
+    <visual>  <!-- pantalla: vidrio -->
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/cabeza_pantalla_vidrio.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="cabeza_vidrio"/>
+    </visual>
+    <visual>  <!-- cámara RealSense D435 -->
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry><mesh filename="file://$(find andesrobot_description)/meshes/cabeza_realsense_d435.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="cabeza_realsense"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0.01565 -0.00045 0.66220"/>
+      <geometry><box size="0.1271 0.1607 0.1466"/></geometry>
+    </collision>
+  </link>
+  <joint name="columna_to_cabeza_joint" type="fixed">
+    <!-- x -0.1392: espalda de la carcasa (x 79.2 mm en el STEP) pegada a la cara frontal del 6060 (x -0.06 en la columna).
+         z 0.6645: techo de la carcasa (735.5 mm en el STEP) 10 cm bajo el extremo del perfil (1.500 m en la columna).
+         En el STEP viejo estaba en (-0.16, 0, 0.5): 21 mm separada y 16.45 cm más abajo. -->
+    <origin rpy="0 0 0" xyz="-0.1392 0 0.6645"/>
+    <parent link="vertical_column_link_1"/>
+    <child link="cabeza_link"/>
+  </joint>
 
 <!-- Simulación (Gazebo): lidar, diff drive, IMU, joint states. Va al final porque usa lock_arm. -->
 <!-- (Las etiquetas <gazebo> solo las lee Gazebo; en el robot real se ignoran.) -->

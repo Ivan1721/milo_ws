@@ -616,13 +616,17 @@ Parámetros de `arm_ik_node`:
 | ![Vista 3D](figuras/fig_3d.png) | ![Cadena del brazo](figuras/fig_cadena.png) |
 | ![Vista lateral](figuras/fig_lateral.png) | ![Vista frontal](figuras/fig_frontal.png) |
 
-Robot completo (brazo vertical, lift en 0): 0.556 m de largo (x = −0.12 … 0.436), 0.500 m de ancho,
-1.816 m de alto. Base hasta el lidar: 0.374 m. Ruedas: 0.3605 m entre centros.
+Robot completo (brazo vertical, lift en 0; rev. 1 del modelo, 8-nov): 0.558 m de largo
+(x = −0.122 … 0.436), 0.504 m de ancho, 1.786 m de alto. Sin el brazo: 1.510 m (la cabeza). Lidar a
+0.370 m. Ruedas: 0.3604 m entre centros según `ROBOT.md` (las mallas dan 0.3125: lo revisa el equipo de
+la base).
 
 - Brazo: hombro → codo 0.350 m, codo → muñeca 0.325 m; joint_4 → joint_5 → joint_6: 0.064 + 0.064 m.
 - `gripper_tcp`: 0.102 m hacia −X de `link_6_1`, centro de las caras internas de los dedos
   (x = −0.083 … −0.121, punta en −0.1224). Apertura de la pinza: 0.017 + 2·q (3 … 49 mm).
-- `arm_base_link_1` con lift en 0: (0.1225, 0, 0.920). Hombro (joint_2): z = 0.613 … 1.613 m según el lift.
+- `arm_base_link_1` con lift en 0: (0.1225, 0, 0.927); `joint_1` en el mismo punto (sin la base
+  redonda impresa desde la rev. 1: antes iba 37 mm arriba). Hombro (joint_2): z = 0.583 … 1.583 m
+  según el lift.
 - Con joint_1 = 0, los ejes de joint_2, 3, 4 y 6 son paralelos a X: el brazo se dobla hacia los
   costados. Para trabajar al frente, joint_1 gira.
 - La muñeca **no es esférica** (joint_4 y joint_6 paralelos, a ~9 cm): no hay IK cerrada.

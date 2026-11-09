@@ -9,7 +9,7 @@ Informe técnico de `milo_ws` centrado en el brazo de Milo: su modelo, su hardwa
 | Dato | Qué es |
 | ---: | --- |
 | **6 + 1** | ejes en la cinemática inversa: 6 del brazo + el lift |
-| **0 – 2.46 m** | alturas del TCP con brazo + lift; 0.97 m de alcance al frente |
+| **0 – 2.43 m** | alturas del TCP con brazo + lift; 0.97 m de alcance al frente |
 | **8.05 kg** | brazo con motores y pinza en ABS (4.42 kg en el CAD original) |
 | **4 canales** | de la cámara de la pinza: color, profundidad, nube de puntos e infrarrojo |
 
@@ -249,6 +249,7 @@ La documentación del repositorio está en español y pensada para estudiantes: 
 | `45ef778` | Protecciones del generador contra el resbalón de la base, primer detector de la manija entrenado (sección 14) y revisión de la documentación |
 | `8e521f4` | Informe al día con la rama (fecha, paquetes, comando del brazo) |
 | *23-oct* | Sección 15: ideas de método de una investigación paralela (percepción activa con otro brazo) que también sirven al brazo de Milo; figuras de la actualización (`fig_actualizacion.py`) |
+| *8-nov* | `andesrobot_description` reemplazado por el modelo del equipo de estructura (estructura V-slot, cabeza, masas reales, brazo 3 cm más bajo); SRDF, figuras y masas al día (secciones 4–6, 13 y 17) |
 
 La rama está en GitHub: `github.com/Ivan1721/milo_ws`, rama `brazo` (repositorio público; el remoto usa SSH). En la raíz, `docs/` guarda lo que no es código: `docs/informe/`, este informe, y `docs/hardware/`, los manuales y modelos de las piezas (de terceros: solo su índice va a git). `ros2_ws/src/` queda solo para paquetes de ROS.
 
@@ -333,17 +334,17 @@ En Fusion el robot se modeló girado 180° en Z. Por eso las uniones a nivel de 
 | Frame | Dónde | Lo usan |
 | --- | --- | --- |
 | `base_footprint` | suelo, bajo el centro del eje de las ruedas; raíz del árbol | odometría, SLAM, filtro de seguridad, IK con lift |
-| `base_link` | centro del eje de ruedas, z = 0.08255 m | chasis, ruedas, sensores |
-| `laser` | centro óptico del C1: x = 0.408, z = 0.363 m | lidar (mismo frame en sim y real) |
-| `imu_link_1` | x = 0.13, z = 0.103 m | IMU |
-| `arm_base_link_1` | sobre el carro del lift; x = 0.1225, z = 0.920 m con el lift en 0 | IK de 6 ejes |
+| `base_link` | centro de los perfiles a la altura del eje, z = 0.08935 m (radio de rueda 0.08255 + 6.8 mm: con los soportes SK16 el eje queda bajo el origen) | chasis, ruedas, sensores |
+| `laser` | centro óptico del C1: x = 0.408, z = 0.370 m | lidar (mismo frame en sim y real) |
+| `imu_link_1` | x = 0.08, z = 0.143 m | IMU |
+| `arm_base_link_1` | sobre el carro del lift; x = 0.1225, z = 0.927 m con el lift en 0 | IK de 6 ejes |
 | `gripper_tcp` | 0.102 m hacia −X de `link_6_1`, entre los dedos | punta de la IK y marcador |
 
 ### Argumentos del xacro
 
 | Argumento | Defecto | Efecto |
 | --- | --- | --- |
-| `lock_arm` | false | true = brazo, lift y dedos `fixed`. Lo usa la simulación de mapeo: sin motores, el brazo se desplomaría |
+| `lock_arm` | false | true = brazo, lift y dedos `fixed` en la **pose plegada** (lift −0.40 m, brazo recogido dentro de la huella de la base). Lo usa la simulación de mapeo: sin motores, el brazo se desplomaría |
 | `simple_collision` | false | true = cajas en vez de mallas, incluida una caja fija para el brazo (los eslabones del brazo quedan sin colisión) |
 | `sim_lidar / sim_imu` | true | apagar sensores simulados para depurar |
 | `use_hardware / hoverboard_port` | false / `/dev/hoverboard` | agrega el ros2_control del hoverboard (robot real) |
@@ -355,8 +356,8 @@ En Fusion el robot se modeló girado 180° en Z. Por eso las uniones a nivel de 
 **Figura 1.** Modelo 3D generado a partir de las mallas de `andesrobot_description` (brazo en azul, pinza en naranja, columna y base en gris). Postura de ejemplo: joint_2 = 0.35, joint_3 = 0.9, joint_5 = 0.6 rad.
 
 <p>
-<img src="../../ros2_ws/src/andesrobot_arm/docs/figuras/fig_lateral.png" alt="Vista lateral de Milo con cotas: largo 0.556 m, altura 1.816 m con el brazo vertical, altura de la base 0.374 m, base del brazo a 0.920 m." width="48%">
-<img src="../../ros2_ws/src/andesrobot_arm/docs/figuras/fig_frontal.png" alt="Vista frontal de Milo con cotas: ancho 0.500 m y separación entre ruedas 0.3605 m." width="48%">
+<img src="../../ros2_ws/src/andesrobot_arm/docs/figuras/fig_lateral.png" alt="Vista lateral de Milo con cotas: largo 0.558 m, altura 1.786 m con el brazo vertical, altura sin el brazo 1.510 m, base del brazo a 0.927 m." width="48%">
+<img src="../../ros2_ws/src/andesrobot_arm/docs/figuras/fig_frontal.png" alt="Vista frontal de Milo con cotas: ancho 0.504 m y separación entre ruedas 0.3125 m." width="48%">
 </p>
 
 **Figura 2.** Vista lateral (X-Z), brazo en cero y lift en 0. El frente está a la derecha; el eje de las ruedas en x = 0.
@@ -377,21 +378,21 @@ $`{}^{w}T_{L}`$ es la pose del eslabón (cinemática directa, sección 7) y $`T_
 - $`s`$: factor de mm a m.
 - $`T_{\text{vis}}`$, $`{}^{w}T_{L}`$: dónde va la malla en su pieza, y dónde está la pieza.
 
-**Ejemplo:** haciendo esto con todos los vértices del robot y tomando el más alto y el más bajo se obtiene la altura total de 1.816 m.
+**Ejemplo:** haciendo esto con todos los vértices del robot y tomando el más alto y el más bajo se obtiene la altura total de 1.786 m.
 
 ### Medidas
 
 | Medida | Valor | Nota |
 | --- | ---: | --- |
-| Largo (X) | 0.556 m | de −0.120 a +0.436 m (el frente es el lidar) |
-| Ancho (Y) | 0.500 m | de −0.250 a +0.250 m |
-| Altura, brazo vertical, lift en 0 / −0.4 / +0.6 m | 1.816 / 1.603 / 2.416 m | con el lift abajo, lo más alto es la columna |
-| Altura de la base | 0.374 m | hasta el lidar; el chasis llega a 0.333 m |
+| Largo (X) | 0.558 m | de −0.122 a +0.436 m (el frente es el lidar) |
+| Ancho (Y) | 0.504 m | de −0.252 a +0.252 m |
+| Altura, brazo vertical, lift en 0 / +0.6 m | 1.786 / 2.386 m | con el lift abajo lo más alto es la columna (1.61 m, README del equipo) |
+| Altura sin el brazo | 1.510 m | la cabeza (RealSense + pantalla), en la cara frontal de la columna; el lidar está a 0.370 m |
 | Rueda: diámetro / radio / ancho | 0.1651 / 0.08255 / 0.045 m | rueda de hoverboard de 6.5" |
-| Separación entre ruedas | 0.3604 m | centro a centro de la banda (las mallas dan 0.3605; 0.3155 es entre orígenes de los joints) |
-| Rueda loca | x = 0.35 m | radio de colisión 0.025 m, provisorio |
-| Columna | 6 × 6 cm | sobre el eje de ruedas, de z = 0.103 a 1.603 m |
-| Carrera del lift | −0.4 a +0.6 m | 150 N, 0.20 m/s; base del brazo entre z = 0.520 y 1.520 m |
+| Separación entre ruedas | 0.3604 m | centro a centro de la banda, según `ROBOT.md`. Las mallas de la rev. 1 dan 0.3125 y los orígenes de los joints 0.3155: no cuadra, lo tiene que revisar el equipo de la base |
+| Rueda loca | x = 0.349 m | de 3", con freno |
+| Columna | 6 × 6 cm | perfil V-slot 6060 de 1.5 m sobre el eje de ruedas |
+| Carrera del lift | −0.4 a +0.6 m | 150 N, 0.20 m/s; base del brazo entre z = 0.527 y 1.527 m |
 
 <a id="cadena"></a>
 
@@ -406,7 +407,7 @@ La cadena va de `arm_base_link_1` a `gripper_tcp`. Cada articulación tiene un d
 | Articulación | Tipo | Desplazamiento xyz (m) | Distancia | Eje local | Eje en el mundo (q = 0) | Límites |
 | --- | --- | --- | ---: | --- | --- | --- |
 | `vertical_lift_joint` | prismática | `(−0.06, 0, 0.75)` | — | `+Z` | `+Z` | −0.4 … 0.6 m |
-| `joint_1` | rotativa | `(0, 0, 0.037)` | 0.037 m | `+Z` | `+Z` | ±π (provisorio) |
+| `joint_1` | rotativa | `(0, 0, 0)` | 0 | `+Z` | `+Z` | ±π (provisorio) |
 | `joint_2` | rotativa | `(−0.065, 0, 0.056)` | 0.086 m | `−X` | `+X` | ±π (provisorio) |
 | `joint_3` | rotativa | `(−0.001077, 0, 0.350077)` | **0.350 m** | `+X` | `−X` | ±π (provisorio) |
 | `joint_4` | rotativa | `(0.026, 0, 0.3235)` | **0.325 m** | `−X` | `+X` | ±π (provisorio) |
@@ -414,9 +415,9 @@ La cadena va de `arm_base_link_1` a `gripper_tcp`. Cada articulación tiene un d
 | `joint_6` | rotativa | `(−0.041, 0, 0.0495)` | 0.064 m | `−X` | `+X` | ±π (provisorio) |
 | `gripper_tcp_joint` | fija | `(−0.102, 0, 0)` | 0.102 m | — | — | — |
 
-El eje en el mundo difiere del local por la corrección de 180° en Z de la base. El brazo mide 0.350 m (joint_2 → joint_3) y el antebrazo 0.325 m (joint_3 → joint_4). Los límites provisorios están en las propiedades `arm_lower`, `arm_upper`, `arm_effort` (20 N·m) y `arm_velocity` (1 rad/s); los topes de cada articulación (`joint_N_lower`, `joint_N_upper`) parten de `arm_lower` y `arm_upper` y se cambian uno por uno cuando se miden (hoja de medición: `docs/medicion_brazo.md`).
+Desde la rev. 1 del modelo (8 de noviembre de 2026) el brazo va atornillado directo a la placa del carro, sin la base redonda impresa: `joint_1` está en el origen de `arm_base_link_1` (antes, 37 mm arriba), y el brazo entero quedó 30 mm más bajo respecto al suelo (−37 mm del brazo, +6.8 mm de `base_link`). El eje en el mundo difiere del local por la corrección de 180° en Z de la base. El brazo mide 0.350 m (joint_2 → joint_3) y el antebrazo 0.325 m (joint_3 → joint_4). Los límites provisorios están en las propiedades `arm_lower`, `arm_upper`, `arm_effort` (20 N·m) y `arm_velocity` (1 rad/s); los topes de cada articulación (`joint_N_lower`, `joint_N_upper`) parten de `arm_lower` y `arm_upper` y se cambian uno por uno cuando se miden (hoja de medición: `docs/medicion_brazo.md`).
 
-![Dos paneles. Izquierda: Milo de perfil con la cadena del brazo dibujada en tres alturas del lift, la carrera del lift de 1.000 m y cotas de altura del TCP de 1.376, 1.776 y 2.376 m; arriba, el desplazamiento total del lift al TCP, ΔX 0.3251 y ΔZ 0.9236. Derecha: detalle de la cadena con lift en 0 y una etiqueta por tramo con ΔX, ΔZ y distancia, desde vertical_lift_joint hasta el TCP.](../../ros2_ws/src/andesrobot_arm/docs/figuras/fig_cadena.png)
+![Dos paneles. Izquierda: Milo de perfil con la cadena del brazo dibujada en tres alturas del lift, la carrera del lift de 1.000 m y cotas de altura del TCP de 1.346, 1.746 y 2.346 m; arriba, el desplazamiento total del lift al TCP, ΔX 0.3251 y ΔZ 0.8866. Derecha: detalle de la cadena con lift en 0 y una etiqueta por tramo con ΔX, ΔZ y distancia, desde vertical_lift_joint hasta el TCP.](../../ros2_ws/src/andesrobot_arm/docs/figuras/fig_cadena.png)
 
 **Figura 4.** Cadena de 7 ejes con el brazo en cero, proyectada en X-Z. **Izquierda:** la cadena en las tres alturas del lift (−0.4, 0 y +0.6 m), la carrera de 1.000 m medida en el origen de `vertical_lift_joint`, la altura del TCP sobre el suelo en cada caso y el desplazamiento total lift → TCP, que no cambia con la altura. **Derecha:** cada tramo con ΔX, ΔZ y su distancia; entre paréntesis, el eje de giro en el frame del mundo. Con el brazo en cero todos los ΔY son 0. Generada por `scripts/figuras.py`.
 
@@ -429,20 +430,20 @@ En la cadena de 7 ejes el prismático es la primera articulación: en el código
 
 | Punto | X (m) | Y (m) | Z (m) |
 | --- | ---: | ---: | ---: |
-| `vertical_lift_joint` | 0.0300 | 0 | 0.8528 |
-| `joint_1` | 0.1225 | 0 | 0.9573 |
-| `joint_2` | 0.1875 | 0 | 1.0133 |
-| `joint_3` | 0.1886 | 0 | 1.3634 |
-| `joint_4` | 0.1626 | 0 | 1.6869 |
-| `joint_5` | 0.2121 | 0 | 1.7269 |
-| `joint_6` | 0.2531 | 0 | 1.7764 |
-| `gripper_tcp` | 0.3551 | 0 | 1.7764 |
+| `vertical_lift_joint` | 0.0300 | 0 | 0.8596 |
+| `joint_1` | 0.1225 | 0 | 0.9271 |
+| `joint_2` | 0.1875 | 0 | 0.9831 |
+| `joint_3` | 0.1886 | 0 | 1.3332 |
+| `joint_4` | 0.1626 | 0 | 1.6567 |
+| `joint_5` | 0.2121 | 0 | 1.6967 |
+| `joint_6` | 0.2531 | 0 | 1.7462 |
+| `gripper_tcp` | 0.3551 | 0 | 1.7462 |
 
 Cada tramo se descompone en dos partes. La parte **perpendicular** a los ejes es el largo útil del eslabón. La parte **a lo largo del eje** es un desplazamiento que corre el plano en que trabaja el brazo. Cuando dos ejes se cortan, no hay largo perpendicular.
 
 | Tramo | ΔX | ΔY | ΔZ | Distancia | Ejes | Largo útil / desplazamiento |
 | --- | ---: | ---: | ---: | ---: | --- | --- |
-| `lift → joint_1` | 0.0925 | 0 | 0.1045 | 0.1396 | paralelos (Z) | 0.0925 horizontal hasta el eje de joint_1; 0.1045 vertical |
+| `lift → joint_1` | 0.0925 | 0 | 0.0675 | 0.1145 | paralelos (Z) | 0.0925 horizontal hasta el eje de joint_1; 0.0675 vertical |
 | `joint_1 → joint_2` | 0.0650 | 0 | 0.0560 | 0.0858 | se cortan (Z, X) | 0.056 de altura; 0.065 corre el plano del brazo respecto al eje de joint_1 |
 | `joint_2 → joint_3` | 0.0011 | 0 | 0.3501 | 0.3501 | paralelos (X) | **0.3501 brazo**; 0.0011 a lo largo del eje |
 | `joint_3 → joint_4` | −0.0260 | 0 | 0.3235 | 0.3245 | paralelos (X) | **0.3235 antebrazo**; −0.026 a lo largo del eje |
@@ -454,7 +455,7 @@ Cada tramo se descompone en dos partes. La parte **perpendicular** a los ejes es
 
 | Desde | ΔX | ΔY | ΔZ | En línea recta (pose cero) | Suma de tramos |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `vertical_lift_joint` (prismático) | 0.3251 | 0 | 0.9236 | 0.9791 | 1.1299 |
+| `vertical_lift_joint` (prismático) | 0.3251 | 0 | 0.8866 | 0.9443 | 1.1048 |
 | `joint_1` (base giratoria) | 0.2326 | 0 | 0.8191 | 0.8515 | 0.9903 |
 | `joint_2` (hombro) | 0.1676 | 0 | 0.7631 | 0.7813 | 0.9045 |
 
@@ -466,7 +467,7 @@ La página del fabricante publica los parámetros Denavit-Hartenberg del EB300 (
 
 | Parámetro DH | Qué mide | URDF | EB300 |
 | --- | --- | ---: | ---: |
-| `d₁` | base → eje del hombro | 93.0 mm | 95 mm |
+| `d₁` | base → eje del hombro | 56.0 mm (93.0 con la base redonda impresa) | 95 mm |
 | `a₂` | brazo (hombro → codo) | 350.1 mm | 348 mm |
 | `a₃` | antebrazo (codo → muñeca 1) | 323.5 mm | 318 mm |
 | `d₄` | desplazamiento lateral del eje de joint_1 al de la muñeca 2 | **89.6 mm** | **122 mm** |
@@ -538,7 +539,31 @@ Las tablas de arriba son las masas originales del CAD. En `andesrobot.urdf.xacro
 | **Brazo completo** | **4.42 kg** | **8.05 kg** |
 | **Robot completo** | **30.39 kg** | **34.02 kg** |
 
-Con las masas nuevas la cadena de la IK no cambia, las 6 pruebas de ese momento pasan (hoy el brazo tiene 11), y en Gazebo la pinza sigue llegando a las poses de prueba con menos de 0.1 mm de error. Queda pendiente pesar las piezas impresas reales y recalcular los torques de joint_2 y joint_3 para reemplazar el límite provisorio de 20 N·m. Un cálculo preliminar con las masas de hoy (`andesrobot_arm/scripts/calcular_torques.py`, estático, barrido de posturas al azar) da un torque máximo de unos 23 N·m en joint_2 y 8 N·m en joint_3, sin carga en la pinza: joint_2 ya supera el límite provisorio. Es un resultado preliminar: las piezas impresas están como ABS macizo (pesan de más) y faltan los reductores (pesan de menos).
+### Masas de la rev. 1 del modelo (8 de noviembre de 2026)
+
+El equipo de estructura fusionó este modelo con el suyo (repositorio `Structure-Embedded-Systems_MILO`, carpeta `milo_description`), y `andesrobot_description` se reemplazó por esa versión. Para el brazo cambian tres cosas: va sin la base redonda impresa (sección 5), las piezas impresas tienen la masa de su impresión real (PLA con 4 paredes, 7 capas de techo y piso y 60 % de relleno, calculada por vóxeles en vez de pieza maciza), y los motores son los **instalados**, no los de la guía del fabricante:
+
+| Articulación | Motor instalado | Torque de retención | Masa |
+| --- | --- | ---: | ---: |
+| `joint_1` · `joint_3` | NEMA23 | 1.26 N·m | 0.70 kg c/u |
+| `joint_2` | NEMA23 | 3 N·m | 1.60 kg |
+| `joint_4` · `joint_5` · `joint_6` | NEMA17 | — | 0.28 kg c/u |
+
+Reductores EBA-23 y EBA-17 de 38.4:1, drivers a 800 pasos por vuelta. La pinza ya no se escala de acero a ABS (`gripper_mass_scale` desapareció): sus piezas también salen por vóxeles.
+
+|  | Antes (sección 6, arriba) | Rev. 1 |
+| --- | ---: | ---: |
+| Eslabones impresos (`link_1_1` … `link_5_1`) | 2.975 kg | 2.604 kg |
+| Pinza (`link_6_1` + dedos + servo) | 0.199 kg | 0.189 kg |
+| Motores | 4.500 kg | 3.840 kg |
+| **Brazo completo, sin la cámara** | **8.05 kg** | **6.63 kg** |
+| Cámara de la pinza con su soporte | 0.16 kg | 0.16 kg |
+| Carro del lift | 0.43 kg | 0.80 kg (estimado) |
+| **Robot completo** | **34.0 kg** (con 12 kg de lastre) | **36.8 kg** (sin lastre) |
+
+Con estas masas, `scripts/calcular_torques.py` (estático, 20 000 posturas al azar, sin carga en la pinza) da como máximo **17.8 N·m en joint_2** y **6.2 N·m en joint_3** (antes 23 y 8 N·m): los dos ya quedan bajo el límite provisorio de 20 N·m. Ese script todavía compara con los torques de retención de la guía (2.4, 2.4, 1.85 y 0.65 N·m), no con los de los motores instalados. Sigue siendo preliminar: faltan las partes metálicas de los reductores y pesar las piezas reales.
+
+Las tablas siguientes son el historial de las masas de antes de la rev. 1. Con las masas nuevas la cadena de la IK no cambia, las 6 pruebas de ese momento pasan (hoy el brazo tiene 11), y en Gazebo la pinza sigue llegando a las poses de prueba con menos de 0.1 mm de error. Queda pendiente pesar las piezas impresas reales y recalcular los torques de joint_2 y joint_3 para reemplazar el límite provisorio de 20 N·m. Un cálculo preliminar con las masas de hoy (`andesrobot_arm/scripts/calcular_torques.py`, estático, barrido de posturas al azar) da un torque máximo de unos 23 N·m en joint_2 y 8 N·m en joint_3, sin carga en la pinza: joint_2 ya supera el límite provisorio. Es un resultado preliminar: las piezas impresas están como ABS macizo (pesan de más) y faltan los reductores (pesan de menos).
 
 <a id="fk"></a>
 
@@ -592,7 +617,7 @@ Fórmula de Rodrigues para articulaciones rotativas con eje unitario $`\mathbf k
 
 **Ejemplo:** joint_1 gira alrededor de Z vertical. Con $`q`$ = 90° (1.571 rad), un punto que estaba 0.3 m adelante del eje queda 0.3 m a la izquierda.
 
-Con todo en cero, el TCP queda en $`(-0.2326,\ 0,\ 0.8561)`$ m respecto a `arm_base_link_1` (lo comprueba una prueba) y en $`(0.3551,\ 0,\ 1.7764)`$ m respecto a `base_footprint` con el lift en 0.
+Con todo en cero, el TCP queda en $`(-0.2326,\ 0,\ 0.8191)`$ m respecto a `arm_base_link_1` (lo comprueba una prueba) y en $`(0.3551,\ 0,\ 1.7462)`$ m respecto a `base_footprint` con el lift en 0.
 
 <a id="tcp"></a>
 
@@ -788,29 +813,29 @@ Como la distancia hombro–TCP llega a 0.843 m en cualquier dirección, el espac
 
 ![Vista lateral X-Z de Milo con el contorno del espacio de acción del TCP: una cápsula de 0 a 2.456 m de alto y de −0.73 a 0.97 m en X, el hombro en tres alturas del lift separadas por la carrera de 1.0 m, y una curva punteada más pequeña para el lift fijo en 0.](img/fig_rango.png)
 
-**Figura 6.** Espacio de acción del TCP en vista lateral. En azul lleno, el contorno exterior con el lift en todo su rango; punteado, con el lift fijo en 0. En naranja, la carrera del lift y las tres alturas del hombro. No descuenta choques: la parte que cae sobre la base y la columna no es alcanzable en la práctica.
+**Figura 6.** Espacio de acción del TCP en vista lateral. En azul lleno, el contorno exterior con el lift en todo su rango; punteado, con el lift fijo en 0. En naranja, la carrera del lift y las tres alturas del hombro. No descuenta choques: la parte que cae sobre la base y la columna no es alcanzable en la práctica. La figura es de antes de la rev. 1 del modelo: todo está 3 cm más alto que hoy (las tablas sí están al día).
 
 | Magnitud | Valor | Cómo sale |
 | --- | ---: | --- |
 | Carrera del prismático | 1.000 m (−0.4 … +0.6) | límite del URDF; 150 N, 0.20 m/s (la IK usa 0.1 m/s) |
-| Altura de `joint_1` | 0.557 … 1.557 m | 0.9573 + carrera |
-| Altura del hombro (`joint_2`) | 0.613 … 1.613 m | 1.0133 + carrera |
-| TCP en pose cero | z = 1.376 … 2.376 m | x = 0.355 m fijo |
+| Altura de `joint_1` | 0.527 … 1.527 m | 0.9271 + carrera |
+| Altura del hombro (`joint_2`) | 0.583 … 1.583 m | 0.9831 + carrera |
+| TCP en pose cero | z = 1.346 … 2.346 m | x = 0.355 m fijo |
 | Distancia máx. hombro → TCP | 0.843 m | búsqueda en todas las posturas |
 | Radio horizontal máx. alrededor del eje de `joint_1` | 0.848 m | 0.843 más el corrimiento del plano del brazo |
 | Alcance al frente desde `base_footprint` | 0.971 m | eje de joint_1 en x = 0.1225 + 0.848 |
 | Alcance hacia atrás | −0.726 m | geométrico; la columna está en el camino |
-| Altura máx. del TCP | 2.456 m | 1.613 + 0.843 |
-| Altura mín. del TCP | suelo (0 m) | 0.613 − 0.843 < 0: el lift abajo permite llegar al suelo |
-| Franja de alcance completo | 0.613 … 1.613 m | a esas alturas el radio de 0.848 m está disponible entero |
+| Altura máx. del TCP | 2.426 m | 1.583 + 0.843 (la cabeza ocupa el final de la carrera: sobre +0.43 m chocan) |
+| Altura mín. del TCP | suelo (0 m) | 0.583 − 0.843 < 0: el lift abajo permite llegar al suelo |
+| Franja de alcance completo | 0.583 … 1.583 m | a esas alturas el radio de 0.848 m está disponible entero |
 | Volumen aproximado | ≈ 4.7 m³ | cápsula de radio 0.848 m y 1.0 m de carrera, menos lo que queda bajo el suelo; sin descontar el robot |
 
 | Lift | Hombro (z) | Alturas del TCP | Alcance horizontal máx. |
 | --- | ---: | ---: | ---: |
-| `−0.4 m` | 0.61 m | suelo … 1.46 m | 0.97 m |
-| `0.0 m` | 1.01 m | 0.17 … 1.86 m | 0.97 m |
-| `+0.6 m` | 1.61 m | 0.77 … 2.46 m | 0.97 m |
-| **Combinado** |  | **suelo … 2.46 m** | **0.97 m** |
+| `−0.4 m` | 0.58 m | suelo … 1.42 m | 0.97 m |
+| `0.0 m` | 0.98 m | 0.14 … 1.81 m | 0.97 m |
+| `+0.6 m` | 1.58 m | 0.75 … 2.41 m | 0.97 m |
+| **Combinado** |  | **suelo … 2.43 m** | **0.97 m** |
 
 | Altura del objetivo | Alcance al frente (x máx.) | Más allá del frente del robot (x = 0.436) |
 | --- | ---: | ---: |
@@ -819,7 +844,7 @@ Como la distancia hombro–TCP llega a 0.843 m en cualquier dirección, el espac
 | 0.75 m (mesa típica) | 0.89 m | ~45 cm |
 | 1.00 m | 0.93 m | ~50 cm |
 
-> **Cifras aproximadas.** El muestreo aleatorio subestima un poco los máximos (sobre todo a ras del suelo) y no considera choques ni límites reales (usa los ±π provisorios). El alcance se mide desde `base_footprint`; la base del brazo está 0.12 m más adelante.
+> **Cifras aproximadas.** El muestreo aleatorio subestima un poco los máximos (sobre todo a ras del suelo) y no considera choques ni límites reales (usa los ±π provisorios). El alcance se mide desde `base_footprint`; la base del brazo está 0.12 m más adelante. La tabla por altura del objetivo se calculó antes de la rev. 1 del modelo, con el hombro 3 cm más alto: puede variar en torno a 1 cm.
 
 <a id="brazo-sim"></a>
 
@@ -893,6 +918,7 @@ Cómo quedó hecho (paquete `andesrobot_moveit_config`): el grupo `brazo` es la 
 - **Pinza por fuerza (7 de noviembre, fase 1 de P15).** En palabras simples: el servo real de la pinza empuja hasta su fuerza máxima y se frena contra el objeto, que es más rígido; con mando por posición, en cambio, Gazebo ponía el dedo donde se le pedía aunque hubiera un objeto en medio. Ahora `gripper_controller` sigue la trayectoria con un PID (solo P, $`p`$ = 10 000 N/m) cuya fuerza Gazebo recorta al tope `gripper_force` = 20 N del URDF; el dedo tiene amortiguamiento `gripper_damping` = 400 N·s/m (resuelto de forma implícita) y contacto con roce 1, rigidez $`10^5`$ N/m y amortiguamiento 100 N·s/m (en la fase 2 se subió a $`10^6`$ N/m y 300 N·s/m). El tope sale de la mecánica: el piñón de la EBG-20 (pieza 015 del CAD) tiene un radio de paso de ≈ 7 mm, y con $`F = \tau / (2r)`$ el servo MG99x (τ ≈ 0.9 N·m) daría hasta ≈ 65 N por dedo; en la simulación basta con 20 N (con roce 1 y dos dedos sostiene ≈ 4 kg). Cada dedo tiene su propio PID y se mandan los dos en espejo: con el izquierdo como *mimic* el plugin solo le copiaba la fuerza, y al abrir quedó en −11 mm en vez de −16 porque nada lo mantenía en su lugar. `scripts/prueba_pinza.py` cierra sobre cajas fijas de 10 a 45 mm: los dedos quedan a 0.05 mm del ancho y tiemblan menos de 0.05 mm (20 de 20 cierres; con el contacto rígido por defecto 3 de cada 10 cierres saltaban de 3 a 6 mm). El robot real no cambia: la EBG-20 no tiene driver.
 - **Levantar un objeto suelto (7 de noviembre, fase 2 de P15).** En palabras simples: una pinza sostiene un objeto por el roce de los dedos, y el roce solo arrastra al objeto si los dedos de verdad se mueven. Con el brazo mandado por posición, `gazebo_ros2_control` lo ponía en cada paso en la posición pedida, de un salto y sin velocidad, así que al subir el lift con una caja entre los dedos la caja se quedó abajo (subió 0 mm de 50). Ahora `arm_controller` manda **velocidad**: $`v = v_\mathrm{ref} + p\,(q_\mathrm{ref} - q)`$, con $`v_\mathrm{ref}`$ la velocidad de la trayectoria y $`p`$ = 20 s⁻¹ (60 s⁻¹ el lift, que carga todo el brazo); en reposo el brazo queda a ~$`10^{-5}`$ rad de su objetivo y el lift a 0.3 mm. Por ejemplo, si el lift quedó 1 mm abajo, el controlador le suma 60 · 0.001 = 0.06 m/s hacia arriba hasta corregirlo. Segundo hallazgo: si se manda «cerrar del todo», los dos dedos empujan con el tope de 20 N, nada los centra y la caja se va de lado (3.8 mm en 10 s con 1 kg); mandando cada dedo 2 mm más adentro que el ancho, cada uno empuja $`p \cdot 2`$ mm = 20 N y si la caja se corre, el de un lado empuja más y la devuelve (en la pinza real lo hace el piñón). El contacto de los dedos se endureció a $`10^6`$ N/m (con $`10^5`$ la caja se «arrastraba» hacia abajo, 1.2 mm en 10 s con 0.5 kg). `scripts/prueba_levantar.py` apoya una caja suelta de 30 mm en un pedestal entre los dedos, cierra, sube 5 cm y mide 10 s: de 0.1 a 0.5 kg la caja sube con la pinza y se corre 0.05–0.4 mm (8 de 8); con 1 kg resbala 2–3 mm al arrancar la subida. La prueba de humo pasa completa con MoveIt y sin él. Falta en esta fase: el plumón o el tenedor con colisión de piezas convexas.
 - **Agarrar un objeto con la cámara (7 de noviembre, fase 5 de P15).** En palabras simples: se le da a Milo el nombre de un objeto (`ros2 run andesrobot_arm agarre_node tenedor`), la cámara lo busca en la mesa, y el brazo baja desde arriba, lo aprieta, lo levanta y se recoge con el objeto en la mano. Lo hacen dos nodos: `objeto_node` **ve** y `agarre_node` **mueve** (arranca al primero si no está corriendo). La visión lanza una grilla de 15 × 15 rayos por la caja que da [YOLO](#g-yolo) y los sigue hasta la imagen de profundidad: salen puntos 3D de la mesa y del objeto. La mesa es la altura donde más puntos se juntan; lo que queda más de 4 mm arriba es el objeto. Con [PCA](#g-pca) se saca su eje largo, y de lo que ocupa a lo largo de ese eje y cruzado a él, el largo, el ancho y el centro. La pinza baja vertical con los dedos cruzados al eje largo, para apretar el lado angosto. Ejemplo con el tenedor: la visión midió 168 × 21 mm y 14 mm de alto (su caja de colisión mide 198 × 27 × 16) y ubicó su centro a 1 cm del real; la mesa salió a 0.720 m. Las puntas de los dedos sobresalen 20.4 mm más allá del TCP, así que el TCP baja hasta 0.720 + 0.0204 + 0.005 = 0.745 m (puntas 5 mm sobre la mesa). Cada dedo se manda 2 mm más adentro del ancho medido; los dedos se frenaron a 27.1 mm, prueba de que había objeto. Después el objeto se une a la pinza en la escena de MoveIt, sube 10 cm en línea recta y el brazo se retrae. Resultado: 3 de 3 con el tenedor (una partiendo con la pinza baja junto a la mesa: primero sube y se recoge, porque yendo a la vista desde ahí el brazo llegó a lanzar el tenedor al aire); con la taza la encuentra (81 mm de ancho) y avisa que no cabe. Si los dedos quedan abiertos del todo, avisa que la pinza no cerró (antes eso pasaba por agarre). Cuatro arreglos más en el camino: la vista que apuntaba al objeto dejaba que la pinza lo tapara (ahora apunta 6 cm antes); el centro por mediana se corría 2.3 cm hacia la cámara y el tenedor colgaba inclinado 29° (ahora, punto medio de la extensión: ≤ 8°); la conversión de matriz a cuaternión sacaba mal los signos en giros de 180° (corregida; afectaba también a `manija_node` y `objeto_node`); y la tolerancia de velocidad de `arm_controller` (0.01 rad/s) hacía abortar toda trayectoria con el brazo por velocidad, aunque llegara (ahora 0.1). Límites: solo objetos de hasta 45 mm de ancho, y de los que caben el modelo solo reconoce el tenedor en la simulación (P14); las vistas están pensadas para un objeto en (0.80, 0). Detalles en `andesrobot_arm/docs/BRAZO.md`.
+- **Modelo rev. 1 del equipo de estructura (8 de noviembre).** En palabras simples: el robot ahora tiene en el modelo su estructura real (perfiles, baterías, electrónica, cabeza) y el brazo quedó 3 cm más bajo porque va atornillado directo al carro, sin la base redonda impresa. `andesrobot_description` se reemplazó por la versión del equipo (las mallas y los xacros del brazo, la pinza y la cámara son los mismos). Se regeneraron desde cero los pares del SRDF (50; ahora entran la cabeza y la caja trasera), las figuras de la sección 4 y la prueba de la pose cero (TCP a 0.819 m de la base del brazo en vez de 0.856). Todo se volvió a probar sin cambiar ninguna pose: la prueba de humo pasa completa, `agarre_node tenedor` agarró, levantó y retrajo al primer intento (dedos frenados a 27.0 mm), y `manija_node acercar:=true` dejó la pinza a 0.050 m del punto de agarre (medido por el nodo) desde la pose de inicio de siempre. Queda un hueco: MoveIt no revisa el choque de `link_3_1` con la cabeza (P16).
 - Con `arm_control:=true`, el plugin de joint states de Gazebo publica solo las ruedas; el brazo lo publica únicamente `joint_state_broadcaster`.
 - `arm_controllers.yaml` (100 Hz): `arm_controller` con el lift + joint_1…6 (acepta metas parciales) y `gripper_controller`. El `arm_controller` tiene **tolerancias de meta**: si al terminar la trayectoria (con 1 s de margen) una articulación quedó a más de 0.02 rad de su objetivo, o el lift a más de 5 mm, aborta, y `arm_ik_node` avisa «el brazo no llegó… ¿chocó con algo?». Ojo: en Gazebo eso solo pasa si la física logra frenar el brazo, y con el mando por posición casi nunca lo lograba (sección 21, prueba del 17 de octubre); con el mando por velocidad no se volvió a medir. La pinza no tiene tolerancia a propósito: al agarrar un objeto, los dedos quedan frenados antes de llegar.
 - El launch quita los comentarios XML del URDF: `gazebo_ros2_control` en Humble no logra leerlo si los tiene, y el controller_manager nunca arranca.
@@ -1211,7 +1237,9 @@ Fricción de las ruedas μ = 1.2 con contacto rígido (kp = 10⁶, kd = 100); la
 
 ## 17. Masas y estabilidad de la base
 
-> **En palabras simples:** Cuánto pesa la base y por qué hubo que agregarle peso (lastre) para que el robot no se volcara en la simulación.
+> **En palabras simples:** Cuánto pesa la base y por qué hubo que agregarle peso (lastre) para que el robot no se volcara en la simulación. Desde la rev. 1 del modelo ya no hace falta: las masas salen de las piezas reales.
+
+**Rev. 1 (8 de noviembre de 2026):** el modelo del equipo de estructura agrega la estructura de perfiles V-slot, las baterías, la electrónica, las carcasas y la cabeza, cada una con su masa real (perfiles a 0.835 kg/m, piezas impresas por vóxeles, electrónica y baterías de sus fichas). El total es **36.8 kg sin lastre** (`ballast_link` ya no existe). Con el brazo plegado y el carro abajo el centro de masa queda a x = 0.082 m, z = 0.445 m: el robot vuelca hacia atrás acelerando a unos 1.8 m/s², hacia adelante frenando a unos 5.9 m/s² y de lado a unos 3.0 m/s² (con el carro arriba, en +0.43 m: 1.3 / 4.3 / 2.2 m/s²), por encima de los 0.8 m/s² del diff drive. Detalle y lista de masas estimadas en `andesrobot_description/docs/ROBOT.md`. Lo que sigue en esta sección es el historial del modelo anterior.
 
 Cada link tiene en su `<inertial>` la masa, el centro de masa y la inercia exportados de Fusion. El xacro **no tiene una lista de componentes** (motores, tornillería, electrónica): cada masa es la pieza sólida completa del CAD, con el material que tenía asignado allí.
 
@@ -1375,7 +1403,7 @@ Corridas dentro del contenedor (la última vez el 17 de octubre de 2026, en la r
 
 | Prueba | Qué comprueba | Resultado |
 | --- | --- | --- |
-| `pose_cero_coincide_con_el_urdf` | TCP en cero = (−0.232577, 0, 0.856077) m desde la base del brazo, orientación identidad | ✅ pasa |
+| `pose_cero_coincide_con_el_urdf` | TCP en cero = (−0.232577, 0, 0.819077) m desde la base del brazo, orientación identidad | ✅ pasa |
 | `jacobiano_igual_a_diferencias_finitas` | parte lineal de $`J`$ vs. diferencias finitas, tolerancia $`10^{-8}`$ | ✅ pasa |
 | `ik_llega_a_poses_alcanzables` | 20 poses aleatorias, 6 ejes, error ≤ 1 mm | ✅ pasa |
 | `ik_con_lift` | 10 poses aleatorias con 7 ejes + un punto a 5 cm del suelo frente a Milo | ✅ pasa |
@@ -1458,7 +1486,8 @@ La lista corta y ordenada, con lo mínimo para empezar cada tarea, está en [`do
 ### Brazo
 
 - **Límites provisorios** (±π, 20 N·m, 1 rad/s): medir los topes físicos y los motores. La IK puede devolver posturas que el brazo real no hace.
-- **Masas**: ya están los motores y la pinza en ABS (sección 6). Faltan los reductores EBA y pesar las piezas impresas reales; con eso, recalcular los torques.
+- **Masas**: desde la rev. 1 del modelo (8 de noviembre) las piezas impresas tienen la masa de su impresión (PLA, por vóxeles) y los motores son los instalados (sección 6). Faltan los reductores EBA y pesar las piezas reales.
+- **La cabeza y el brazo**: la cabeza (rev. 1) ocupa el final de la carrera del carro. MoveIt no revisa el choque de `link_3_1` con la cabeza, porque chocan en la pose cero (par `Default` del SRDF, que hace falta porque Gazebo arranca el brazo en cero). Arreglarlo arrancando el brazo en la pose plegada (`initial_value` en `andesrobot.arm_control.xacro`) y regenerando los pares.
 - **Muñeca del CAD vs. EB300**: d₄, d₅ y d₆ difieren 10–32 mm del DH oficial (sección 5). Decidir cuál es la buena midiendo el brazo.
 - **Cámara**: hacer realista la profundidad (nodo `gemini_realista`, sección 14), conectar la cámara real con `OrbbecSDK_ROS2`.
 - **Confirmar los desplazamientos a lo largo de los ejes** (orígenes en los acoplamientos, sección 5) midiendo el brazo real.
@@ -1474,7 +1503,7 @@ La lista corta y ordenada, con lo mínimo para empezar cada tarea, está en [`do
 - Completar las reglas udev con los datos reales de los adaptadores.
 - Verificar el yaw de `laser_joint` según cómo quede montado el conector del C1, y el plano de escaneo (+30 mm estimado).
 - Calibrar `wheel_radius` y `wheel_separation` en `milo_controllers.yaml`.
-- Ajustar `ballast_mass` al peso real de baterías y electrónica, y medir la rueda loca.
+- Pesar las piezas que la rev. 1 del modelo marca como estimadas (ruedas, rueda loca, carro del elevador, monitor) y agregar las que faltan (motor del elevador, cables, reductores EBA); lista en `ROBOT.md`.
 
 <a id="uso"></a>
 

@@ -134,7 +134,9 @@ def world(q):
 
 
 def color_of(link):
-    if 'finger' in link:
+    # gripper_imu_link y gripper_camera_* van en la muñeca: con el color de la base contaban
+    # como "base" y la altura de la base salía a la altura de la pinza.
+    if 'finger' in link or link.startswith('gripper_'):
         return C_GRIP
     if link.startswith('link_') or link == 'arm_base_link_1':
         return C_ARM

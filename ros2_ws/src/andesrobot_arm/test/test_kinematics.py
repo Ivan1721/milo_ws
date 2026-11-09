@@ -23,10 +23,12 @@ def arm_lift():
 
 
 # Todo en cero: el TCP queda en la suma de los offsets del URDF (link_6_1 en (-0.130577, 0,
-# 0.856077) desde arm_base_link_1) más 0.102 m hacia -X (gripper_tcp), sin rotación.
+# 0.819077) desde arm_base_link_1) más 0.102 m hacia -X (gripper_tcp), sin rotación.
+# Desde la rev. 1 del modelo (8-nov) el brazo va sin la base redonda impresa: joint_1 quedó en el
+# origen de arm_base_link_1 en vez de 37 mm arriba, y la altura bajó de 0.856077 a 0.819077.
 def test_pose_cero_coincide_con_el_urdf(arm):
     tcp = arm.fk(np.zeros(arm.dof))
-    np.testing.assert_allclose(tcp[:3, 3], [-0.232577, 0.0, 0.856077], atol=1e-9)
+    np.testing.assert_allclose(tcp[:3, 3], [-0.232577, 0.0, 0.819077], atol=1e-9)
     np.testing.assert_allclose(tcp[:3, :3], np.eye(3), atol=1e-12)
 
 
