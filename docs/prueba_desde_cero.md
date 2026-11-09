@@ -227,6 +227,11 @@ el tenedor), y baja los objetos (necesita internet; ~370 MB en
 python3 /ros2_ws/src/andesrobot_arm/scripts/descargar_objetos.py
 ```
 
+Cuatro objetos (`redbull`, `pringles_equipo`, `tarjeta_equipo`, `bolsa_equipo`) no se bajan de
+internet: vienen en `entrega_simulacion.zip`, del equipo de visión. Copia ese zip a
+`ros2_ws/modelos/entrega_simulacion.zip` antes del comando de arriba; si no está, el script avisa
+que no pudo con esos cuatro y sigue con los demás.
+
 **Terminal 1** (`./sim.sh shell`):
 
 ```bash

@@ -5,6 +5,10 @@ Son escaneos 3D de objetos reales, con su textura (licencia CC-BY 4.0), de dos f
   fuel  Gazebo Fuel: ya vienen como modelo de Gazebo (los de GoogleResearch son Google Scanned
         Objects, la taza y el bowl del escenario original salen de ahí)
   ycb   el set YCB (ycb-benchmarks): vienen como malla .obj sola; aquí se les arma el model.sdf
+y uno más, sin internet:
+  equipo  los que mandó el equipo de visión el 9-nov-2026 en entrega_simulacion.zip (los de su
+          escena de prueba: lata de Red Bull, Pringles, tarjeta y bolsa). El zip se copia a mano a
+          ros2_ws/modelos/entrega_simulacion.zip (o se da con --zip_equipo) y de ahí se sacan.
 Quedan en /ros2_ws/modelos/gazebo/<carpeta>/ (en tu PC ~/milo_ws/ros2_ws/modelos/gazebo/, no va a
 git): arm_sim.launch.py suma esa carpeta a GAZEBO_MODEL_PATH, la lista de carpetas donde Gazebo
 busca los "model://...".
@@ -85,6 +89,19 @@ def desde_ycb(objeto, d):
         '</visual>\n'
         f'      <collision name="collision"><geometry><mesh><uri>{malla}</uri></mesh></geometry>'
         '</collision>\n    </link>\n  </model>\n</sdf>\n')
+
+
+def desde_equipo(objeto, d, zip_equipo):
+    """Equipo: el zip trae entrega_simulacion/models/<nombre>/, ya como modelo de Gazebo."""
+    if not Path(zip_equipo).exists():
+        raise FileNotFoundError(f'falta {zip_equipo} (copiarlo a mano, ver el docstring)')
+    prefijo = f'entrega_simulacion/models/{objeto["nombre"]}/'
+    with zipfile.ZipFile(zip_equipo) as z:
+        for miembro in z.namelist():
+            if miembro.startswith(prefijo) and not miembro.endswith('/'):
+                destino = d / miembro[len(prefijo):]
+                destino.parent.mkdir(parents=True, exist_ok=True)
+                destino.write_bytes(z.read(miembro))
 
 
 def arreglar_material(d):
@@ -168,11 +185,13 @@ def main():
     ap.add_argument('--carpeta', default='/ros2_ws/modelos/gazebo')
     ap.add_argument('--lista', action='store_true', help='solo mostrar el catálogo')
     ap.add_argument('--otra_vez', action='store_true', help='bajar aunque ya estén')
+    ap.add_argument('--zip_equipo', default='/ros2_ws/modelos/entrega_simulacion.zip',
+                    help='zip con los modelos del equipo (fuente: equipo)')
     a = ap.parse_args()
     catalogo = leer_catalogo(CATALOGO.read_text())
     if a.lista:
         for o in catalogo:
-            print(f'{o["id"]:14s} {o["clase"]:18s} {o["fuente"]:5s} {o["nombre"]}')
+            print(f'{o["id"]:16s} {o["clase"]:18s} {o["fuente"]:6s} {o["nombre"]}')
         return
     pedidos = [o for o in catalogo
                if not a.ids or o['id'] in a.ids or o['clase'] in a.ids]
@@ -187,15 +206,19 @@ def main():
             nuevo = not (d / 'model.config').exists() and not (d / 'model.sdf').exists()
             if nuevo:
                 d.mkdir(parents=True, exist_ok=True)
-                (desde_fuel if objeto['fuente'] == 'fuel' else desde_ycb)(objeto, d)
+                if objeto['fuente'] == 'equipo':
+                    desde_equipo(objeto, d, a.zip_equipo)
+                else:
+                    (desde_fuel if objeto['fuente'] == 'fuel' else desde_ycb)(objeto, d)
             medida = preparar(objeto, d)
             tam = ' x '.join(f'{v * 100:.0f}' for v in medida['tam']) + ' cm' if medida else '-'
-            print(f'{objeto["id"]:14s} {"bajado" if nuevo else "ya estaba":10s} {tam}')
+            print(f'{objeto["id"]:16s} {"bajado" if nuevo else "ya estaba":10s} {tam}')
         except Exception as error:  # noqa: BLE001 (se informa y se sigue con los demás)
             fallas.append(objeto['id'])
-            print(f'{objeto["id"]:14s} FALLÓ: {error}')
+            print(f'{objeto["id"]:16s} FALLÓ: {error}')
     if fallas:
-        raise SystemExit(f'No se pudieron bajar: {", ".join(fallas)} (¿internet?)')
+        raise SystemExit(f'No se pudieron bajar: {", ".join(fallas)} (¿internet? ¿el zip del '
+                         'equipo?)')
 
 
 if __name__ == '__main__':

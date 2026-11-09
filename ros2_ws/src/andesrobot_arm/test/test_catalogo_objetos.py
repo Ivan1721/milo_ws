@@ -28,11 +28,12 @@ def test_catalogo_bien_formado(catalogo):
     assert len(ids) == len(set(ids)), 'ids repetidos'
     for o in catalogo:
         assert o['clase'] in CLASES, o['id']
-        assert o['fuente'] in ('fuel', 'ycb'), o['id']
+        assert o['fuente'] in ('fuel', 'ycb', 'equipo'), o['id']
         assert 0 < o['masa'] < 2, o['id']
-        assert o['fuente'] == 'ycb' or o.get('dueno'), o['id']
-    # Las 23 clases que tienen modelo (faltan colgate_box, key, redbull_can y drink).
-    sin_modelo = {'colgate_box', 'key', 'redbull_can', 'drink'}
+        assert o['fuente'] != 'fuel' or o.get('dueno'), o['id']
+    # Las 24 clases que tienen modelo (faltan colgate_box, key y drink; redbull_can llegó con
+    # los modelos del equipo el 9-nov).
+    sin_modelo = {'colgate_box', 'key', 'drink'}
     assert CLASES - {o['clase'] for o in catalogo} == sin_modelo
 
 
@@ -42,6 +43,9 @@ def test_elegir_por_id_por_clase_y_true(catalogo):
     # Por clase toma el primero de esa clase; un repetido no se pone dos veces.
     assert [o['id'] for o in elegir(catalogo, 'platano, fruit,cup,platano')] == [
         'platano', 'taza_blanca']
+    # Con dos modelos de una clase, la clase elige el primero del catálogo: el del equipo.
+    assert [o['id'] for o in elegir(catalogo, 'pringles,card,bag')] == [
+        'pringles_equipo', 'tarjeta_equipo', 'bolsa_equipo']
     with pytest.raises(ValueError, match='hay:'):
         elegir(catalogo, 'llave')
 

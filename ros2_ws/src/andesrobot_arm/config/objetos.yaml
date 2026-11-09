@@ -3,14 +3,16 @@
 # Cada objeto es un escaneo 3D de un objeto real, con licencia CC-BY 4.0, y corresponde a una de
 # las 27 clases del modelo YOLO de objetos del reglamento (ros2_ws/modelos/objetos/best.pt). La
 # lista salió de revisar los candidatos el 6-nov-2026 (los "sugeridos": uno o dos por clase).
-# colgate_box, key y redbull_can no tienen modelo (no hay en ninguna de las fuentes), y drink
-# tampoco (ver más abajo).
+# colgate_box y key no tienen modelo (no hay en ninguna de las fuentes), y drink tampoco (ver más
+# abajo). redbull_can tiene desde el 9-nov el modelo que mandó el equipo (fuente: equipo).
 #
 #   id      nombre corto para elegirlo: arm_sim.launch.py objetos:=taza,platano,pringles
 #           (también sirve el nombre de la clase: objetos:=cup elige el primero de esa clase)
 #   clase   la clase del modelo YOLO que debería reconocerlo
 #   fuente  fuel = Gazebo Fuel (dueno/nombre, ya en formato de Gazebo; GoogleResearch es Google
-#           Scanned Objects); ycb = set YCB (ycb-benchmarks; el script le arma el model.sdf)
+#           Scanned Objects); ycb = set YCB (ycb-benchmarks; el script le arma el model.sdf);
+#           equipo = del zip entrega_simulacion.zip del equipo de visión (9-nov-2026, sin
+#           licencia anotada: no se publican, se copian a mano a ros2_ws/modelos/)
 #   masa    [kg], aproximada (la de un objeto así): los modelos no la traen o traen 1 kg
 #
 # scripts/descargar_objetos.py baja todos (o los que se le pidan) a ros2_ws/modelos/gazebo/.
@@ -21,6 +23,20 @@ objetos:
      nombre: Threshold_Porcelain_Coffee_Mug_All_Over_Bead_White}
   - {id: bowl_blanco, clase: bowl, fuente: fuel, dueno: GoogleResearch, masa: 0.30,
      nombre: Threshold_Bead_Cereal_Bowl_White}
+
+  # (Nuestro tarro de Pringles se llama pringles_ycb y no pringles: un id le gana a la clase,
+  # y así objetos:=pringles elige el del equipo.)
+  # Los del equipo de visión (su escena de prueba, entrega_simulacion.zip del 9-nov-2026). Van
+  # antes que los nuestros de su misma clase, así que pedir la clase (objetos:=pringles, card, bag)
+  # elige el del equipo: se parecen más a lo que la clase quiere decir (el juego_cartas es una caja
+  # de juego, no una tarjeta; la mochila no es una bolsa) y el modelo de objetos los reconoce
+  # (0.6–0.9) y a los nuestros no. La tarjeta y la bolsa no son escaneos: son cajas (4 mm y
+  # 20 x 26 x 35 cm) con una foto como textura, fijas (sirven para ver, no para agarrar).
+  - {id: redbull, clase: redbull_can, fuente: equipo, nombre: redbull_sketchfab, masa: 0.27}
+  - {id: pringles_equipo, clase: pringles, fuente: equipo, nombre: pringles_sketchfab,
+     masa: 0.20}
+  - {id: tarjeta_equipo, clase: card, fuente: equipo, nombre: card, masa: 0.01}
+  - {id: bolsa_equipo, clase: bag, fuente: equipo, nombre: bag, masa: 0.30}
 
   - {id: mochila, clase: bag, fuente: fuel, dueno: GoogleResearch, masa: 0.50,
      nombre: Jansport_School_Backpack_Blue_Streak}
@@ -56,7 +72,7 @@ objetos:
      nombre: Threshold_Porcelain_Pitcher_White}
   - {id: plato, clase: plate, fuente: fuel, dueno: GoogleResearch, masa: 0.50,
      nombre: Threshold_Dinner_Plate_Square_Rim_White_Porcelain}
-  - {id: pringles, clase: pringles, fuente: ycb, nombre: 001_chips_can, masa: 0.20}
+  - {id: pringles_ycb, clase: pringles, fuente: ycb, nombre: 001_chips_can, masa: 0.20}
   - {id: rubik, clase: rubik_cube, fuente: ycb, nombre: 077_rubiks_cube, masa: 0.10}
   - {id: cuchara, clase: spoon, fuente: ycb, nombre: 031_spoon, masa: 0.03}
   - {id: martillo, clase: tool, fuente: fuel, dueno: GoogleResearch, masa: 0.60,

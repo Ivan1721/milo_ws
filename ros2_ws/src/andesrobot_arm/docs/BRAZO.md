@@ -419,6 +419,33 @@ sumar fotos de estos objetos simulados al entrenamiento, como se hizo con la man
 
 El nuevo ya no ve la mesa como `card`, pero ve la pinza y la bandeja como `plate` y las Pringles como `drink`. En esta evaluación el tenedor no sale con ninguno (en `frente40` queda detrás de la pinza), pero desde las vistas de `agarre_node` el modelo nuevo sí lo ve (0.5–0.8): lo agarró en 2 de 4 corridas de `scripts/prueba_objetos.sh` (resultados en `docs/prueba_desde_cero.md`, paso 10). El equipo probó el modelo con una RealSense real: 17 de 21 objetos (fallan plato llano, portaminas, botella de jabón y espátula).
 
+**Modelos 3D del equipo (9-nov-2026).** El equipo mandó, junto con el modelo, `entrega_simulacion.zip`:
+su escena de prueba (cámara fija, sin Milo) con 6 objetos. Cuatro son nuevos para nosotros y quedaron
+en el catálogo con `fuente: equipo`: `redbull` (la clase `redbull_can` no tenía modelo),
+`pringles_equipo`, `tarjeta_equipo` y `bolsa_equipo`. No hay de dónde bajarlos: el zip se copia a
+mano a `ros2_ws/modelos/entrega_simulacion.zip` y `descargar_objetos.py redbull pringles_equipo
+tarjeta_equipo bolsa_equipo` los saca de ahí, con los mismos arreglos que los demás. Desde el
+9-nov van **antes** que los nuestros de su clase: pedir la clase (`objetos:=pringles`, `card`,
+`bag`) elige el del equipo, y los nuestros siguen disponibles por id (`pringles_ycb`, `juego_cartas`,
+`mochila`; el tarro de YCB se llamaba `pringles`, pero un id le gana a la clase).
+
+Con la cámara de la pinza, el modelo nuevo reconoce los cuatro del equipo y ninguno de los nuestros
+de esas clases:
+
+| Clase | Nuestro | Del equipo |
+|---|---|---|
+| redbull_can | — (no había) | lata real de 45 × 134 mm: **0.85 / 0.89** |
+| pringles | tarro oscuro de YCB: no (lo ve como `drink` 0.41) | tarro rojo con una papa al lado: **0.59 / 0.70** |
+| card | caja del juego Mad Gab (no es una tarjeta): no | tarjeta de 85 × 54 mm parada, foto como textura: **0.87 / 0.88** |
+| bag | mochila azul: no (la ve como `clothing` 0.88) | bolsa negra (caja de 20 × 26 × 35 cm con foto): **0.80 / 0.81** |
+
+(frente 30° / frente 40°; desde arriba no los ve). Comparación en
+[`docs/informe/img/fig_objetos_equipo.jpg`](../../../../docs/informe/img/fig_objetos_equipo.jpg).
+Ojo al leerla: su `crear_estudio.py` arma escenas con estos modelos «para tomar capturas», así que
+es probable que el modelo se haya entrenado con fotos de ellos; reconocerlos no prueba que
+generalice. La tarjeta y la bolsa son cajas fijas (`static`): sirven para ver, no para agarrar. La
+lata mide 45.5 mm y `agarre_node` descarta lo que pase de 45 mm (`ancho_max`).
+
 **Freno de las ruedas en `arm_sim`.** Con el modelo rev. 1 la base avanzaba ~3 cm por objeto evaluado (58.5 mm en 30 movimientos medido con `scripts/deriva_base/`; con 100 N·m de freno, 0.1 mm), hasta chocar con la mesa. `arm_sim.launch.py` sube `max_wheel_torque` del plugin diff_drive de 5 a 100 N·m solo en esta simulación.
 
 ### Agarrar un objeto por su nombre (`agarre_node`)
