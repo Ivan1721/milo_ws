@@ -148,8 +148,14 @@ Para la entrega de la bolsa el reglamento pide: que el robot avise que está lis
 quieta **a menos de 10 cm de la mano** de la persona; que sea la persona quien complete la entrega
 (el robot no debe estirarse hacia ella); y que el robot avise antes de cerrar ("cierro la pinza en
 3 segundos"). Si el robot le pide al invitado que deje la bolsa sobre su estructura, no hay puntos.
-La bolsa se anuncia en los días de preparación; según la lista mínima, es liviana y con asas
-rígidas verticales: hay que ver si su asa cabe en la pinza y cuánto pesa.
+La bolsa oficial se anuncia en los días de preparación; según la lista mínima, es liviana y con
+asas rígidas verticales. **Para preparar la prueba, el equipo acordó usar una bolsa de papel de
+supermercado** (con asas de papel). Las asas de papel son delgadas (unos pocos milímetros) y caben
+de sobra en la pinza; lo que hay que cuidar es que el papel no se rompa ni se arrugue al apretar
+(apretar con poca fuerza) y el peso de lo que lleve adentro. El set YCB no trae bolsas: las fotos
+para entrenar el detector las tiene que conseguir el equipo de visión. En la simulación la bolsa
+del equipo (`bolsa_equipo`) es una caja con la foto de una bolsa negra, sin asas: para practicar
+la entrega en Gazebo hará falta un modelo de bolsa de papel con asas.
 
 ### 4.3 Lavar ropa
 
@@ -264,7 +270,7 @@ estimaciones).
 | | `orange_juice`, `tropical_juice`, `iced_tea` | botella o caja, sin medir | ❌ probable |
 | Limpieza (`cleaning_supply`) | `sponge` | 18 de grosor | ⚠️ de lado o apretándola |
 | | `cleanser` | 68 | ❌ |
-| De pruebas específicas | `bag_one`, `bag_two`, `bag_three` | el asa | ✅ si el asa mide menos de 45 mm |
+| De pruebas específicas | `bag_one`, `bag_two`, `bag_three` (para practicar: bolsa de papel de supermercado) | el asa de papel, pocos mm | ✅ |
 | | `dishwasher_tab` | ~20, sin medir | ✅ |
 
 Además, los **4 objetos comunes** de la sección 3: Red Bull (~53 mm) ❌, Pringles ❌, Rubik ❌ y
@@ -292,7 +298,7 @@ distinguir una manzana de una naranja ni una lata de atún de una de sopa. Lo re
 clase por objeto** con su nombre oficial y pasar a la categoría en el código (una tabla
 objeto → categoría), que es como la publica el comité.
 
-**A. Objetos de la plantilla oficial (41)**, con su categoría:
+**A. Objetos de la plantilla oficial** (39 objetos conocidos más 4 de pruebas específicas: 3 bolsas y la pastilla del lavavajillas), con su categoría:
 
 | Categoría | Objetos | En el modelo actual |
 | --- | --- | --- |
@@ -303,10 +309,27 @@ objeto → categoría), que es como la publica el comité.
 | `snack` | pringles, cheezit, cornflakes | `pringles` y `cereal_box` |
 | `drink` | juice_pack, cola, milk, orange_juice, tropical_juice, red_wine, iced_tea | solo `drink` general (y `redbull_can`) |
 | `cleaning_supply` | cleanser, sponge | solo `cleaning_supply` general |
-| pruebas | bag_one, bag_two, bag_three, dishwasher_tab | `bag`; la pastilla no |
+| pruebas | bag_one, bag_two, bag_three (para practicar: bolsa de papel de supermercado; no hay en YCB, fotos propias), dishwasher_tab | `bag`; la pastilla no |
 
 **B. Objetos comunes (siempre en la competencia):** redbull_can, pringles, rubiks_cube,
 colgate_box. Los cuatro ya están en el modelo actual.
+
+**Cuántas clases son.** El núcleo son **43 clases**: los 39 objetos conocidos de la plantilla,
+`redbull_can` y `colgate_box` (pringles y rubiks_cube ya están entre los 39), una clase `bag` (la
+bolsa de papel de supermercado; las 3 bolsas de la plantilla son ejemplos de la misma clase) y
+`dishwasher_tab`. Lo de C suma unas 8 más (con la basura como una sola clase) y lo de D es
+opcional, unas 25 si se incluye todo.
+
+**Lista corta para empezar con el brazo (17 clases).** Para implementar la manipulación no hace
+falta esperar el modelo completo: basta un primer modelo con los objetos que el brazo toma ahora
+o pronto, y los que tiene que ver en sus pruebas aunque todavía no los tome.
+
+| Prioridad | Objetos | Por qué |
+| --- | --- | --- |
+| 1: el brazo los toma | `bag` (bolsa de papel de supermercado), `fork`, `knife`, `spoon`, `dice`, `chocolate_jello`, `strawberry_jello`, `dishwasher_tab`, `colgate_box` | caben en la pinza (asa de la bolsa, cubiertos, dado, cajas angostas paradas, pastilla); la bolsa es la entrega de la prueba de los invitados |
+| 2: el brazo los ve | `cup`, `bowl`, `plate`, `redbull_can`, `pringles`, `rubiks_cube`, `cornflakes`, `milk` | están en Pick and Place (vajilla, objetos comunes, desayuno); la vajilla se tomará por el borde y los demás hay que ubicarlos aunque no quepan |
+
+El resto de la lista entra después, en el modelo completo.
 
 **C. Lo que exige el reglamento y la plantilla no trae:** servilleta (*napkin*), bandeja
 (`tray`, ya está), canasto de ropa (*laundry basket*), polera (*t-shirt*; hoy `clothing`), un
