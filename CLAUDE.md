@@ -24,7 +24,10 @@ artifact is a frozen 19-Oct-2026 copy with a banner pointing here, so don't sync
 EBG-20 gripper, motors and Orbbec camera; third-party, so only its `README.md` index is versioned).
 `docs/literatura/README.md` is the literature review (methods per pending task, with references;
 open-access PDFs in the gitignored `docs/literatura/pdf/`) and `docs/tecnologias/README.md` the
-technology review (tools per layer, closed-loop diagrams, NBV feasibility).
+technology review (tools per layer, closed-loop diagrams, NBV feasibility). `docs/robocup/README.md`
+reviews the RoboCup@Home 2027 call (qualification material due 2026-12-06: video with 5 abilities, TDP,
+website), the rulebook 2026.2 arena/objects/Pick and Place, and which objects fit the EBG-20 (YCB
+extents measured from meshes): 3 of the 4 common objects (Red Bull ~53 mm, Pringles, Rubik) don't fit.
 `docs/PENDIENTES.md` is the backlog of what is left on the arm, one short self-contained entry per
 task (context, what to do, done-when, where to look): read it first and open only the files the
 entry names, instead of the whole report. Update it when a task closes or a new one appears. The
