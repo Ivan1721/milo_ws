@@ -150,8 +150,10 @@ quieta **a menos de 10 cm de la mano** de la persona; que sea la persona quien c
 3 segundos"). Si el robot le pide al invitado que deje la bolsa sobre su estructura, no hay puntos.
 La bolsa oficial se anuncia en los días de preparación; según la lista mínima, es liviana y con
 asas rígidas verticales. **Para preparar la prueba, el equipo acordó usar una bolsa de papel de
-supermercado:** bolsa kraft café de 315 × 160 × 410 mm (ancho × fondo × alto, sin contar el asa),
-con dos asas de papel retorcido. Las asas de papel son delgadas (unos pocos milímetros) y caben
+supermercado:** la [bolsa de papel kraft de Edipac](https://tienda.edipac.cl/bolsas/12-bolsa-papel-chica-7806510000645.html),
+de 315 × 160 × 410 mm (ancho × fondo × alto, sin contar el asa), 21 L, ~55 g, con dos asas
+reforzadas de papel torcido. Por ahora es una referencia para el grupo: las fotos para entrenar y
+probar se sacarán con las bolsas que compremos. Las asas de papel son delgadas (unos pocos milímetros) y caben
 de sobra en la pinza; lo que hay que cuidar es que el papel no se rompa ni se arrugue al apretar
 (apretar con poca fuerza) y el peso de lo que lleve adentro. El set YCB no trae bolsas: las fotos
 para entrenar el detector las tiene que conseguir el equipo de visión. En la simulación la bolsa
@@ -328,7 +330,7 @@ de referencia de la liga (plantilla oficial y reglamento, enlazadas a una versi�
 repositorios de GitHub); los cubiertos y la vajilla de la plantilla son de un mismo juego de
 enlozado rojo. La bolsa de la imagen es una de las tres de la plantilla (bolsas reutilizables);
 nosotros practicaremos con una bolsa de papel kraft de 315 × 160 × 410 mm con asas de papel
-retorcido (sección 4.2).
+torcido (sección 4.2).
 
 **Prioridad 1: el brazo los toma (9).** Caben en la pinza (asa de la bolsa, cubiertos, dado, cajas
 angostas paradas, pastilla); la bolsa es la entrega de la prueba de los invitados.
