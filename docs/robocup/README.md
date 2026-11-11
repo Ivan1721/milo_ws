@@ -21,9 +21,11 @@ Revisado el 11 de noviembre de 2026. Fuentes al final.
 3. [Los objetos del reglamento](#3-los-objetos-del-reglamento)
 4. [Las pruebas y su escenario](#4-las-pruebas-y-su-escenario)
 5. [Qué puede tomar la pinza](#5-qué-puede-tomar-la-pinza)
-6. [Qué falta para el resto](#6-qué-falta-para-el-resto)
-7. [Medidas de los objetos YCB](#7-medidas-de-los-objetos-ycb)
-8. [Fuentes](#8-fuentes)
+6. [La lista de objetos probable](#6-la-lista-de-objetos-probable)
+7. [Lista para entrenar el detector](#7-lista-para-entrenar-el-detector)
+8. [Qué falta para el resto](#8-qué-falta-para-el-resto)
+9. [Medidas de los objetos YCB](#9-medidas-de-los-objetos-ycb)
+10. [Fuentes](#10-fuentes)
 
 ## 1. La llamada a participación 2027
 
@@ -198,7 +200,7 @@ agarre guiado por la cámara).
 
 La medida que importa es el **ancho por donde se toma**: para un objeto acostado, el lado angosto de
 lo que se ve desde arriba; para uno parado, su canto. Las medidas de los objetos YCB están en la
-[sección 7](#7-medidas-de-los-objetos-ycb).
+[sección 9](#9-medidas-de-los-objetos-ycb).
 
 | | Objetos (ancho por donde se toman, en mm) |
 | --- | --- |
@@ -222,7 +224,123 @@ lo que se ve desde arriba; para uno parado, su canto. Las medidas de los objetos
 4. Para la **vajilla** (que va al lavavajillas) hay que tomarla por el borde o el asa, algo que
    `agarre_node` todavía no hace.
 
-## 6. Qué falta para el resto
+## 6. La lista de objetos probable
+
+La lista oficial de 2027 todavía no existe: el comité la publica en los días de preparación, justo
+antes de la competencia. La más cercana es la **plantilla oficial de la liga**,
+[RoboCupAtHome/CompetitionTemplate](https://github.com/RoboCupAtHome/CompetitionTemplate)
+(`objects/objects.md` y `objects/test_objects.md`, actualizada en abril de 2026), que es la que usa
+el generador de órdenes de GPSR. Casi todos sus objetos son del set YCB. Aquí va cruzada con la
+pinza (medidas de la [sección 9](#9-medidas-de-los-objetos-ycb); las marcadas "sin medir" son
+estimaciones).
+
+| Categoría | Objeto (nombre oficial) | Por donde se toma (mm) | ¿Cabe? |
+| --- | --- | --- | --- |
+| Vajilla (`dish`) | `cup` | 120 × 110 | ⚠️ por el borde o el asa |
+| | `bowl` | 161, borde delgado | ⚠️ por el borde |
+| | `plate` | 261, borde | ⚠️ difícil: es plano |
+| | `fork` | 27 | ✅ (probado en la simulación) |
+| | `knife` | 20 | ✅ |
+| | `spoon` | 42 (mango más delgado) | ✅ por el mango |
+| Comida (`food`) | `chocolate_jello` | 38 parada | ✅ |
+| | `strawberry_jello` | 30 parada | ✅ |
+| | `sugar` | 45 parada | ⚠️ justo |
+| | `tuna` | 86 de diámetro, 34 de alto | ❌ desde arriba, ⚠️ de lado |
+| | `tomato_soup` | 68 | ❌ |
+| | `mustard` | 59 | ❌ |
+| | `spam` | 57 | ❌ |
+| | `coffee_grounds` | 114 | ❌ |
+| Frutas (`fruit`) | `strawberry` | 42–46 | ⚠️ justo |
+| | `banana` | ~38 de cuerpo | ⚠️ probable |
+| | `plum`, `lemon` | 54 | ❌ |
+| | `peach`, `pear` | 58, 66 | ❌ |
+| | `orange`, `apple` | 72 | ❌ |
+| Juguetes (`toy`) | `dice` | 22 | ✅ |
+| | `rubiks_cube` | 57 | ❌ |
+| | `tennis_ball`, `baseball`, `soccer_ball` | 67, 73, 125 | ❌ |
+| Snacks (`snack`) | `pringles`, `cheezit`, `cornflakes` | ~75, 72, ~70 | ❌ |
+| Bebidas (`drink`) | `juice_pack` | ~40, sin medir | ⚠️ probable |
+| | `cola`, `milk`, `red_wine` | ~66, ~70, ~75, sin medir | ❌ |
+| | `orange_juice`, `tropical_juice`, `iced_tea` | botella o caja, sin medir | ❌ probable |
+| Limpieza (`cleaning_supply`) | `sponge` | 18 de grosor | ⚠️ de lado o apretándola |
+| | `cleanser` | 68 | ❌ |
+| De pruebas específicas | `bag_one`, `bag_two`, `bag_three` | el asa | ✅ si el asa mide menos de 45 mm |
+| | `dishwasher_tab` | ~20, sin medir | ✅ |
+
+Además, los **4 objetos comunes** de la sección 3: Red Bull (~53 mm) ❌, Pringles ❌, Rubik ❌ y
+Colgate ❓ (medirla).
+
+**Resumen:** caben bien unos 8 (tenedor, cuchillo, cuchara, dado, caja de gelatina, caja de pudín,
+pastilla de lavavajillas y el asa de un bolso); a medias unos 9 (taza, bowl y plato por el borde,
+caja de azúcar, frutilla, plátano, cajita de jugo, esponja y lata de atún de lado; necesitan el
+agarre de lado o por el borde de la [sección 8](#8-qué-falta-para-el-resto)); el resto, unos 24, son
+más anchos que lo que abre la pinza. La lista real de 2027 puede cambiar, sobre todo los objetos
+locales que se compran en la sede.
+
+## 7. Lista para entrenar el detector
+
+Lo que el detector de objetos (YOLO) debería reconocer en la casa, **no solo lo que la pinza puede
+tomar**: en GPSR y en la final el robot tiene que encontrar objetos, nombrarlos, decir dónde están
+y elegirlos por color, tamaño o posición, aunque no los tome. Y en las pruebas aparecen muebles y
+partes de la casa que el robot tiene que ubicar.
+
+**Cómo conviene armar las clases.** Las órdenes usan el **nombre oficial de cada objeto**
+(`apple`, `tuna`, `dice`) o su **categoría** (`fruit`, `food`, `toy`). El modelo actual
+(`dataset_reglamento3`, 27 clases) mezcla los dos niveles: tiene clases por objeto (`fork`,
+`pringles`, `rubik_cube`) y clases generales (`fruit`, `food`, `drink`, `tool`), así que no puede
+distinguir una manzana de una naranja ni una lata de atún de una de sopa. Lo recomendable es **una
+clase por objeto** con su nombre oficial y pasar a la categoría en el código (una tabla
+objeto → categoría), que es como la publica el comité.
+
+**A. Objetos de la plantilla oficial (41)**, con su categoría:
+
+| Categoría | Objetos | En el modelo actual |
+| --- | --- | --- |
+| `dish` | cup, bowl, plate, fork, knife, spoon | ✅ todos por separado |
+| `food` | chocolate_jello, strawberry_jello, sugar, tuna, tomato_soup, mustard, spam, coffee_grounds | solo `food` general |
+| `fruit` | apple, orange, pear, peach, plum, lemon, banana, strawberry | solo `fruit` general |
+| `toy` | dice, rubiks_cube, tennis_ball, baseball, soccer_ball | solo `rubik_cube` |
+| `snack` | pringles, cheezit, cornflakes | `pringles` y `cereal_box` |
+| `drink` | juice_pack, cola, milk, orange_juice, tropical_juice, red_wine, iced_tea | solo `drink` general (y `redbull_can`) |
+| `cleaning_supply` | cleanser, sponge | solo `cleaning_supply` general |
+| pruebas | bag_one, bag_two, bag_three, dishwasher_tab | `bag`; la pastilla no |
+
+**B. Objetos comunes (siempre en la competencia):** redbull_can, pringles, rubiks_cube,
+colgate_box. Los cuatro ya están en el modelo actual.
+
+**C. Lo que exige el reglamento y la plantilla no trae:** servilleta (*napkin*), bandeja
+(`tray`, ya está), canasto de ropa (*laundry basket*), polera (*t-shirt*; hoy `clothing`), un
+objeto pesado de 1–1.5 kg (por ejemplo una botella de 1.5 L), un objeto frágil (por ejemplo un
+huevo de chocolate), un objeto deformable (paño o toalla) y la basura: el comité elige una
+categoría como basura en los días de preparación, así que conviene tener ejemplos típicos (lata
+vacía, vaso de papel, papel arrugado, botella plástica).
+
+**D. Otros objetos YCB que el comité podría elegir** (la plantilla usa solo una parte del set):
+mug (tazón), pitcher_base (jarro), wine_glass (copa), cups (vasos de plástico apilables),
+skillet y skillet_lid (sartén y su tapa), spatula, windex_bottle, scissors, large_marker y
+small_marker (plumones), padlock (candado), key (llave), power_drill (taladro), hammer, wrench,
+screwdrivers, clamps (prensas), wood_block, foam_brick, golf_ball, racquetball, softball,
+lego_duplo, toy_airplane, timer, marbles (bolitas), chain (cadena).
+
+**E. Objetos locales:** productos comprados en la sede (Alemania en 2027); no se pueden conocer
+antes. Sirve entrenar con fotos de productos alemanes comunes de esas mismas categorías y,
+durante la competencia, sumar fotos de los objetos reales (se entregan para entrenar el primer
+día de preparación, de a cinco por equipo y por una hora).
+
+**F. Muebles y partes de la casa** (no se toman, pero el robot tiene que ubicarlos): mesa de
+comedor, mesa de centro, silla, sillón, estante o librero, despensa, lavavajillas (puerta y
+bandeja), lavadora de carga frontal, basurero, puerta y **manilla** (ya hay un modelo propio de la
+manija), y decoración (planta, cuadro, espejo, reloj, vela, libro). Muchos están en modelos
+preentrenados (COCO trae `chair`, `couch`, `dining table`, `potted plant`, `book`, `clock`), así
+que quizás baste con uno de esos para los muebles y dejar el modelo propio para los objetos.
+
+**Fotos para entrenar:** fotos reales de cada objeto desde varias vistas, distancias y luces
+(la competencia es con luz natural), sobre mesas, en repisas y en el suelo, juntos y apilados.
+Si además se usa la simulación, sumar fotos de los modelos 3D de la mesa simulada para que el
+detector funcione también en Gazebo: hoy el modelo nuevo reconoce 9 de los 26 objetos simulados
+(P14 en [`PENDIENTES.md`](../PENDIENTES.md)).
+
+## 8. Qué falta para el resto
 
 Ordenado por lo que más objetos abre:
 
@@ -241,7 +359,7 @@ manija de una puerta. Con las habilidades del resto del equipo (navegación, voz
 personas) se juntan las 5. Para manipular en el video, lo seguro son cubiertos, plumón, dado y la
 caja de Colgate si cabe.
 
-## 7. Medidas de los objetos YCB
+## 9. Medidas de los objetos YCB
 
 Medidas a lo largo de los tres ejes principales de cada objeto (el más largo primero), sacadas de
 sus mallas 3D (`google_16k` de YCB) el 11-nov-2026. No incluyen el peso: el sitio de YCB no
@@ -280,7 +398,7 @@ Ojo al leerla: la medida es la caja que encierra la malla, así que un objeto cu
 de lo que es (el plátano mide 74 mm por su curva, pero su cuerpo tiene ~38 mm), y el cubo Rubik
 sale con 68 mm por imperfecciones del escaneo (el oficial mide 57 mm).
 
-## 8. Fuentes
+## 10. Fuentes
 
 - Llamada a participación 2027: <https://athome.robocup.org/call-for-participation-robocuphome-2027/>
   y <https://athome.robocup.org/call-for-participation/> (revisadas el 11-nov-2026).
@@ -289,6 +407,8 @@ sale con 68 mm por imperfecciones del escaneo (el oficial mide 57 mm).
   `pages/general_rules/Robots.tex` y `pages/general_rules/OpenChallenge.tex`, las pruebas en
   `tasks/` (`PickAndPlaceChallenge`, `HumanRobotInteractionChallenge`, `DoingLaundry`, `GPSR`,
   `Finals`) y sus puntajes en `scoresheets/`.
+- Lista de objetos de la plantilla oficial: <https://github.com/RoboCupAtHome/CompetitionTemplate>
+  (`objects/objects.md` y `objects/test_objects.md`, abril de 2026).
 - Objetos YCB: <https://www.ycbbenchmarks.com/object-models/>; mallas desde
   `http://ycb-benchmarks.s3.amazonaws.com/data/google/<objeto>_google_16k.tgz`.
 - Pinza y brazo: [`docs/hardware/README.md`](../hardware/README.md); agarre en la simulación:
