@@ -322,12 +322,27 @@ opcional, unas 25 si se incluye todo.
 
 **Lista corta para empezar con el brazo (17 clases).** Para implementar la manipulación no hace
 falta esperar el modelo completo: basta un primer modelo con los objetos que el brazo toma ahora
-o pronto, y los que tiene que ver en sus pruebas aunque todavía no los tome.
+o pronto, y los que tiene que ver en sus pruebas aunque todavía no los tome. Las imágenes son las
+de referencia de la liga (plantilla oficial y reglamento, enlazadas a una versión fija de sus
+repositorios de GitHub); los cubiertos y la vajilla de la plantilla son de un mismo juego de
+enlozado rojo. La bolsa de la imagen es una de las tres de la plantilla (bolsas reutilizables);
+nosotros practicaremos con una bolsa de papel de supermercado.
 
-| Prioridad | Objetos | Por qué |
-| --- | --- | --- |
-| 1: el brazo los toma | `bag` (bolsa de papel de supermercado), `fork`, `knife`, `spoon`, `dice`, `chocolate_jello`, `strawberry_jello`, `dishwasher_tab`, `colgate_box` | caben en la pinza (asa de la bolsa, cubiertos, dado, cajas angostas paradas, pastilla); la bolsa es la entrega de la prueba de los invitados |
-| 2: el brazo los ve | `cup`, `bowl`, `plate`, `redbull_can`, `pringles`, `rubiks_cube`, `cornflakes`, `milk` | están en Pick and Place (vajilla, objetos comunes, desayuno); la vajilla se tomará por el borde y los demás hay que ubicarlos aunque no quepan |
+**Prioridad 1: el brazo los toma (9).** Caben en la pinza (asa de la bolsa, cubiertos, dado, cajas
+angostas paradas, pastilla); la bolsa es la entrega de la prueba de los invitados.
+
+|   |   |   |   |   |
+| --- | --- | --- | --- | --- |
+| <img src="https://raw.githubusercontent.com/RoboCupAtHome/CompetitionTemplate/af2972f0670afbb068701f1dc5281c0efac5045c/objects/test_objects/carry_my_luggage/bag_one.jpg" width="90" alt="bag"><br>`bag`<br>bolsa (usaremos una de papel de supermercado) | <img src="https://raw.githubusercontent.com/RoboCupAtHome/CompetitionTemplate/af2972f0670afbb068701f1dc5281c0efac5045c/objects/known_objects/dishes%21dish/fork.png" width="90" alt="fork"><br>`fork`<br>tenedor | <img src="https://raw.githubusercontent.com/RoboCupAtHome/CompetitionTemplate/af2972f0670afbb068701f1dc5281c0efac5045c/objects/known_objects/dishes%21dish/knife.png" width="90" alt="knife"><br>`knife`<br>cuchillo | <img src="https://raw.githubusercontent.com/RoboCupAtHome/CompetitionTemplate/af2972f0670afbb068701f1dc5281c0efac5045c/objects/known_objects/dishes%21dish/spoon.png" width="90" alt="spoon"><br>`spoon`<br>cuchara | <img src="https://raw.githubusercontent.com/RoboCupAtHome/CompetitionTemplate/af2972f0670afbb068701f1dc5281c0efac5045c/objects/known_objects/toys%21toy/dice.png" width="90" alt="dice"><br>`dice`<br>dado |
+| <img src="https://raw.githubusercontent.com/RoboCupAtHome/CompetitionTemplate/af2972f0670afbb068701f1dc5281c0efac5045c/objects/known_objects/food/chocolate_jello.png" width="90" alt="chocolate_jello"><br>`chocolate_jello`<br>caja de pudín | <img src="https://raw.githubusercontent.com/RoboCupAtHome/CompetitionTemplate/af2972f0670afbb068701f1dc5281c0efac5045c/objects/known_objects/food/strawberry_jello.png" width="90" alt="strawberry_jello"><br>`strawberry_jello`<br>caja de gelatina | <img src="https://raw.githubusercontent.com/RoboCupAtHome/CompetitionTemplate/af2972f0670afbb068701f1dc5281c0efac5045c/objects/test_objects/clean_the_table/dishwasher_tab.jpg" width="90" alt="dishwasher_tab"><br>`dishwasher_tab`<br>pastilla de lavavajillas | <img src="https://raw.githubusercontent.com/RoboCupAtHome/RuleBook/ebdf34d223ddc3ae89ac3f16a23ad28024adfdf6/images/colgate.jpeg" width="90" alt="colgate_box"><br>`colgate_box`<br>caja de pasta dental Colgate |   |
+
+**Prioridad 2: el brazo los tiene que ver (8).** Están en Pick and Place (vajilla, objetos comunes,
+desayuno): la vajilla se tomará por el borde y los demás hay que ubicarlos aunque no quepan.
+
+|   |   |   |   |   |
+| --- | --- | --- | --- | --- |
+| <img src="https://raw.githubusercontent.com/RoboCupAtHome/CompetitionTemplate/af2972f0670afbb068701f1dc5281c0efac5045c/objects/known_objects/dishes%21dish/cup.png" width="90" alt="cup"><br>`cup`<br>taza | <img src="https://raw.githubusercontent.com/RoboCupAtHome/CompetitionTemplate/af2972f0670afbb068701f1dc5281c0efac5045c/objects/known_objects/dishes%21dish/bowl.png" width="90" alt="bowl"><br>`bowl`<br>bowl | <img src="https://raw.githubusercontent.com/RoboCupAtHome/CompetitionTemplate/af2972f0670afbb068701f1dc5281c0efac5045c/objects/known_objects/dishes%21dish/plate.png" width="90" alt="plate"><br>`plate`<br>plato | <img src="https://raw.githubusercontent.com/RoboCupAtHome/RuleBook/ebdf34d223ddc3ae89ac3f16a23ad28024adfdf6/images/red_bull.jpg" width="90" alt="redbull_can"><br>`redbull_can`<br>lata de Red Bull | <img src="https://raw.githubusercontent.com/RoboCupAtHome/CompetitionTemplate/af2972f0670afbb068701f1dc5281c0efac5045c/objects/known_objects/snacks%21snack/pringles.png" width="90" alt="pringles"><br>`pringles`<br>tarro de Pringles |
+| <img src="https://raw.githubusercontent.com/RoboCupAtHome/CompetitionTemplate/af2972f0670afbb068701f1dc5281c0efac5045c/objects/known_objects/toys%21toy/rubiks_cube.png" width="90" alt="rubiks_cube"><br>`rubiks_cube`<br>cubo Rubik | <img src="https://raw.githubusercontent.com/RoboCupAtHome/CompetitionTemplate/af2972f0670afbb068701f1dc5281c0efac5045c/objects/known_objects/snacks%21snack/cornflakes.jpg" width="90" alt="cornflakes"><br>`cornflakes`<br>cereal | <img src="https://raw.githubusercontent.com/RoboCupAtHome/CompetitionTemplate/af2972f0670afbb068701f1dc5281c0efac5045c/objects/known_objects/drinks%21drink/milk.jpg" width="90" alt="milk"><br>`milk`<br>leche |   |   |
 
 El resto de la lista entra después, en el modelo completo.
 
