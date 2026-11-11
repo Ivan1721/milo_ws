@@ -19,7 +19,7 @@ Revisado el 11 de noviembre de 2026. Fuentes al final.
 1. [La llamada a participación 2027](#1-la-llamada-a-participación-2027)
 2. [El escenario](#2-el-escenario)
 3. [Los objetos del reglamento](#3-los-objetos-del-reglamento)
-4. [La prueba Pick and Place](#4-la-prueba-pick-and-place)
+4. [Las pruebas y su escenario](#4-las-pruebas-y-su-escenario)
 5. [Qué puede tomar la pinza](#5-qué-puede-tomar-la-pinza)
 6. [Qué falta para el resto](#6-qué-falta-para-el-resto)
 7. [Medidas de los objetos YCB](#7-medidas-de-los-objetos-ycb)
@@ -95,23 +95,93 @@ El modelo de objetos del equipo (`ros2_ws/modelos/objetos/best.pt`, 27 clases) y
 estos objetos (cup, bowl, plate, fork, knife, spoon, bag, tray, cereal_box, redbull_can, pringles,
 rubik_cube, colgate_box…).
 
-## 4. La prueba Pick and Place
+## 4. Las pruebas y su escenario
 
-Es la prueba de manipulación del reglamento 2026 (*Pick and Place Challenge*), en la cocina:
+Además del escenario común (sección 2), cada prueba define su propio escenario: en qué pieza
+ocurre, qué muebles, objetos y personas hay, y qué se le pide al robot. La competencia tiene
+varias pruebas y después una **final** para los mejores equipos; aparte hay un **desafío abierto**
+de demostración. Puntajes de las hojas de puntaje del reglamento (`scoresheets/`).
+
+| Prueba | Dónde | Qué le pide al brazo y la pinza | ¿Milo hoy? |
+| --- | --- | --- | --- |
+| [Pick and Place](#41-pick-and-place) | cocina: mesa del comedor, lavavajillas, estante, basurero | tomar y dejar cubiertos, vajilla, basura, 2 objetos comunes, desayuno (bowl, cuchara, cereal, leche); opcional abrir el lavavajillas y vaciar | en parte: cubiertos sí; vajilla por el borde y 3 de 4 objetos comunes no |
+| [Interacción con personas](#42-interacción-con-personas-recepcionista) | living y entrada | recibir una **bolsa** de la mano de un invitado y dejarla en el suelo; opcional abrir la puerta de entrada | posible si el asa de la bolsa cabe (≤ 45 mm) y el brazo aguanta su peso |
+| [Lavar ropa](#43-lavar-ropa) | lavandería: lavadora, mesa, canasto | sacar poleras del canasto o la lavadora y **doblarlas**; opcional abrir la lavadora | tomar una polera sí; doblar con un brazo, muy difícil; el canasto es para dos manos |
+| [Robot de servicio general (GPSR)](#44-robot-de-servicio-general-gpsr) | toda la casa | 3 órdenes habladas al azar: muchas son "trae tal objeto de tal lugar" | lo que se pueda tomar (sección 5) |
+| [Final](#45-final) | toda la casa | encontrar y resolver problemas: basura en el suelo, objetos fuera de lugar, cerrar el lavavajillas, mover el canasto, **abrir la puerta** a un invitado | basura chica y puerta (manilla) son lo más cercano |
+| [Desafío abierto](#46-desafío-abierto) | la casa, se puede reordenar | lo que el equipo quiera mostrar (8 min + 2 de preguntas) | buen lugar para la apertura de puertas o el agarre con cámara |
+
+### 4.1 Pick and Place
+
+La prueba de manipulación, en la cocina:
 
 1. **Ordenar la mesa del comedor**, que tiene 6 objetos, a veces apilados: un cubierto, una taza,
    un plato, un objeto que cuenta como basura y dos objetos más. Cubiertos y vajilla van al
    **lavavajillas**, la basura al **basurero** y lo demás a un **estante sin puertas**, junto a los
    objetos de su misma categoría.
-2. **Servir desayuno:** bowl, cuchara, cereal y leche en la mesa (la cuchara al lado del bowl).
+2. **Servir desayuno:** bowl, cuchara, cereal y leche en la mesa (la cuchara al lado del bowl). El
+   bowl y la cuchara están en una superficie de la cocina; la leche (cerrada) y el cereal
+   (abierto), en el estante.
 3. **Superficie extra:** **2 objetos comunes** (Red Bull, Pringles, Rubik o Colgate) que hay que
    guardar en el estante.
-4. Opcionales: recoger basura del suelo, abrir y cerrar el lavavajillas, sacar y meter su
-   bandeja, poner la pastilla del lavavajillas, vaciar leche y cereal en el bowl.
+4. **Suelo:** una basura junto al basurero.
+5. Opcionales: abrir y cerrar el lavavajillas (200 c/u), sacar y meter su bandeja (100), poner la
+   pastilla del lavavajillas, vaciar leche y cereal en el bowl (200 c/u), abrir la leche (400).
 
-El robot puede pedir ayuda para abrir el lavavajillas o la leche sin perder puntos; otras ayudas
-restan. Hay una **bonificación por el primer objeto tomado**. Hay que dejar los objetos, no
-lanzarlos.
+**Puntaje del brazo:** reconocer un objeto 10 (hasta 12 veces), **tomar un objeto 50** (hasta 12),
+**dejarlo en su lugar 40** (hasta 12), más una bonificación por el primer objeto tomado. Restan:
+dejar caer o lanzar un objeto (40) y que una persona entregue un objeto en la mano (100). La mesa
+se puede correr hasta 50 cm; la superficie extra, hasta 5 cm. Se puede pedir ayuda para abrir el
+lavavajillas o la leche sin perder puntos.
+
+### 4.2 Interacción con personas (recepcionista)
+
+Milo es el recepcionista de una fiesta: recibe a dos invitados en la puerta (opcional: oír el
+timbre y **abrir la puerta**, 200 puntos por invitado), les pregunta el nombre y su bebida
+favorita, los lleva al living, les ofrece asiento y los presenta mirándolos. **El segundo invitado
+trae una bolsa:** el robot la recibe de su mano (**50 puntos**), sigue al dueño de casa por la casa
+(200) y la deja en el suelo donde le indique (50).
+
+Para la entrega de la bolsa el reglamento pide: que el robot avise que está listo y deje la pinza
+quieta **a menos de 10 cm de la mano** de la persona; que sea la persona quien complete la entrega
+(el robot no debe estirarse hacia ella); y que el robot avise antes de cerrar ("cierro la pinza en
+3 segundos"). Si el robot le pide al invitado que deje la bolsa sobre su estructura, no hay puntos.
+La bolsa se anuncia en los días de preparación; según la lista mínima, es liviana y con asas
+rígidas verticales: hay que ver si su asa cabe en la pinza y cuánto pesa.
+
+### 4.3 Lavar ropa
+
+En la lavandería hay una lavadora de carga frontal (cerrada, con 2–4 poleras dentro), un canasto
+con 6–8 poleras y una mesa con una polera arrugada. El robot lleva ropa a la mesa y **dobla al
+menos una** (800 puntos; tomar una polera del canasto, 100). Opcionales: abrir la lavadora,
+sacar ropa de la lavadora y usar el canasto para llevarla (300 c/u), doblar más poleras y
+apilarlas. El reglamento la define como prueba de **objetos deformables y agarre con dos manos**:
+con un solo brazo y una pinza de 49 mm, tomar una polera es posible, doblarla bien no.
+
+### 4.4 Robot de servicio general (GPSR)
+
+El robot parte fuera de la casa, va a un punto de instrucciones y un árbitro le da **3 órdenes
+habladas** generadas al azar por el [generador oficial](https://github.com/RoboCupAtHome/CommandGenerator)
+y reescritas por un modelo de lenguaje (por ejemplo, traer un objeto de un lugar a una persona).
+Puntos por entender cada orden (80), mostrar un plan (100) y cumplirla (250 c/u), más 200 si las
+intercala. Para el brazo, es tomar y entregar objetos de la lista en cualquier mueble de la casa.
+
+### 4.5 Final
+
+Para los mejores equipos, en una sola casa: la casa está en su estado normal salvo **al menos 8
+problemas** que el robot tiene que encontrar y resolver solo, sin repetir el tipo de problema:
+basura en el suelo al basurero, objetos fuera de su lugar de vuelta a su lugar, personas que
+levantan la mano con un pedido, **cerrar el lavavajillas** (300), **mover el canasto de ropa**
+junto a la lavadora (600) y **abrir la puerta del departamento** a un invitado que espera detrás
+(600). Cada problema resuelto vale 650 (encontrarlo y decirlo, 150). Los equipos pueden proponer
+tareas propias aprobadas por el comité.
+
+### 4.6 Desafío abierto
+
+Los dos primeros días, cada equipo puede mostrar 8 minutos de su investigación (más 2 de
+preguntas), reordenando la casa si quiere. No da puntos para la competencia, pero tiene su propio
+premio. Es un buen lugar para mostrar algo propio del brazo (abrir la puerta por la manilla, el
+agarre guiado por la cámara).
 
 ## 5. Qué puede tomar la pinza
 
@@ -214,9 +284,11 @@ sale con 68 mm por imperfecciones del escaneo (el oficial mide 57 mm).
 
 - Llamada a participación 2027: <https://athome.robocup.org/call-for-participation-robocuphome-2027/>
   y <https://athome.robocup.org/call-for-participation/> (revisadas el 11-nov-2026).
-- Reglamento: <https://github.com/RoboCupAtHome/RuleBook>, versión 2026.2 (11-may-2026); capítulos
-  `pages/general_rules/Scenario.tex`, `pages/general_rules/Robots.tex` y
-  `tasks/PickAndPlaceChallenge.tex`.
+- Reglamento: <https://github.com/RoboCupAtHome/RuleBook>, rama principal (última versión
+  publicada: 2026.2, 11-may-2026); capítulos `pages/general_rules/Scenario.tex`,
+  `pages/general_rules/Robots.tex` y `pages/general_rules/OpenChallenge.tex`, las pruebas en
+  `tasks/` (`PickAndPlaceChallenge`, `HumanRobotInteractionChallenge`, `DoingLaundry`, `GPSR`,
+  `Finals`) y sus puntajes en `scoresheets/`.
 - Objetos YCB: <https://www.ycbbenchmarks.com/object-models/>; mallas desde
   `http://ycb-benchmarks.s3.amazonaws.com/data/google/<objeto>_google_16k.tgz`.
 - Pinza y brazo: [`docs/hardware/README.md`](../hardware/README.md); agarre en la simulación:
