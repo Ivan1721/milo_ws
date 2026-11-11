@@ -357,6 +357,26 @@ huevo de chocolate), un objeto deformable (paño o toalla) y la basura: el comit
 categoría como basura en los días de preparación, así que conviene tener ejemplos típicos (lata
 vacía, vaso de papel, papel arrugado, botella plástica).
 
+Imágenes de referencia con licencia libre, de Wikimedia Commons (cada una enlaza a su página, con
+la licencia completa). Son solo para que el grupo sepa qué buscar: la bolsa de la imagen tiene
+asas planas y la de Edipac las tiene de papel torcido, y la botella no dice si es de 1.5 L. Para
+entrenar hacen falta fotos propias de los objetos reales.
+
+| Imagen | Clase | Qué es | Licencia y autor (Wikimedia Commons) |
+| --- | --- | --- | --- |
+| <img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/81/Albert_Heijn_paper_shopping_bag_%282019%29_05.jpg/250px-Albert_Heijn_paper_shopping_bag_%282019%29_05.jpg" width="90" alt="bag"> | `bag` | bolsa de papel kraft | [CC BY-SA 4.0](https://commons.wikimedia.org/wiki/File:Albert_Heijn_paper_shopping_bag_(2019)_05.jpg), Donald Trung Quoc Don (Chữ Hán: 徵國單) - W… |
+| <img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/40/Newark_Park_sausage_roll_flat_white_coffee_caf%C3%A9_marquee_Ozleworth_Gloucestershire_England.jpg/250px-Newark_Park_sausage_roll_flat_white_coffee_caf%C3%A9_marquee_Ozleworth_Gloucestershire_England.jpg" width="90" alt="napkin"> | `napkin` | servilleta | [CC BY-SA 4.0](https://commons.wikimedia.org/wiki/File:Newark_Park_sausage_roll_flat_white_coffee_caf%C3%A9_marquee_Ozleworth_Gloucestershire_England.jpg), Acabashi |
+| <img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/Tiffany_-_silver_serving_tray_-_HLAMBG.png/250px-Tiffany_-_silver_serving_tray_-_HLAMBG.png" width="90" alt="tray"> | `tray` | bandeja | [CC BY-SA 4.0](https://commons.wikimedia.org/wiki/File:Tiffany_-_silver_serving_tray_-_HLAMBG.png), Eric Polk |
+| <img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/67/Clothes_in_white_laundry_basket.jpg/250px-Clothes_in_white_laundry_basket.jpg" width="90" alt="laundry_basket"> | `laundry_basket` | canasto de ropa | [CC BY-SA 4.0](https://commons.wikimedia.org/wiki/File:Clothes_in_white_laundry_basket.jpg), Corn cheese |
+| <img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/61/BrownIEditShirt-plainBackground.png/250px-BrownIEditShirt-plainBackground.png" width="90" alt="t_shirt"> | `t_shirt` | polera | [CC BY-SA 3.0](https://commons.wikimedia.org/wiki/File:BrownIEditShirt-plainBackground.png), Daniel Furon under contract for the Wiki… |
+| <img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ad/Bottle_of_Water.jpg/250px-Bottle_of_Water.jpg" width="90" alt="heavy_object"> | `heavy_object` | objeto pesado: botella de agua | [CC0](https://commons.wikimedia.org/wiki/File:Bottle_of_Water.jpg), Jiafei Slay Queen |
+| <img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/62/Brought_some_Kinder_Surprise_eggs_home_for_the_girls%2C_they_were_a_big_hit.jpg/250px-Brought_some_Kinder_Surprise_eggs_home_for_the_girls%2C_they_were_a_big_hit.jpg" width="90" alt="fragile_object"> | `fragile_object` | objeto frágil: huevo de chocolate | [CC BY 2.0](https://commons.wikimedia.org/wiki/File:Brought_some_Kinder_Surprise_eggs_home_for_the_girls,_they_were_a_big_hit.jpg), Robert Nelson |
+| <img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/61/Viskestykke.jpg/250px-Viskestykke.jpg" width="90" alt="cloth"> | `cloth` | deformable: paño de cocina | [Public domain](https://commons.wikimedia.org/wiki/File:Viskestykke.jpg), Nillerdk |
+| <img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/89/Crushed_coka_cola_can.jpg/250px-Crushed_coka_cola_can.jpg" width="90" alt="trash"> | `trash` | basura: lata aplastada | [CC BY-SA 4.0](https://commons.wikimedia.org/wiki/File:Crushed_coka_cola_can.jpg), क्षत्रिय117 |
+| <img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b3/Cups-disposable-paper-nongovernment-Tamil_Nadu.JPG/250px-Cups-disposable-paper-nongovernment-Tamil_Nadu.JPG" width="90" alt="trash"> | `trash` | basura: vaso de papel | [CC BY-SA 3.0](https://commons.wikimedia.org/wiki/File:Cups-disposable-paper-nongovernment-Tamil_Nadu.JPG), Tha-uzhavan |
+| <img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ea/Paperball_2.jpeg/250px-Paperball_2.jpeg" width="90" alt="trash"> | `trash` | basura: papel arrugado | [Copyrighted free use](https://commons.wikimedia.org/wiki/File:Paperball_2.jpeg), Nikhilesh Haval |
+| <img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Empty_Plastic_Bottle.jpg/250px-Empty_Plastic_Bottle.jpg" width="90" alt="trash"> | `trash` | basura: botella plástica vacía | [CC0](https://commons.wikimedia.org/wiki/File:Empty_Plastic_Bottle.jpg), Echendu Tracy |
+
 **D. Otros objetos YCB que el comité podría elegir** (la plantilla usa solo una parte del set):
 mug (tazón), pitcher_base (jarro), wine_glass (copa), cups (vasos de plástico apilables),
 skillet y skillet_lid (sartén y su tapa), spatula, windex_bottle, scissors, large_marker y
@@ -449,6 +469,8 @@ sale con 68 mm por imperfecciones del escaneo (el oficial mide 57 mm).
   `pages/general_rules/Robots.tex` y `pages/general_rules/OpenChallenge.tex`, las pruebas en
   `tasks/` (`PickAndPlaceChallenge`, `HumanRobotInteractionChallenge`, `DoingLaundry`, `GPSR`,
   `Finals`) y sus puntajes en `scoresheets/`.
+- Imágenes de referencia de la sección 7 C: Wikimedia Commons, <https://commons.wikimedia.org>
+  (autor y licencia en cada fila de la tabla).
 - Lista de objetos de la plantilla oficial: <https://github.com/RoboCupAtHome/CompetitionTemplate>
   (`objects/objects.md` y `objects/test_objects.md`, abril de 2026).
 - Objetos YCB: <https://www.ycbbenchmarks.com/object-models/>; mallas desde
