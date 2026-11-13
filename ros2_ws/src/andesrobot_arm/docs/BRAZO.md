@@ -109,6 +109,25 @@ Parámetros de `arm_moveit_node` (`--ros-args -p nombre:=valor`):
 | `position_only` | false | ignorar la orientación |
 | `joint_6_max` | 1.5708 rad | la meta pide además \|joint_6\| ≤ este valor, para que la cámara (detrás de la muñeca) no quede de cabeza; 0 = sin esta restricción |
 | `mesa` / `mesa_frame` | true / `base_footprint` | publicar la mesa de prueba como obstáculo; `mesa:=false` del launch la apaga |
+| `mantener_orientacion` | false | cada meta es solo una **traslación**: se ignora la orientación pedida y la pinza va en línea recta sin girar (ver abajo); se cambia en marcha con `ros2 param set /arm_moveit_node mantener_orientacion true` |
+| `respaldo_ompl` / `tolerancia_camino` / `tiempo_con_restriccion` | false / 0.1 rad / 10 s | si la línea recta no sale, probar OMPL con la orientación como restricción del camino (apagado: poco confiable, ver abajo) |
+
+**Trasladar la pinza sin girarla** (para llevar un objeto agarrado, por ejemplo una taza con
+líquido, sin volcarlo). Con `mantener_orientacion:=true`, `arm_moveit_node` toma la orientación
+actual de la pinza (TF de `gripper_tcp`) y le pide a MoveIt un **camino en línea recta**
+(`/compute_cartesian_path`, sin choques): en una recta la orientación no cambia nada, por
+construcción. Entre dos puntos seguidos (5 mm) ninguna articulación puede girar más de 0.3 rad ni
+el lift moverse más de 2 cm (`revolute_jump_threshold` / `prismatic_jump_threshold`): sin ese
+límite, una recta de 222 puntos le dio media vuelta a la muñeca entre dos puntos y la pinza giró
+180° aunque en cada punto tenía la orientación pedida. Si la recta choca, sale del alcance o
+necesita esa media vuelta, el brazo **no se mueve** y lo avisa: hay que mandar un punto
+intermedio. Medido el 13-nov (Gazebo sin ventanas, pinza hacia abajo, tres traslaciones de 29 a
+69 cm repetidas): **sin** la opción, el camino libre de OMPL giró la pinza 110-180° a medio camino
+en 6 de 6 movimientos (llegaba bien orientada); **con** ella, 6 de 6 llegaron en línea recta girando 2.3° como máximo. La otra
+forma, OMPL con la orientación como restricción del camino (`path_constraints`,
+`respaldo_ompl:=true`), falló en 4 de 6 (código -2: MoveIt revisa el camino ya interpolado y
+entre dos posturas que cumplen la pinza giraba ~0.2 rad), y en una corrida sin log hubo dos
+movimientos con vueltas de 180° que no se pudieron explicar; por eso está apagada.
 
 Archivos de `andesrobot_moveit_config/config/`: `andesrobot.srdf` (grupos `brazo` y `pinza`,
 posturas `cero`, `frente`, `abierta`, `cerrada`, y los pares de piezas sin revisión de choques),
@@ -486,7 +505,9 @@ objeto (con confianza mínima 0.2) y lo apaga al terminar. Hace una vez la secue
 6. **Unir** el objeto a la pinza en la escena de MoveIt (una caja con sus medidas pegada a
    `gripper_tcp`, que pueden tocar los dedos y `link_6_1`).
 7. **Levantar** 10 cm en línea recta y **retraer** a `retraer` (TCP en (0.45, 0, 1.0), hacia
-   abajo), y revisar que los dedos sigan frenados por el objeto.
+   abajo), también en línea recta para que la pinza no gire con el objeto en la mano (desde el
+   13-nov; `-p mantener_orientacion:=false` vuelve al camino libre de MoveIt), y revisar que los
+   dedos sigan frenados por el objeto.
 
 Probado el 7-nov sin ventanas: con el **tenedor** en (0.80, 0), 3 de 3 corridas completas (una
 partiendo con la pinza baja junto a la mesa). La

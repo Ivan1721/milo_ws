@@ -311,7 +311,7 @@ El que dice `idVendor "10c4"` es el **lidar**; el otro es el **hoverboard**. Ano
 | `./sim.sh nav <mapa> [arena]` | navegación autónoma (AMCL + Nav2) con un mapa guardado |
 | `./sim.sh ir <lugar> [...]` / `--lista` | mandar a Milo a un lugar con nombre |
 | `./sim.sh tour [veces]` | visitar todos los lugares y guardar un CSV |
-| `./sim.sh brazo` | simulación del brazo: MoveIt (sin choques) + cámara + mesa de prueba |
+| `./sim.sh brazo` | simulación del brazo: MoveIt (sin choques) + cámara + mesa de prueba; lo que va después pasa al launch, por ejemplo `./sim.sh brazo objetos:=tenedor octomap:=false` |
 | `./sim.sh teleop` | manejar con el teclado |
 | `./sim.sh mapa [nombre]` | guardar el mapa |
 | `./sim.sh shell` | terminal dentro de Docker |

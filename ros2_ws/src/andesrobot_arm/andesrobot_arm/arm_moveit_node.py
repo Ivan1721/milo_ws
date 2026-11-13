@@ -21,11 +21,14 @@ import rclpy
 from rclpy.action import ActionClient
 from rclpy.node import Node
 from geometry_msgs.msg import Pose, PoseStamped, Vector3
-from moveit_msgs.action import MoveGroup
+from moveit_msgs.action import ExecuteTrajectory, MoveGroup
 from moveit_msgs.msg import (
     BoundingVolume, CollisionObject, Constraints, JointConstraint, MoveItErrorCodes,
     OrientationConstraint, PlanningScene, PositionConstraint)
+from rclpy.time import Time
+from moveit_msgs.srv import GetCartesianPath
 from shape_msgs.msg import SolidPrimitive
+from tf2_ros import Buffer, TransformException, TransformListener
 
 # Códigos de resultado de MoveIt (moveit_msgs/MoveItErrorCodes), explicados.
 MOTIVOS = {
@@ -80,11 +83,34 @@ def caja(nombre, tam, xyz, frame):
     return obj
 
 
+def restriccion_de_orientacion(frame, tcp_frame, orientacion, tol):
+    """OrientationConstraint: el `tcp_frame` con `orientacion` (cuaternión en `frame`), con
+    `tol` radianes de margen en cada eje."""
+    ori = OrientationConstraint()
+    ori.header.frame_id = frame
+    ori.link_name = tcp_frame
+    ori.orientation = orientacion
+    ori.absolute_x_axis_tolerance = tol
+    ori.absolute_y_axis_tolerance = tol
+    ori.absolute_z_axis_tolerance = tol
+    ori.weight = 1.0
+    return ori
+
+
 def meta_de_pose(frame, pose, group='brazo', tcp_frame='gripper_tcp', tol_pos=0.002,
-                 tol_rot=0.02, position_only=False, joint_6_max=1.5708):
+                 tol_rot=0.02, position_only=False, joint_6_max=1.5708, tol_camino=0.0):
     """MoveGroup.Goal que pide llevar `tcp_frame` a `pose` (geometry_msgs/Pose en `frame`),
     planificando y ejecutando. La usan arm_moveit_node y agarre_node; quien la llama completa los
-    intentos, el tiempo y las escalas de velocidad y aceleración en goal.request."""
+    intentos, el tiempo y las escalas de velocidad y aceleración en goal.request.
+
+    tol_camino > 0 = MANTENER LA ORIENTACIÓN durante todo el camino, no solo al llegar: la pinza
+    se traslada sin girar más de tol_camino radianes por eje respecto de pose.orientation (para
+    llevar un objeto agarrado sin volcarlo). Va en `path_constraints`: OMPL solo acepta posturas
+    intermedias que la cumplen. La postura de partida también debe cumplirla (si no, MoveIt
+    primero la corrige con un movimiento libre: FixStartStatePathConstraints en
+    ompl_planning.yaml), así que conviene pedirla cuando la pinza YA tiene esa orientación.
+    Planificar con ella cuesta más (OMPL descarta casi todas las posturas que sortea): dar más
+    tiempo de planificación."""
     # Meta = restricciones sobre el TCP: posición dentro de una esfera chica y orientación
     # dentro de una tolerancia por eje. Es la forma en que MoveIt recibe "ir a esta pose".
     pos = PositionConstraint()
@@ -101,15 +127,8 @@ def meta_de_pose(frame, pose, group='brazo', tcp_frame='gripper_tcp', tol_pos=0.
     pos.weight = 1.0
     meta = Constraints(name='pose_de_la_pinza', position_constraints=[pos])
     if not position_only:
-        ori = OrientationConstraint()
-        ori.header.frame_id = frame
-        ori.link_name = tcp_frame
-        ori.orientation = pose.orientation
-        ori.absolute_x_axis_tolerance = tol_rot
-        ori.absolute_y_axis_tolerance = tol_rot
-        ori.absolute_z_axis_tolerance = tol_rot
-        ori.weight = 1.0
-        meta.orientation_constraints.append(ori)
+        meta.orientation_constraints.append(
+            restriccion_de_orientacion(frame, tcp_frame, pose.orientation, tol_rot))
     # |joint_6| <= joint_6_max: ver el parámetro joint_6_max de ArmMoveItNode.
     if joint_6_max > 0:
         j6 = JointConstraint(joint_name='joint_6', position=0.0, weight=1.0)
@@ -120,6 +139,11 @@ def meta_de_pose(frame, pose, group='brazo', tcp_frame='gripper_tcp', tol_pos=0.
     req = goal.request
     req.group_name = group
     req.goal_constraints.append(meta)
+    if tol_camino > 0:
+        req.path_constraints = Constraints(
+            name='orientacion_en_el_camino',
+            orientation_constraints=[restriccion_de_orientacion(
+                frame, tcp_frame, pose.orientation, float(tol_camino))])
     # Partir de la postura actual (is_diff = no traigo un estado, usa el que ves).
     req.start_state.is_diff = True
     # Espacio de trabajo: una caja de 4 x 4 x 3 m alrededor de Milo.
@@ -167,8 +191,30 @@ class ArmMoveItNode(Node):
         # Vale mientras la base no se mueva, que es el caso en la simulación del brazo.
         self.mesa = self.declare_parameter('mesa', True).value
         self.mesa_frame = self.declare_parameter('mesa_frame', 'base_footprint').value
+        # mantener_orientacion:=true = cada nueva meta es solo una TRASLACIÓN: se ignora la
+        # orientación que traiga /arm_target_pose y la pinza llega con la que tiene ahora, sin
+        # girar en el camino (para llevar un objeto agarrado, por ejemplo una taza con líquido,
+        # sin volcarlo). Se intenta en dos pasos:
+        #   1. LÍNEA RECTA (camino cartesiano de MoveIt, sin choques): la orientación no cambia
+        #      nada, por construcción. Sirve si la recta está libre y alcanzable.
+        #   2. Si la recta choca o sale del alcance, el brazo NO se mueve y lo avisa (mandar un
+        #      punto intermedio). Con respaldo_ompl:=true prueba antes OMPL con la orientación
+        #      como restricción del camino (path_constraints; tolerancia_camino rad por eje, al
+        #      menos tiempo_con_restriccion s). Apagado porque, medido el 13-nov, falla seguido
+        #      (4 de 6 traslaciones largas, código -2: entre dos posturas que cumplen, la pinza
+        #      gira ~0.2 rad) y en una corrida sin log hubo dos movimientos con vueltas de 180°
+        #      que no se pudieron explicar.
+        # Se puede cambiar en marcha:  ros2 param set /arm_moveit_node mantener_orientacion true
+        self.declare_parameter('mantener_orientacion', False)
+        self.declare_parameter('tolerancia_camino', 0.1)
+        self.declare_parameter('tiempo_con_restriccion', 10.0)
+        self.declare_parameter('respaldo_ompl', False)
+        self.tf = Buffer()
+        TransformListener(self.tf, self)
 
         self.client = ActionClient(self, MoveGroup, '/move_action')
+        self.cartesiano = self.create_client(GetCartesianPath, '/compute_cartesian_path')
+        self.ejecutar = ActionClient(self, ExecuteTrajectory, '/execute_trajectory')
         self.scene_pub = self.create_publisher(PlanningScene, '/planning_scene', 10)
         self.create_subscription(PoseStamped, '/arm_target_pose', self.on_target, 10)
         self.en_curso = None
@@ -212,17 +258,76 @@ class ArmMoveItNode(Node):
             return
         frame = msg.header.frame_id or 'base_footprint'
 
-        goal = meta_de_pose(frame, msg.pose, self.group, self.tcp_frame, self.tol_pos,
-                            self.tol_rot, self.position_only, self.joint_6_max)
+        meta = msg.pose
+        tol_camino = 0.0
+        tiempo = self.planning_time
+        if self.get_parameter('mantener_orientacion').value:
+            # La orientación actual de la pinza, en el frame de la meta.
+            try:
+                t = self.tf.lookup_transform(frame, self.tcp_frame, Time())
+            except TransformException as e:
+                log.error(f"No sé la orientación actual de '{self.tcp_frame}' (TF): {e}")
+                return
+            meta = Pose(position=msg.pose.position, orientation=t.transform.rotation)
+            tol_camino = float(self.get_parameter('tolerancia_camino').value)
+            tiempo = max(tiempo, float(self.get_parameter('tiempo_con_restriccion').value))
+        goal = meta_de_pose(frame, meta, self.group, self.tcp_frame, self.tol_pos,
+                            self.tol_rot, self.position_only, self.joint_6_max, tol_camino)
         req = goal.request
         req.num_planning_attempts = self.attempts
-        req.allowed_planning_time = self.planning_time
+        req.allowed_planning_time = tiempo
         req.max_velocity_scaling_factor = self.velocity_scaling
         req.max_acceleration_scaling_factor = self.acceleration_scaling
 
         p = msg.pose.position
+        if tol_camino > 0:
+            # Paso 1: línea recta. Si no sale, en_linea_recta manda `goal` (paso 2).
+            log.info(f"Objetivo ({p.x:.3f}, {p.y:.3f}, {p.z:.3f}) en '{frame}', sin girar la "
+                     'pinza: pruebo en línea recta...')
+            pedido = GetCartesianPath.Request()
+            pedido.header.frame_id = frame
+            pedido.start_state.is_diff = True
+            pedido.group_name = self.group
+            pedido.link_name = self.tcp_frame
+            pedido.waypoints = [meta]
+            pedido.max_step = 0.005          # un punto cada 5 mm de recorrido
+            # Saltos: entre dos puntos seguidos (5 mm) ninguna articulación puede girar más de
+            # 0.3 rad ni el lift moverse más de 2 cm. Sin esto (medido el 13-nov) una recta de
+            # 222 puntos dio media vuelta a la muñeca entre dos puntos: la pinza giró 180° aunque
+            # en cada punto tenía la orientación pedida. Si salta, la recta se corta ahí.
+            pedido.jump_threshold = 0.0      # el umbral relativo, apagado
+            pedido.revolute_jump_threshold = 0.3
+            pedido.prismatic_jump_threshold = 0.02
+            pedido.avoid_collisions = True
+            pedido.max_velocity_scaling_factor = self.velocity_scaling
+            pedido.max_acceleration_scaling_factor = self.acceleration_scaling
+            self.cartesiano.call_async(pedido).add_done_callback(
+                lambda f: self.en_linea_recta(f, goal, tol_camino, tiempo))
+            return
         log.info(f"Objetivo ({p.x:.3f}, {p.y:.3f}, {p.z:.3f}) en '{frame}': pidiendo a MoveIt "
-                 f'un camino sin choques (hasta {self.planning_time:.0f} s)...')
+                 f'un camino sin choques (hasta {tiempo:.0f} s)...')
+        self.client.send_goal_async(goal).add_done_callback(self.on_goal_response)
+
+    def en_linea_recta(self, future, goal, tol_camino, tiempo):
+        """Respuesta del camino cartesiano: si cubre todo, se ejecuta; si no, paso 2 (OMPL con
+        la orientación como restricción del camino)."""
+        log = self.get_logger()
+        r = future.result()
+        if r is not None and r.fraction >= 0.99:
+            log.info(f'Línea recta libre ({len(r.solution.joint_trajectory.points)} puntos): '
+                     'la ejecuto.')
+            self.ejecutar.send_goal_async(ExecuteTrajectory.Goal(
+                trajectory=r.solution)).add_done_callback(self.on_goal_response)
+            return
+        hecho = f'{r.fraction * 100:.0f} %' if r is not None else 'nada'
+        if not self.get_parameter('respaldo_ompl').value:
+            log.warn(f'La línea recta solo llega al {hecho} (choca, sale del alcance o la '
+                     'muñeca tendría que dar media vuelta): no muevo el brazo. Mandar un punto '
+                     'intermedio, o respaldo_ompl:=true.')
+            return
+        log.info(f'La línea recta solo llega al {hecho} (choca o sale del alcance): pido a '
+                 f'MoveIt un camino que no gire la pinza más de {tol_camino:.2f} rad '
+                 f'(hasta {tiempo:.0f} s)...')
         self.client.send_goal_async(goal).add_done_callback(self.on_goal_response)
 
     def on_goal_response(self, future):
@@ -236,8 +341,12 @@ class ArmMoveItNode(Node):
         result = future.result().result
         code = result.error_code.val
         if code == MoveItErrorCodes.SUCCESS:
-            n = len(result.planned_trajectory.joint_trajectory.points)
+            if not hasattr(result, 'planned_trajectory'):
+                # ExecuteTrajectory (la línea recta): en Humble solo devuelve el código.
+                self.get_logger().info('Objetivo alcanzado en línea recta.')
+                return
             puntos = result.planned_trajectory.joint_trajectory.points
+            n = len(puntos)
             t = puntos[-1].time_from_start if n else None
             dur = f'{t.sec + t.nanosec * 1e-9:.1f} s' if t else '?'
             self.get_logger().info(f'Objetivo alcanzado: camino de {n} puntos, {dur}.')

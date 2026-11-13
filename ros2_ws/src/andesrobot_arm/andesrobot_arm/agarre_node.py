@@ -33,7 +33,9 @@ Pasos:
   6. UNIR el objeto a la pinza en la escena de MoveIt (una caja con sus medidas pegada a
      gripper_tcp): MoveIt lo cuida de chocar al moverse y sabe que los dedos lo tocan.
   7. LEVANTAR `subir` (10 cm) en línea recta y RETRAER: la pinza va a la pose `retraer`, cerca
-     del cuerpo de Milo, con el objeto todavía en la mano.
+     del cuerpo de Milo, con el objeto todavía en la mano y SIN GIRAR (en línea recta; si la
+     recta no sale, termina con error sin mover el brazo). `mantener_orientacion:=false` vuelve
+     al camino libre de antes del 13-nov.
   8. Al final revisa que los dedos sigan frenados por el objeto (si se cayó, cierran del todo).
 
 Necesita la simulación con el objeto en la mesa y SIN OctoMap (con OctoMap el objeto que ve la
@@ -128,9 +130,12 @@ class AgarreNode(Node):
         self.declare_parameter('tol_estable', 0.01)
         self.declare_parameter('velocidad', 0.3)        # escala de velocidad de MoveIt
         self.declare_parameter('velocidad_cerca', 0.1)  # al bajar y subir en línea recta
+        # Con el objeto en la mano, retraer sin girar la pinza (en línea recta).
+        self.declare_parameter('mantener_orientacion', True)
         self.p = {n: self.get_parameter(n).value for n in (
             'vistas', 'tiempo_por_vista', 'confianza', 'retraer', 'sobre', 'subir', 'apriete',
-            'ancho_max', 'n_mediciones', 'tol_estable', 'velocidad', 'velocidad_cerca')}
+            'ancho_max', 'n_mediciones', 'tol_estable', 'velocidad', 'velocidad_cerca',
+            'mantener_orientacion')}
 
         self.dedos = None
         self.pose_obj = self.medidas = None    # lo último que publicó la visión
@@ -250,7 +255,13 @@ class AgarreNode(Node):
         pedido.link_name = TCP
         pedido.waypoints = [pose]
         pedido.max_step = 0.005          # un punto cada 5 mm de recorrido
-        pedido.jump_threshold = 0.0      # 0 = no revisar saltos de las articulaciones
+        # Saltos: entre dos puntos seguidos (5 mm) ninguna articulación puede girar más de
+        # 0.3 rad ni el lift moverse más de 2 cm. Sin esto (medido el 13-nov) una recta de
+        # 222 puntos dio media vuelta a la muñeca entre dos puntos: la pinza giró 180° aunque
+        # en cada punto tenía la orientación pedida. Si salta, la recta se corta ahí.
+        pedido.jump_threshold = 0.0      # el umbral relativo, apagado
+        pedido.revolute_jump_threshold = 0.3
+        pedido.prismatic_jump_threshold = 0.02
         pedido.avoid_collisions = evitar_choques
         pedido.max_velocity_scaling_factor = float(self.p['velocidad_cerca'])
         pedido.max_acceleration_scaling_factor = float(self.p['velocidad_cerca'])
@@ -411,7 +422,13 @@ class AgarreNode(Node):
         # Sin revisar choques: al arrancar, el objeto unido está apoyado en la mesa.
         self.linea_recta(self.pose(arriba, giro), 'Levantar', evitar_choques=False)
         r = self.p['retraer']
-        self.mover(self.pose(np.array(r, float), giro), 'Retraer')
+        retraida = self.pose(np.array(r, float), giro)
+        if self.p['mantener_orientacion']:
+            # Sin girar la pinza: en línea recta la orientación no cambia nada. Un camino libre
+            # de MoveIt llegó a girar la pinza 180° en traslaciones de 30-70 cm (13-nov).
+            self.linea_recta(retraida, 'Retraer')
+        else:
+            self.mover(retraida, 'Retraer')
 
         self.esperar(1.0)
         final = apertura(*self.dedos)

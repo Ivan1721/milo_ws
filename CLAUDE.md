@@ -44,7 +44,8 @@ All from `~/milo_ws` on the host:
 
 ```bash
 ./sim.sh                 # mapping sim: Gazebo + Milo (arm locked) + safety filter + slam_toolbox + RViz
-./sim.sh brazo           # arm sim: Gazebo + Milo with arm/lift/gripper controlled + IK + RViz marker
+./sim.sh brazo [arg:=v]  # arm sim: Gazebo + Milo with arm/lift/gripper controlled + IK + RViz marker;
+                         # extra args go to arm_sim.launch.py (objetos:=tenedor octomap:=false)
 ./sim.sh casa            # mapping sim in the RoboCup@Home house (robocup_casa.world)
 ./sim.sh nav <mapa> [arena]   # autonomous nav: Gazebo + AMCL + Nav2 + twist_mux + safety (nav mode) + RViz
 ./sim.sh ir <lugar>|--lista   # send Milo to a named location from maps/casa_lugares.yaml (ir_a)
@@ -287,6 +288,13 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   fully open (49 mm), which once counted as a grasp. Fork 3/3 on
   2026-11-07 (center within 1 cm, fingers stop at 27.1 mm, held ≤ 8° tilt); the cup is found and
   rejected (81 mm). Of the objects that fit, the model only recognizes the fork in sim (P14).
+- Keep-orientation moves (2026-11-13): `arm_moveit_node` `mantener_orientacion:=true` turns each
+  target into a pure translation (current TCP orientation from TF) executed as a Cartesian line
+  (`revolute_jump_threshold` 0.3 / `prismatic_jump_threshold` 0.02 per 5 mm step; without them a
+  line flipped the wrist 180° between waypoints); if the line fails the arm doesn't move. Free OMPL
+  paths rotated the gripper 110-180° mid-path in 6/6 long translations; OMPL `path_constraints`
+  (`meta_de_pose(tol_camino=...)`, `respaldo_ompl:=true`) failed 4/6 with -2 and is off.
+  `agarre_node` retracts with the object along a Cartesian line (`mantener_orientacion`, default true).
 - `kinematics.matrix_to_quaternion` uses Shepperd's method since 2026-11-07: the old version took
   x/y/z signs from off-diagonal differences that are ~0 for 180° rotations (gripper forward and
   down), so poses could come out flipped (affected `manija_node`/`objeto_node` tilted poses). Tested 2026-11-07 with `cup` (color fix + new

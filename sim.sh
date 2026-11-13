@@ -11,7 +11,7 @@
 #   ./sim.sh sin-gazebo      sin la ventana de Gazebo (más liviano; RViz igual se abre)
 #   ./sim.sh software        render por CPU (si Gazebo/RViz se ven NEGROS); más lento
 #   ./sim.sh gpu             muestra con qué tarjeta está dibujando el contenedor
-#   ./sim.sh brazo           brazo de Milo: Gazebo + MoveIt + cámara + marcador en RViz (ver andesrobot_arm)
+#   ./sim.sh brazo [arg:=v]  brazo de Milo: Gazebo + MoveIt + cámara + marcador en RViz (ej. objetos:=tenedor)
 #   ./sim.sh casa            igual que ./sim.sh pero en la casa RoboCup@Home (para mapearla)
 #   ./sim.sh nav <mapa> [arena]   navegación autónoma (AMCL + Nav2) con un mapa ya guardado
 #   ./sim.sh ir <lugar> [...]     (otra terminal) mandar a Milo: ./sim.sh ir kitchen  / --lista
@@ -60,7 +60,10 @@ case "$1" in
           echo "[milo] Brazo arrancando. En RViz: herramienta Interact (tecla i), arrastra la esfera naranja."
           echo "[milo] Mandar una pose a mano: ./sim.sh shell  y ver ros2_ws/src/andesrobot_arm/docs/BRAZO.md"
           echo
-          exec $DC exec ros bash -ic "ros2 launch andesrobot_arm arm_sim.launch.py" ;;
+          # "shift" saca la palabra "brazo"; el resto (objetos:=tenedor octomap:=false...) va tal
+          # cual al launch (ver sus argumentos con: ros2 launch andesrobot_arm arm_sim.launch.py -s).
+          shift
+          exec $DC exec ros bash -ic "ros2 launch andesrobot_arm arm_sim.launch.py $*" ;;
   # Ir a una o varias ubicaciones con nombre (ver ./sim.sh ir --lista). "shift" saca la palabra
   # "ir" y "$*" pasa el resto tal cual.
   ir)     milo_need_running; shift; exec $DC exec ros bash -ic "ros2 run andesrobot_navigation ir_a $*" ;;
