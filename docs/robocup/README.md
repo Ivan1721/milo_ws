@@ -90,7 +90,7 @@ Del capítulo *Scenario* del reglamento (versión 2026.2, la última publicada):
 | Frágil | por ejemplo un huevo de chocolate |
 | Deformable | por ejemplo un paño |
 | Ropa | una polera para doblar |
-| Canasto de ropa | ancho y liviano, **para dos manos** |
+| Canasto de ropa | ancho y liviano, **para dos manos**; el equipo usará uno **rígido** (de plástico, como el del ejemplo del reglamento) |
 | **Objetos comunes** | **lata de Red Bull, tarro rojo de Pringles, cubo Rubik resuelto, caja de pasta dental Colgate** |
 
 El modelo de objetos del equipo (`ros2_ws/modelos/objetos/best.pt`, 27 clases) ya tiene clases para
@@ -168,6 +168,10 @@ menos una** (800 puntos; tomar una polera del canasto, 100). Opcionales: abrir l
 sacar ropa de la lavadora y usar el canasto para llevarla (300 c/u), doblar más poleras y
 apilarlas. El reglamento la define como prueba de **objetos deformables y agarre con dos manos**:
 con un solo brazo y una pinza de 49 mm, tomar una polera es posible, doblarla bien no.
+**El canasto tiene que ser sólido:** el reglamento solo pide que sea ancho, liviano y para dos
+manos, y su foto de ejemplo es un canasto de plástico con asas. El equipo acordó usar uno rígido
+como ese, no de tela ni plegable: sus bordes no se deforman, así que la cámara lo ve siempre con
+la misma forma y la pinza puede tomar su borde o un asa sin que se aplaste.
 
 ### 4.4 Robot de servicio general (GPSR)
 
