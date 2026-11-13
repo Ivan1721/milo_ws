@@ -493,6 +493,26 @@ quedan juntas (menos de 30 mm entre sus vértices), se pueden tomar las dos a la
 - **Una alternativa más simple:** un modelo de *keypoints* (base izquierda, vértice, base derecha
   del asa), como el de la manilla, entrega el punto de agarre directo, sin pasar por la máscara.
 
+**6. El borrador en el código (13 de noviembre).** Mientras llega el modelo de segmentación del
+equipo de visión (una sola clase, `bag`, entrenado con la bolsa de papel), quedó escrito un
+esqueleto que usa **solo la máscara de la bolsa**, sin una clase aparte para el asa (la opción
+"`bag` + geometría"): el asa es lo que sobresale por encima de la boca de la bolsa.
+
+- `andesrobot_arm/bolsa.py`: la geometría, sin ROS. Convierte la imagen de profundidad en puntos,
+  se queda con los que caen en la máscara, encuentra la **boca** (el techo de las rebanadas de
+  1 cm llenas de puntos, contando desde abajo), busca el asa sobre la boca y dentro de la huella
+  de la bolsa (en toda la imagen, por si la máscara no incluyó el asa), separa las dos asas si se
+  ven y elige la más cercana a Milo, y calcula el vértice, el eje y la pose de agarre. Probada con
+  bolsas sintéticas en `test/test_bolsa.py` (en el suelo y en la mesa, girada, asas juntas, sin
+  asa, un mueble detrás, asa aplastada).
+- `andesrobot_arm/bolsa_node.py`: el nodo, que reutiliza los movimientos de `agarre_node` y corre
+  el modelo él mismo (`ros2 run andesrobot_arm bolsa_node --ros-args -p modelo:=<ruta al .pt>`).
+  **Nunca se ha corrido:** falta el modelo y una bolsa con asa en Gazebo; las vistas y la pose
+  final son estimaciones.
+
+Si las máscaras del equipo no incluyen el asa, sirve igual (`usar_toda_la_imagen`, activado). Si el
+asa real mide menos de 5 mm, hay que bajar `minimo_frenado` (ver el comentario del nodo).
+
 Esto es tomar la bolsa **apoyada**. Recibirla de la mano de un invitado (§4.2) es otra cosa: la
 pinza espera quieta a menos de 10 cm de la mano y la persona pone el asa entre los dedos.
 

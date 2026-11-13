@@ -540,6 +540,28 @@ soltarlo, abrir la pinza:
 ros2 action send_goal /gripper_controller/follow_joint_trajectory control_msgs/action/FollowJointTrajectory "{trajectory: {joint_names: [right_finger_joint, left_finger_joint], points: [{positions: [0.016, -0.016], time_from_start: {sec: 1}}]}}"
 ```
 
+### Tomar una bolsa por el asa (`bolsa_node`, borrador)
+
+**Borrador sin probar** (13-nov-2026, P17 en `docs/PENDIENTES.md`; guía en
+`docs/robocup/README.md` §8.1). Espera el modelo de segmentación del equipo de visión, con una sola
+clase `bag`. Es `agarre_node` (la misma clase `AgarreNode`, con otras vistas por defecto) con otra
+visión: el nodo corre el modelo, toma la máscara de la bolsa y `bolsa.py` encuentra el asa por
+geometría (lo que sobresale de la boca), su vértice y su eje. Después: previa 10 cm sobre el asa,
+bajada en línea recta hasta tener el asa 12 mm adentro de los dedos (`metido`), cerrar del todo,
+subir 15 cm y retraer sin girar.
+
+```bash
+ros2 launch andesrobot_arm arm_sim.launch.py mesa:=false octomap:=false    # terminal 1
+ros2 run andesrobot_arm bolsa_node --ros-args -p modelo:=/ros2_ws/modelos/bolsa/best.pt
+# opciones propias: -p clase:=bag  -p usar_toda_la_imagen:=true  -p metido:=0.012
+#                   -p minimo_frenado:=0.002  -p unir:=true  -p medidas_bolsa:=[0.315,0.16,0.41]
+# y las de agarre_node (vistas, confianza, sobre, subir, retraer, velocidad...)
+```
+
+Publica la pose de agarre en `/bolsa/asa` para verla en RViz. Hoy no hay en Gazebo una bolsa con
+asa (`bolsa_equipo` es una caja), así que solo está probada la geometría, con bolsas sintéticas
+(`test/test_bolsa.py`). Necesita `./sim.sh build` (archivo nuevo).
+
 ## Cámara de la pinza (Orbbec Gemini Plus)
 
 `./sim.sh brazo` monta la cámara detrás de la muñeca (`andesrobot_description/urdf/andesrobot.gripper_camera.xacro`,

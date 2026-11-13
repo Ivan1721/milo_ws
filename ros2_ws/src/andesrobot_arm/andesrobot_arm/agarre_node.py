@@ -100,10 +100,17 @@ def objeto_del_catalogo(nombre):
 
 
 class AgarreNode(Node):
-    def __init__(self, objeto):
+    def __init__(self, objeto, nombre='agarre_node', defectos=None):
         # Tiempo de la simulación: las marcas de tiempo de la visión son de Gazebo.
-        super().__init__('agarre_node', parameter_overrides=[
+        super().__init__(nombre, parameter_overrides=[
             Parameter('use_sim_time', value=True)])
+        # `defectos` cambia el valor por defecto de algunos parámetros (lo usa bolsa_node, que
+        # reutiliza esta clase con otras vistas); lo que se pase con -p sigue mandando.
+        defectos = defectos or {}
+
+        def declarar(nombre_param, valor):
+            self.declare_parameter(nombre_param, defectos.get(nombre_param, valor))
+
         self.objeto = objeto
         self.clase = objeto['clase']
         # Vistas para buscar el objeto, de a 6 números: dónde va el TCP (x, y, z) y a qué punto
@@ -113,25 +120,25 @@ class AgarreNode(Node):
         # pinza en la imagen. Elegidas el 7-nov probando 12 vistas: el modelo vio el tenedor con
         # 0.60, 0.56 y 0.51 (apuntando al objeto mismo, 0.21-0.47). Se prueba una tras otra
         # hasta encontrarlo, `tiempo_por_vista` segundos cada una.
-        self.declare_parameter('vistas', [0.56, 0.0, 0.92, 0.74, 0.0, 0.72,
-                                          0.56, 0.0, 1.00, 0.74, 0.0, 0.72,
-                                          0.50, 0.0, 0.92, 0.74, 0.0, 0.72])
-        self.declare_parameter('tiempo_por_vista', 20.0)
+        declarar('vistas', [0.56, 0.0, 0.92, 0.74, 0.0, 0.72,
+                            0.56, 0.0, 1.00, 0.74, 0.0, 0.72,
+                            0.50, 0.0, 0.92, 0.74, 0.0, 0.72])
+        declarar('tiempo_por_vista', 20.0)
         # Confianza mínima con que se arranca objeto_node. El modelo es de fotos reales y en la
         # simulación ve el tenedor con 0.2-0.6 (P14); con la mesa despejada, la clase pedida, 3
         # detecciones estables y un objeto de medidas razonables, 0.2 no da falsos positivos.
-        self.declare_parameter('confianza', 0.2)
-        self.declare_parameter('retraer', [0.45, 0.0, 1.0])   # TCP al final [m], hacia abajo
-        self.declare_parameter('sobre', 0.10)       # pose previa: cuánto sobre el agarre [m]
-        self.declare_parameter('subir', 0.10)       # cuánto levantar el objeto [m]
-        self.declare_parameter('apriete', 0.002)    # cada dedo, más adentro que el ancho [m]
-        self.declare_parameter('ancho_max', 0.045)  # más ancho no cabe en la pinza (abre 49 mm)
-        self.declare_parameter('n_mediciones', 3)   # mediciones seguidas que deben coincidir
-        self.declare_parameter('tol_estable', 0.01)
-        self.declare_parameter('velocidad', 0.3)        # escala de velocidad de MoveIt
-        self.declare_parameter('velocidad_cerca', 0.1)  # al bajar y subir en línea recta
+        declarar('confianza', 0.2)
+        declarar('retraer', [0.45, 0.0, 1.0])  # TCP al final [m], hacia abajo
+        declarar('sobre', 0.10)        # pose previa: cuánto sobre el agarre [m]
+        declarar('subir', 0.10)        # cuánto levantar el objeto [m]
+        declarar('apriete', 0.002)     # cada dedo, más adentro que el ancho [m]
+        declarar('ancho_max', 0.045)   # más ancho no cabe en la pinza (abre 49 mm)
+        declarar('n_mediciones', 3)    # mediciones seguidas que deben coincidir
+        declarar('tol_estable', 0.01)
+        declarar('velocidad', 0.3)        # escala de velocidad de MoveIt
+        declarar('velocidad_cerca', 0.1)  # al bajar y subir en línea recta
         # Con el objeto en la mano, retraer sin girar la pinza (en línea recta).
-        self.declare_parameter('mantener_orientacion', True)
+        declarar('mantener_orientacion', True)
         self.p = {n: self.get_parameter(n).value for n in (
             'vistas', 'tiempo_por_vista', 'confianza', 'retraer', 'sobre', 'subir', 'apriete',
             'ancho_max', 'n_mediciones', 'tol_estable', 'velocidad', 'velocidad_cerca',

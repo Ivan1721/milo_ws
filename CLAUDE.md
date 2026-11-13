@@ -96,7 +96,7 @@ There are no ament_lint tests; keep Python within 99 columns (flake8) to match t
 
 CI (`.github/workflows/ci.yml`, GitHub Actions on every push to `brazo`/`main` and every PR) runs
 three jobs without ROS or Docker: `pytest` of `andesrobot_safety` plus the arm tests that need no
-ROS (`test_torques.py`, `test_medidas.py`, `test_revisar_docs.py`, `test_moveit_opciones.py`, `test_manija.py`, `test_agarre.py`), `flake8 --max-line-length=99`
+ROS (`test_torques.py`, `test_medidas.py`, `test_revisar_docs.py`, `test_moveit_opciones.py`, `test_manija.py`, `test_agarre.py`, `test_bolsa.py`), `flake8 --max-line-length=99`
 on `andesrobot_arm`, `andesrobot_description` and `andesrobot_moveit_config`, and
 `scripts/revisar_docs.py` (broken links/anchors across every `.md`, informe figures and sections in
 order, `\operatorname` forbidden because GitHub rejects it, and every "**N de N** en `X`" test count
@@ -288,6 +288,15 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   fully open (49 mm), which once counted as a grasp. Fork 3/3 on
   2026-11-07 (center within 1 cm, fingers stop at 27.1 mm, held ≤ 8° tilt); the cup is found and
   rejected (81 mm). Of the objects that fit, the model only recognizes the fork in sim (P14).
+- `bolsa_node` (2026-11-13, DRAFT, never run, P17): grasps a bag by its handle from the floor or a
+  table, waiting for the vision team's instance-segmentation model (one class `bag`). Subclasses
+  `AgarreNode` (which now takes `nombre` and `defectos` to override parameter defaults), runs the
+  model itself, and `bolsa.py` (pure numpy, `test/test_bolsa.py` with synthetic bags) finds the
+  handle geometrically: depth cloud → points in the mask → bag mouth = top of the contiguous dense
+  1 cm slices from below → points above the mouth inside the bag footprint (whole image, in case
+  masks omit handles) → split two handles by the largest gap, pick nearest → apex + PCA axis →
+  TCP 12 mm (`metido`) of handle inside the pads, close fully. Views/`retraer` in `DEFECTOS` are
+  guesses; no bag with a handle in Gazebo yet.
 - Keep-orientation moves (2026-11-13): `arm_moveit_node` `mantener_orientacion:=true` turns each
   target into a pure translation (current TCP orientation from TF) executed as a Cartesian line
   (`revolute_jump_threshold` 0.3 / `prismatic_jump_threshold` 0.02 per 5 mm step; without them a
