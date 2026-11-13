@@ -27,6 +27,7 @@ Cómo usarla:
 | P14 | Detector de objetos: reconoce 9 de 26 objetos simulados (modelo del 9-nov) | brazo, simulación | — |
 | P15 | Agarrar objetos de la mesa (plan en 6 fases; fase 1 hecha, fase 2 con la caja, fase 5 con el tenedor) | brazo, simulación | P08 (fase 3) |
 | P16 | MoveIt no revisa el choque del brazo con la cabeza (rev. 1 del modelo) | brazo, simulación | — |
+| P17 | Tomar la bolsa por el asa (suelo o mesa) con segmentación | brazo, simulación, otro-equipo | P14 (modelo), P15 |
 
 ---
 
@@ -152,3 +153,9 @@ Cómo usarla:
 **Qué hacer:** (1) arrancar el brazo de Gazebo en la pose plegada (`<param name="initial_value">` en cada articulación de `andesrobot.arm_control.xacro`; valores en `ROBOT.md`); (2) regenerar los pares del SRDF sin ese `Default` (comando en `andesrobot_arm/docs/BRAZO.md`); (3) revisar que las poses de inicio de `docs/prueba_desde_cero.md` y las vistas de `agarre_node` sigan saliendo desde la pose plegada.
 **Listo cuando:** el SRDF no tiene el par `cabeza_link`–`link_3_1`, una pose del TCP dentro de la cabeza se rechaza, y la prueba de humo, `agarre_node tenedor` y `manija_node acercar:=true` siguen pasando.
 **Dónde mirar:** `andesrobot_moveit_config/config/andesrobot.srdf`; `andesrobot_description/urdf/andesrobot.arm_control.xacro`; `andesrobot_description/docs/ROBOT.md` («Pose plegada»).
+
+## P17 · Tomar la bolsa por el asa (suelo o mesa) con segmentación
+**Contexto:** en Recepcionista Milo deja la bolsa en el suelo, y en GPSR o la Final puede tener que tomar una bolsa del suelo o de un mueble. La bolsa de referencia (Edipac, 315 × 160 × 410 mm, ~55 g, asas de papel de pocos mm) cabe en la pinza solo por el asa. Una caja de detección no sirve para el asa (es un arco hueco: la caja es casi toda fondo), así que se planea un modelo de segmentación con las clases `bag` y `bag_handle`. Guía completa en `docs/robocup/README.md` §8.1; nada programado.
+**Qué hacer:** (1) un modelo de bolsa rígida con asa en Gazebo (caja + 3 cajitas, colisionador del asa de 8–10 mm) en `config/objetos.yaml`; (2) fotos etiquetadas (las del equipo de visión con las bolsas reales; en la simulación, máscaras automáticas desde la geometría, como `generar_dataset_manija.py`) y entrenar con `entrenar_manija.py --tarea seg`; (3) un nodo que pase la máscara a puntos 3D (rayos contra la profundidad, como `manija.py`, descartando los que caen detrás del asa), saque por PCA el plano del asa y su vértice, y repita la secuencia de `agarre_node`: pre-agarre a 10 cm, bajada en línea recta, cerrar del todo, subir sin girar (`mantener_orientacion`); (4) revisar que `hay_objeto` acepte un asa de 3–4 mm.
+**Listo cuando:** en Gazebo Milo toma la bolsa por el asa desde el suelo y desde la mesa, la levanta 15 cm y la sostiene 10 s, al menos 3 de 4 intentos.
+**Dónde mirar:** `docs/robocup/README.md` §4.2 y §8.1; `andesrobot_arm/agarre_node.py` y `agarre.py` (`analizar_objeto`, `hay_objeto`); `andesrobot_arm/manija.py` (rayos y `corregir_saliente`); `scripts/entrenar_manija.py`, `scripts/generar_dataset_manija.py`.

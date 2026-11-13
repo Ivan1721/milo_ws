@@ -158,7 +158,7 @@ de sobra en la pinza; lo que hay que cuidar es que el papel no se rompa ni se ar
 (apretar con poca fuerza) y el peso de lo que lleve adentro. El set YCB no trae bolsas: las fotos
 para entrenar el detector las tiene que conseguir el equipo de visión. En la simulación la bolsa
 del equipo (`bolsa_equipo`) es una caja con la foto de una bolsa negra, sin asas: para practicar
-la entrega en Gazebo hará falta un modelo de bolsa de papel con asas.
+la entrega en Gazebo hará falta un modelo de bolsa de papel con asas. Cómo tomarla del suelo o de una mesa por el asa: [§8.1](#81-cómo-tomar-la-bolsa-por-el-asa-con-un-modelo-de-segmentación).
 
 ### 4.3 Lavar ropa
 
@@ -414,7 +414,7 @@ Ordenado por lo que más objetos abre:
 | --- | --- | --- |
 | **Pinza de más carrera** (dedos más largos, otra pinza, o la misma con cremallera más larga) | Red Bull, Pringles, Rubik, latas, frutas, botellas: casi todo lo que no cabe. Decisión del equipo de hardware | — |
 | **Agarre de lado** (pinza horizontal) | cajas y objetos parados (Colgate, cajas angostas), sacar y meter en repisas de 30 cm | P15 en [`PENDIENTES.md`](../PENDIENTES.md) |
-| **Agarre por el borde o el asa** | taza, tazón, bowl, jarro, bolsa | P15 |
+| **Agarre por el borde o el asa** | taza, tazón, bowl, jarro, bolsa | P15; la bolsa, [§8.1](#81-cómo-tomar-la-bolsa-por-el-asa-con-un-modelo-de-segmentación) y P17 |
 | **Bajar hasta tocar la mesa** (con control de fuerza o un tope) | llave, tarjeta, servilleta, objetos de menos de 1 cm | P15 |
 | **Objetos de la competencia en la simulación** | Colgate, llaves y lata de bebida no tienen modelo; el Red Bull está mal escalado | P14 |
 | **Carga del brazo real** (pesar y medir torques) | el objeto pesado de 1–1.5 kg, el martillo | P05 |
@@ -424,6 +424,77 @@ detector de objetos, el agarre desde arriba de objetos delgados (tenedor) y el a
 manija de una puerta. Con las habilidades del resto del equipo (navegación, voz, reconocimiento de
 personas) se juntan las 5. Para manipular en el video, lo seguro son cubiertos, plumón, dado y la
 caja de Colgate si cabe.
+
+### 8.1 Cómo tomar la bolsa por el asa con un modelo de segmentación
+
+> **En palabras simples:** un modelo de **segmentación de instancias** pinta, en la foto, los píxeles
+> exactos de cada asa (su *máscara*), no solo un rectángulo alrededor. Con la cámara de profundidad
+> esos píxeles se vuelven puntos en el espacio; de esos puntos sale **dónde** cerrar la pinza (la
+> parte más alta del asa) y **cómo girarla** (cerrando a través del grosor del asa). Los movimientos
+> son los mismos que ya usa `agarre_node` con el tenedor. Es una guía: **nada de esto está
+> programado ni probado todavía** (pendiente P17 en [`PENDIENTES.md`](../PENDIENTES.md)).
+
+**1. Qué tiene que reconocer el modelo.** Un YOLO de segmentación (`yolo11n-seg` o `yolov8s-seg`)
+con dos clases: `bag` (la bolsa entera, el nombre de categoría de la plantilla, para encontrarla) y
+`bag_handle` (cada asa por separado). Se pide máscara y no caja porque el asa es un arco **hueco**:
+su caja es casi toda fondo, y la forma en que `objeto_node` mide hoy (la mediana de rayos desde el
+centro de la caja) caería en la bolsa o en el suelo. La máscara marca solo los píxeles del asa.
+`andesrobot_arm/scripts/entrenar_manija.py --tarea seg` ya arma un dataset de segmentación y entrena;
+basta cambiar las rutas y las clases.
+
+**2. De la máscara a puntos 3D.** Por cada píxel de la máscara se lanza el rayo de la imagen de
+color contra la imagen de profundidad, igual que hace `manija.py` con la manilla, y queda una nube de
+puntos del asa. El asa de papel mide pocos milímetros, así que muchos píxeles darán la profundidad de
+lo que hay detrás: se descartan los puntos que quedan 1–2 cm más lejos que el resto, o se llevan al
+plano del asa (la misma idea de `corregir_saliente` en `manija.py`); adelgazar la máscara a su línea
+central (*esqueleto*) también ayuda. Con los puntos que quedan, por PCA (análisis de componentes
+principales, lo mismo que hace `agarre.analizar_objeto` para el eje largo de un objeto):
+
+- **Plano del asa:** las dos direcciones en que más se reparten los puntos. La tercera, la
+  **normal** del plano, es hacia donde deben cerrar los dedos: a través del grosor del asa.
+- **Punto de agarre:** el punto más alto del arco (el *vértice*). Ahí el asa va horizontal y los
+  21 mm de largo de la almohadilla de cada dedo la abrazan bien.
+
+**3. Desde el suelo o desde una mesa.** Casi no cambia, porque se toma el asa y no la bolsa. La bolsa
+de referencia mide 410 mm de alto más el asa, así que en el suelo el vértice queda a unos
+0.45–0.5 m: dentro del alcance medido en `andesrobot_arm/docs/BRAZO.md` (con el lift en −0.4 m el
+TCP va del suelo a 1.45 m; al frente llega a 0.77 m a 0.30 m de altura). Lo que cambia: las vistas
+desde donde se mira (las de `agarre_node` están pensadas para la mesa) y si en la escena de MoveIt
+hay mesa o no. Si la bolsa está **tumbada**, el asa queda contra el suelo y este método no sirve:
+ese caso queda fuera.
+
+**4. La secuencia**, copiada de `agarre_node`:
+
+1. Mirar desde 2–3 vistas y esperar 3 medidas estables del vértice.
+2. **Pre-agarre** con MoveGroup a 10 cm sobre el vértice: pinza hacia abajo, dedos cerrando a lo
+   largo de la normal del plano del asa.
+3. **Bajar en línea recta** (`/compute_cartesian_path`, lento) hasta que el vértice quede entre las
+   almohadillas, unos milímetros por encima de la punta de los dedos.
+4. **Cerrar del todo** (con la fuerza de 20 N de la pinza): el asa mide pocos milímetros, así que
+   la regla de "ancho del objeto − 2 mm por dedo" no aplica. `hay_objeto` sigue sirviendo (los dedos
+   se frenaron antes de cerrar del todo), pero hay que comprobar que un asa de 3–4 mm deje el margen
+   de 2 mm (`minimo`) que pide.
+5. **Subir en línea recta** sin girar la pinza (`mantener_orientacion`): con 10–15 cm la bolsa ya
+   cuelga y despega del suelo. Después, una pose de transporte que no la haga golpear la base.
+
+**Dos asas:** con la bolsa parada quedan a ~160 mm una de otra (el fondo de la bolsa) y la pinza abre
+49 mm, así que se toma **una**: la bolsa se ladea, pero con ~55 g da igual. Si las dos máscaras
+quedan juntas (menos de 30 mm entre sus vértices), se pueden tomar las dos a la vez.
+
+**5. Lo que falta para probarlo.**
+
+- **Fotos para entrenar:** el set YCB no trae bolsas; las junta el equipo de visión con las bolsas
+  compradas. SAM (*Segment Anything*) ayuda a dibujar las máscaras rápido.
+- **Una bolsa con asas en Gazebo:** la de hoy (`bolsa_equipo`) es una caja sin asas. Gazebo clásico
+  no simula papel que se dobla, pero la plantilla dice "asas rígidas verticales", así que sirve un
+  modelo rígido: la caja más un asa hecha de 3 cajitas. Conviene darle al asa un colisionador de
+  8–10 mm de grosor (con 3 mm los dedos podrían atravesarla). Como su geometría se conoce, las
+  máscaras se pueden etiquetar solas, como hace `generar_dataset_manija.py` con la manilla.
+- **Una alternativa más simple:** un modelo de *keypoints* (base izquierda, vértice, base derecha
+  del asa), como el de la manilla, entrega el punto de agarre directo, sin pasar por la máscara.
+
+Esto es tomar la bolsa **apoyada**. Recibirla de la mano de un invitado (§4.2) es otra cosa: la
+pinza espera quieta a menos de 10 cm de la mano y la persona pone el asa entre los dedos.
 
 ## 9. Medidas de los objetos YCB
 
