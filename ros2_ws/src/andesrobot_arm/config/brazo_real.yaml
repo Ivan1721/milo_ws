@@ -1,0 +1,37 @@
+# brazo_real.yaml — los números del brazo REAL que necesita brazo_real_node para pasar de
+# radianes (ROS, MoveIt) a pasos del Arduino (firmware/brazo_mega/brazo_mega.ino) y al revés.
+# Ver la fórmula en andesrobot_arm/brazo_real.py. Los marcados "SUPUESTO" no se han medido.
+#
+#   pasos_motor  pasos por vuelta del motor: 200 en un motor de 1.8° (SUPUESTO, ver la placa
+#                del motor; 400 si es de 0.9°)
+#   micropasos   lo que dicen los interruptores SW1-SW3 de cada TB6600 (SUPUESTO 1/8 -> 8;
+#                tiene que ser el mismo número que esté puesto en cada driver)
+#   reduccion    vueltas del motor por vuelta de la articulación: 38.4 (dato del equipo:
+#                "todos los motores tienen una caja reductora de 38.4:1")
+#   invertir     true si al pedir un ángulo positivo la articulación gira al revés que en RViz
+#                (se descubre probando una por una con firmware/probar_arduino.py)
+#   cero         [rad] ángulo de la articulación cuando el Arduino cuenta 0 pasos. El Arduino
+#                arranca en 0 al encenderse (no hay finales de carrera): se enciende con el brazo
+#                en esta pose. 0.0 = la pose cero del URDF (la que muestra RViz con todo en 0).
+comun:
+  pasos_motor: 200
+  micropasos: 8
+  reduccion: 38.4
+  invertir: false
+  cero: 0.0
+
+# Lo que sea distinto en una articulación va aquí (por ejemplo, joint_1: {invertir: true}).
+articulaciones:
+  joint_1: {}
+  joint_2: {}
+  joint_3: {}
+  joint_4: {}
+  joint_5: {}
+  joint_6: {}
+
+# Servo de la garra: ángulos [grados] con la garra abierta (dedos a 0.016 m) y cerrada
+# (-0.007 m). SUPUESTOS: medirlos con la garra montada (firmware/README.md) antes de cerrarla
+# sobre algo.
+garra:
+  servo_abierta: 40
+  servo_cerrada: 110

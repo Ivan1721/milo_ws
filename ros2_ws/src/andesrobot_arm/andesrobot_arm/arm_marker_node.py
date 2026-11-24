@@ -1,7 +1,7 @@
 """Nodo arm_marker_node: marcador interactivo en RViz sobre la pinza de Milo.
 
 Aparece una esfera naranja en gripper_tcp con flechas (mover) y anillos (girar) en X, Y, Z.
-Al soltar el mouse publica la pose en /arm_target_pose y arm_ik_node mueve el brazo.
+Al soltar el mouse publica la pose en /arm/target_pose y arm_ik_node mueve el brazo.
 Clic derecho en la esfera: "Enviar objetivo" y "Volver a la pinza" (útil si la IK rechazó
 el objetivo, porque el marcador se queda donde lo soltaste).
 En RViz hay que elegir la herramienta "Interact" (tecla i).
@@ -62,7 +62,7 @@ class ArmMarkerNode(Node):
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self, spin_thread=True)
-        self.target_pub = self.create_publisher(PoseStamped, '/arm_target_pose', 10)
+        self.target_pub = self.create_publisher(PoseStamped, '/arm/target_pose', 10)
         self.server = InteractiveMarkerServer(self, 'arm_target_marker')
 
         self.menu = MenuHandler()

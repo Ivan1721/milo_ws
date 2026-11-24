@@ -8,8 +8,8 @@ docs/PENDIENTES.md): el objeto se ubica con la cámara, sin usar la pose verdade
 
 Quién hace qué:
   - objeto_node (VISIÓN) detecta el objeto con YOLO y la profundidad y publica dónde está y cuánto
-    mide: /objeto/pose (centro y eje largo), /objeto/medidas (largo, ancho, alto) y
-    /objeto/distancia (del TCP al objeto). Si no está corriendo, agarre_node lo arranca con
+    mide: /arm/objeto/pose (centro y eje largo), /arm/objeto/medidas (largo, ancho, alto) y
+    /arm/objeto/distancia (del TCP al objeto). Si no está corriendo, agarre_node lo arranca con
     `clase` = la del objeto pedido.
   - agarre_node (ESTE) mueve el brazo y la pinza con lo que publica la visión.
 
@@ -153,9 +153,9 @@ class AgarreNode(Node):
         self.tf = Buffer()
         TransformListener(self.tf, self)
         self.create_subscription(JointState, '/joint_states', self.al_joints, 10)
-        self.create_subscription(PoseStamped, '/objeto/pose', self.al_pose, 10)
-        self.create_subscription(Vector3Stamped, '/objeto/medidas', self.al_medidas, 10)
-        self.create_subscription(Float32, '/objeto/distancia', self.al_distancia, 10)
+        self.create_subscription(PoseStamped, '/arm/objeto/pose', self.al_pose, 10)
+        self.create_subscription(Vector3Stamped, '/arm/objeto/medidas', self.al_medidas, 10)
+        self.create_subscription(Float32, '/arm/objeto/distancia', self.al_distancia, 10)
         self.mover_cli = ActionClient(self, MoveGroup, '/move_action')
         self.ejecutar_cli = ActionClient(self, ExecuteTrajectory, '/execute_trajectory')
         self.cartesiano_cli = self.create_client(GetCartesianPath, '/compute_cartesian_path')
@@ -182,7 +182,7 @@ class AgarreNode(Node):
         self.distancia = m.data
 
     def juntar(self):
-        """Une /objeto/pose y /objeto/medidas de la misma imagen (misma marca de tiempo) en una
+        """Une /arm/objeto/pose y /arm/objeto/medidas de la misma imagen (misma marca de tiempo) en una
         medición como las de agarre.analizar_objeto."""
         if self.pose_obj is None or self.medidas is None or self.desde is None:
             return
@@ -299,9 +299,9 @@ class AgarreNode(Node):
 
     # ------------------------------------------------------------------ visión
     def asegurar_vision(self):
-        """Si nadie publica /objeto/pose, arranca objeto_node buscando la clase del objeto."""
+        """Si nadie publica /arm/objeto/pose, arranca objeto_node buscando la clase del objeto."""
         self.esperar(1.0)
-        if self.count_publishers('/objeto/pose') > 0:
+        if self.count_publishers('/arm/objeto/pose') > 0:
             self.get_logger().info('objeto_node ya está corriendo: uso su detección (ojo: debe '
                                    f'buscar la clase {self.clase} y con acercar:=false)')
             return

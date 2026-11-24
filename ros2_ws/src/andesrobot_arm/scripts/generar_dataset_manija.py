@@ -7,7 +7,7 @@ no hace falta anotar a mano: se sabe exactamente dónde está la manija (la geom
 ángulo de la bisagra y de la manija en /puerta/joint_states) y dónde está la cámara (TF),
 así que se proyecta y se escribe la etiqueta sola.
 
-Cómo: mueve la pinza (con MoveIt, por /arm_target_pose) a vistas al azar alrededor de la manija,
+Cómo: mueve la pinza (con MoveIt, por /arm/target_pose) a vistas al azar alrededor de la manija,
 espera a que llegue, saca una foto a color y escribe tres etiquetas en formato YOLO:
   labels_det/   caja                                    (para YOLOv8/11 detección)
   labels_seg/   polígono de la manija                   (para YOLOv8/11-seg, máscaras)
@@ -269,7 +269,7 @@ class Generador(Node):
                                  lambda m: setattr(self, 'info', m), qos_profile_sensor_data)
         self.create_subscription(JointState, '/puerta/joint_states',
                                  lambda m: self.ang.update(zip(m.name, m.position)), 10)
-        self.pub = self.create_publisher(PoseStamped, '/arm_target_pose', 10)
+        self.pub = self.create_publisher(PoseStamped, '/arm/target_pose', 10)
         self.rng = np.random.default_rng(args.semilla)
         self.medidas = dict(MANIJA_ORIGINAL)
         self.variante_hecha = False

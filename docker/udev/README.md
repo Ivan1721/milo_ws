@@ -1,7 +1,14 @@
 # Puertos fijos de Milo (udev)
 
-El RPLIDAR C1 y el hoverboard aparecen los dos como `/dev/ttyUSBx` y el número cambia según el orden
-en que se conectan. Con esta regla quedan siempre como `/dev/rplidar` y `/dev/hoverboard`.
+El RPLIDAR C1, el hoverboard y el Arduino Mega del brazo aparecen como `/dev/ttyUSBx` y el número
+cambia según el orden en que se conectan. Con esta regla quedan siempre como `/dev/rplidar`,
+`/dev/hoverboard` y `/dev/arduino_brazo` (la línea del Arduino ya viene completa: es un clon con
+chip CH340; ver el comentario en la regla si hay otro CH340 conectado).
+
+**Ubuntu y el CH340:** el programa `brltty` (para pantallas braille) reclama los chips CH340 y el
+puerto desaparece un segundo después de conectarlo (en `journalctl -k`: "interface 0 claimed by
+ch341 while 'brltty' sets config"). Si no se usa una pantalla braille: `sudo apt remove brltty` y
+volver a conectar el Arduino.
 
 1. En el computador de Milo, con los dos conectados: `./robot.sh puertos`
    Muestra cada `/dev/ttyUSBx` con su `idVendor`, `idProduct` y `serial`.

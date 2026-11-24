@@ -1,6 +1,6 @@
 """Nodo arm_ik_node: lleva la pinza de Milo a una pose (cinemática inversa + trayectoria).
 
-Escucha:  /arm_target_pose (geometry_msgs/PoseStamped, en cualquier frame de TF)
+Escucha:  /arm/target_pose (geometry_msgs/PoseStamped, en cualquier frame de TF)
           /joint_states    (para partir desde donde está el brazo)
 Manda:    una trayectoria de un punto a /arm_controller/follow_joint_trajectory
           (lift + joint_1..6 a la vez).
@@ -69,10 +69,10 @@ class ArmIkNode(Node):
         self.tf_listener = TransformListener(self.tf_buffer, self, spin_thread=True)
         self.action_client = ActionClient(self, FollowJointTrajectory, self.action_name)
         self.create_subscription(JointState, '/joint_states', self.on_joint_states, 10)
-        self.create_subscription(PoseStamped, '/arm_target_pose', self.on_target, 10)
+        self.create_subscription(PoseStamped, '/arm/target_pose', self.on_target, 10)
 
         self.get_logger().info(
-            f'Escuchando /arm_target_pose (TCP = {self.arm.tip}, frame de la IK = '
+            f'Escuchando /arm/target_pose (TCP = {self.arm.tip}, frame de la IK = '
             f"{self.arm.base}, {'solo posición' if self.position_only else 'pose completa'})")
 
     def on_joint_states(self, msg):

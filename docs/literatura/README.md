@@ -274,7 +274,7 @@ detección. Su profundidad no mide a menos de 0.25 m, así que no ve el agarre f
 
 **Recomendación.** Empezar por **mirar y luego moverse**, que encaja con el rango mínimo de la
 cámara: medir desde 0.3–0.6 m, detectar con YOLO (o por color para la mesa de prueba), sacar la
-posición 3D de la nube y mandarla a `/arm_target_pose`. Los métodos de agarre aprendidos [43, 44]
+posición 3D de la nube y mandarla a `/arm/target_pose`. Los métodos de agarre aprendidos [43, 44]
 son el paso siguiente, cuando la detección simple funcione.
 
 ---

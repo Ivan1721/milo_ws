@@ -96,7 +96,7 @@ There are no ament_lint tests; keep Python within 99 columns (flake8) to match t
 
 CI (`.github/workflows/ci.yml`, GitHub Actions on every push to `brazo`/`main` and every PR) runs
 three jobs without ROS or Docker: `pytest` of `andesrobot_safety` plus the arm tests that need no
-ROS (`test_torques.py`, `test_medidas.py`, `test_revisar_docs.py`, `test_moveit_opciones.py`, `test_manija.py`, `test_agarre.py`, `test_bolsa.py`), `flake8 --max-line-length=99`
+ROS (`test_torques.py`, `test_medidas.py`, `test_revisar_docs.py`, `test_moveit_opciones.py`, `test_manija.py`, `test_agarre.py`, `test_bolsa.py`, `test_grupos.py`, `test_brazo_real.py`), `flake8 --max-line-length=99`
 on `andesrobot_arm`, `andesrobot_description` and `andesrobot_moveit_config`, and
 `scripts/revisar_docs.py` (broken links/anchors across every `.md`, informe figures and sections in
 order, `\operatorname` forbidden because GitHub rejects it, and every "**N de N** en `X`" test count
@@ -146,7 +146,7 @@ carriage plate with no printed round base, so `joint_1` sits at `arm_base_link_1
 `link_6_1`, no sensor). Arm meshes and the arm_control/gripper_camera/sim xacros were identical.
 All SRDF pairs were regenerated from scratch; the `cabeza_link`–`link_3_1` pair is `Default`
 (they overlap at the zero pose Gazebo starts in), so MoveIt does not check arm vs head (P16).
-After it the smoke test, `agarre_node tenedor` and `manija_node acercar:=true` passed with no pose changes. With rev. 1 the base rolled forward ~2 mm per arm move (58.5 mm/30, `deriva_base`), so `arm_sim.launch.py` raises the diff-drive `max_wheel_torque` 5 → 100 N·m in the arm sim only (−0.1 mm; the team's xacro keeps 5 for driving). Object model replaced 2026-11-09 by the team's `dataset_reglamento3` YOLO11n (same 27 classes, old one in `modelos/objetos/anterior_2026-11-06/`): 9/26 in `evaluar_objetos.py` vs 3/26 for the old one in the same run (it misses the fork there because `frente40` hides it behind the gripper, but sees it from `agarre_node`'s views). `scripts/prueba_objetos.sh` (fresh headless sim per test, OK/FALLO lines, `MODELO=` for another .pt) is the team test: 2026-11-09 cup approach 2/2, fork grasp 2/4 (one retract failed with -4, one never found it), spoon 0/2 (descent aborted -4), hammer 0/2 (Cartesian descent 90 %). `fuente: equipo` catalog entries (redbull, pringles_equipo, tarjeta_equipo, bolsa_equipo) come from the team's `entrega_simulacion.zip`, copied by hand to `ros2_ws/modelos/` (gitignored); listed before ours, so a class name (`pringles`, `card`, `bag`) picks the team's (ours stay reachable by id: `pringles_ycb`, `juego_cartas`, `mochila`). The model sees all four (0.6-0.9) and none of ours for those classes (likely in its training set); card and bag are static textured boxes. The CAD was modeled rotated 180° about Z, fixed
+After it the smoke test, `agarre_node tenedor` and `manija_node acercar:=true` passed with no pose changes. With rev. 1 the base rolled forward ~2 mm per arm move (58.5 mm/30, `deriva_base`), so `arm_sim.launch.py` raises the diff-drive `max_wheel_torque` 5 → 100 N·m in the arm sim only (−0.1 mm; the team's xacro keeps 5 for driving). Object model replaced 2026-11-09 by the team's `dataset_reglamento3` YOLO11n (same 27 classes, old one in `modelos/objetos/anterior_2026-11-06/`): 9/26 in `evaluar_objetos.py` vs 3/26 for the old one in the same run (it misses the fork there because `frente40` hides it behind the gripper, but sees it from `agarre_node`'s views). `scripts/prueba_objetos.sh` (fresh headless sim per test, OK/FALLO lines, `MODELO=` for another .pt) is the team test: 2026-11-09 cup approach 2/2, fork grasp 2/4 (one retract failed with -4, one never found it), spoon 0/2 (descent aborted -4), hammer 0/2 (Cartesian descent 90 %). `fuente: equipo` catalog entries (redbull, pringles_equipo, tarjeta_equipo, bolsa_equipo) come from the team's `entrega_simulacion.zip`: redbull and pringles_equipo (Sketchfab, CC-BY, author/original URL in the catalog, `release: true`) are downloaded from the milo_ws GitHub release `modelos-equipo-v1` (`RELEASE_EQUIPO` + sha256 in `descargar_objetos.py`); card and bag (no license) still need the zip copied by hand to `ros2_ws/modelos/` (gitignored); listed before ours, so a class name (`pringles`, `card`, `bag`) picks the team's (ours stay reachable by id: `pringles_ycb`, `juego_cartas`, `mochila`). The model sees all four (0.6-0.9) and none of ours for those classes (likely in its training set); card and bag are static textured boxes. The CAD was modeled rotated 180° about Z, fixed
 with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` likely needs the same.
 
 **Arm in simulation** (`./sim.sh brazo` → `andesrobot_arm/launch/arm_sim.launch.py`):
@@ -187,7 +187,7 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   sync; `allow_partial_joints_goal: true`); `gripper_controller` holds both fingers (above).
 - Controllers are spawned only if `spawn_entity` exits 0.
 - Data flow: `arm_marker_node` (interactive marker at `gripper_tcp`) publishes `PoseStamped` on
-  `/arm_target_pose`. With `moveit:=true` (default since 2026-10-18) `arm_moveit_node` turns it into
+  `/arm/target_pose`. With `moveit:=true` (default since 2026-10-18) `arm_moveit_node` turns it into
   a `MoveGroup` action goal (`/move_action`, group `brazo` = `base_footprint → gripper_tcp`, 7
   joints) and `move_group` plans a collision-free path (OMPL RRT-Connect, KDL IK, TOTG timing) and
   executes it on `/arm_controller/follow_joint_trajectory`; failures are logged in Spanish with the
@@ -251,13 +251,27 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   drift (relaunch the sim, continue with `--inicio`). `scripts/entrenar_manija.py --tarea pose|seg|det` hard-links
   the split into Ultralytics' images/labels layout and fine-tunes yolov8s-* into
   `ros2_ws/modelos/entrenamientos/`.
-- Objects: catalog `config/objetos.yaml` (26 scanned objects + 4 from the vision team, 24 classes; no
-  model for colgate_box, key, drink), logic in `catalogo_objetos.py` (tested).
+- Objects: catalog `config/objetos.yaml` (30 scanned objects + 10 from the vision team, 24 classes; no
+  model for colgate_box, key, drink; bowl_amarillo, taza_azul, consola, plato_ensalada added
+  2026-11-15 from the team's `prueba_completa.zip`, not yet spawned/evaluated). `scripts/evaluar_grupos.py`
+  (2026-11-15) is that team test with Milo: 5 themed groups (`grupos.GRUPOS`, our catalog ids),
+  `grupos.acomodar` lays a group out in two rows (brute force over rows and 90° turns; small frontal
+  area in front, tall-thin always back: a front Red Bull can fell), the 3 `evaluar_objetos` views,
+  and each object's center is projected (TF odom -> color optical frame) to tell found / confused /
+  out of frame (each YOLO box goes to the object whose projected 3D box it overlaps most, IoU >= 0.25).
+  Group `equipo` = the team's `entorno_objetos.zip` world for their 9-class sim model (one object per
+  class; 5 models added as `entrega: entorno_objetos`, copied by hand to
+  `ros2_ws/modelos/entorno_objetos.zip`, no license; `bolsa_papel` = same tote mesh tinted kraft via
+  catalog `carpeta:` + `color:` -> `catalogo_objetos.tenir_mtl`, detected by neither model). 2026-11-15: 27-class 10/23 + 5/9 (equipo),
+  9-class 3/9 + 4/9. Bags alone: 27-class boxes `bolsa_equipo` correctly (0.86) and calls the tote
+  `clothing`; the 9-class model does NOT reliably detect its own tote (best `bag` box on the
+  gripper, another covering the whole frame, nothing from above). `evaluar_objetos.py` counts the
+  best box of the class anywhere in the frame, so check its photos; logic tested in `test/test_grupos.py`, logic in `catalogo_objetos.py` (tested).
   `objetos:=true` (original cup + bowl) or `objetos:=taza,platano,...` (ids or classes, up to 10
   in rows at x 0.80/0.95) spawns `worlds/mesa_objetos.sdf` (same table as `mesa_prueba`, so
   MoveIt's table matches) and, after the controller spawner exits (spawning many textured meshes
   at once made it time out), each object via `spawn_entity -database` from
-  `ros2_ws/modelos/gazebo/` (gitignored, ~370 MB; the launch appends it to `GAZEBO_MODEL_PATH`).
+  `ros2_ws/modelos/gazebo/` (gitignored, ~450 MB; the launch appends it to `GAZEBO_MODEL_PATH`).
   `scripts/descargar_objetos.py` fetches Fuel (GSO) zips and YCB google_16k/berkeley meshes
   (builds their SDF) and fixes each one, every fix found by testing: texture next to the mesh,
   `Ka` white, `usemtl` added (else black/gray), catalog mass + box inertia, collision = mesh
@@ -270,11 +284,11 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   measurements from a 15x15 ray grid over the whole box (`agarre.analizar_objeto`: table = most
   populated height, object = > 4 mm above, PCA long axis, occupancy-histogram extent → length,
   width, center; not median/percentiles, which bias toward the denser near side):
-  `/objeto/pose` (center + yaw of the long axis) and `/objeto/medidas` (Vector3: largo, ancho,
+  `/arm/objeto/pose` (center + yaw of the long axis) and `/arm/objeto/medidas` (Vector3: largo, ancho,
   alto).
 - `agarre_node` (`ros2 run andesrobot_arm agarre_node tenedor`; id or class from the catalog;
   logic in `agarre.py`, `test/test_agarre.py`; launch with `objetos:=tenedor octomap:=false`):
-  starts `objeto_node` (clase, confianza 0.2) if nobody publishes `/objeto/pose` and stops it on
+  starts `objeto_node` (clase, confianza 0.2) if nobody publishes `/arm/objeto/pose` and stops it on
   exit (SIGTERM handled), tries `vistas` (TCP xyz + aim point xyz; they aim 6 cm *before* the
   object at (0.80, 0) because the camera looks over the gripper, which otherwise hides it), waits
   for 3 stable measurements, rejects width > 45 mm, then MoveGroup to 10 cm above (gripper down,
@@ -323,9 +337,37 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   gitignored third-party files).
 - Gazebo tests leave orphan nodes (old `robot_state_publisher`s publishing another
   `robot_description`) that make the next `arm_sim` crash: kill every ROS process before relaunching.
-- `andesrobot_arm/manija.py` (pure numpy, `test/test_manija.py` with a synthetic door) turns the handle keypoints into 3D points (color-pixel ray marched against the depth image, door-plane fallback when the shiny handle blanks the depth), validates the detection and computes the pre-grasp pose and the lever arc; `manija_node.py` runs YOLO live and publishes `/manija/{agarre,pose_previa,marcadores}` plus the TCP-to-handle distance (`/manija/distancia`, `/manija/agarre_tcp`, `distancia_desde_tcp`); `acercar:=true` drives the gripper in two legs (`Acercamiento`: stable detection → pre-grasp at 0.30 m → re-detect → blind leg to `distancia_final` 0.05 m, retry after `tiempo_max`; launch the door with `octomap:=false`). Keypoints that land on the door plane (ray grazed the thin lever) are moved onto the handle plane along their ray (`corregir_saliente`). `scripts/probar_manija_sin_gazebo.py` tests the node end to end with a fake world (ideal arm via TF, flat door depth, true keypoints; needs ROS, not Gazebo/YOLO). Tested in Gazebo 2026-11-07 (headless, new camera): logs 0.050 m, TF shows 0.063 m from the
+- `andesrobot_arm/manija.py` (pure numpy, `test/test_manija.py` with a synthetic door) turns the handle keypoints into 3D points (color-pixel ray marched against the depth image, door-plane fallback when the shiny handle blanks the depth), validates the detection and computes the pre-grasp pose and the lever arc; `manija_node.py` runs YOLO live and publishes `/arm/manija/{agarre,pose_previa,marcadores}` plus the TCP-to-handle distance (`/arm/manija/distancia`, `/arm/manija/agarre_tcp`, `distancia_desde_tcp`); `acercar:=true` drives the gripper in two legs (`Acercamiento`: stable detection → pre-grasp at 0.30 m → re-detect → blind leg to `distancia_final` 0.05 m, retry after `tiempo_max`; launch the door with `octomap:=false`). Keypoints that land on the door plane (ray grazed the thin lever) are moved onto the handle plane along their ray (`corregir_saliente`). `scripts/probar_manija_sin_gazebo.py` tests the node end to end with a fake world (ideal arm via TF, flat door depth, true keypoints; needs ROS, not Gazebo/YOLO). Tested in Gazebo 2026-11-07 (headless, new camera): logs 0.050 m, TF shows 0.063 m from the
   true grasp point (detection 1.3 cm short); RViz markers not checked. The TCP approach axis is local −X.
-- There is no arm driver for the real robot yet: arm control is sim-only.
+- Real arm (2026-11-23, P19, no motor moved yet): repo-root `firmware/brazo_mega/brazo_mega.ino` v1 on an
+  Arduino Mega clone (CH340 `1a86:7523`, `/dev/arduino_brazo` via `99-milo.rules`; Ubuntu's `brltty` steals
+  CH340 ports, removed on the dev PC). It counts STEPS only: text protocol at 115200 (`P E G M V X Z S D`,
+  `G ms p1..p6` = reach targets in ms, watchdog stops G-motion after 0.5 s of silence, VEL_MAX 2000
+  steps/s), STEP/DIR pins 45/44, 47/46, 49/48, 51/50, 53/52, 43/42 for J1..J6 (from a wiring image,
+  unverified), servo pin 9 attached on first `S`. The board's previous program (a J1 test) is backed up
+  in gitignored `firmware/respaldos/`. `arduino-cli` 1.5.1 + `arduino:avr` 1.8.8 in `~/.local/bin`.
+  ROS side: `brazo_real.py` (pure: rad<->steps = pasos_motor*micropasos*reduccion/2π, default 200*8*38.4,
+  protocol, interpolation, servo<->finger, termios `Enlace`, `ArduinoFalso`; `test/test_brazo_real.py`),
+  `brazo_real_node` (serves `/arm_controller/...` and `/gripper_controller/follow_joint_trajectory`,
+  publishes `/joint_states`, streams `G` at 20 Hz, rejects lift motion, lift fixed at `lift_fijo`),
+  `config/brazo_real.yaml` (SUPUESTO values), `launch/brazo_real.launch.py` (imports arm_sim.launch.py's
+  `robot_description_urdf`/`moveit_config`; `arm_moveit_node` group `brazo_sin_lift` = new SRDF chain
+  `lift_carriage_link_1 -> gripper_tcp`, kinematics/OMPL entries added; scaling 0.15), `./robot.sh brazo`,
+  `ros2 run andesrobot_arm arduino_falso` (pty at `/tmp/arduino_falso`). Tested on the real board WITHOUT the arm
+  (no drivers/motors): `firmware/prueba_exigente.py` (moves all joints thousands of steps: never run
+  it with the arm attached), MoveIt via the real board within 1.7 mm by step count, node killed
+  mid-trajectory -> watchdog stops, counts kept. `Enlace` opens the port WITHOUT HUPCL: with it, closing the
+  port drops DTR and the Mega resets on the next open, losing its step count (measured); `Enlace.conectar`
+  reports whether it reset. Firmware v2 (2026-11-23) adds an acceleration ramp (`A` command,
+  4000 steps/s² default, 2 ms tick): trapezoid for `M` (brakes at 0.9·A, stops at target if ≤ 400
+  steps/s, else it oscillated), for `G` velocity follows PC demand with the slew limit and only
+  brakes-to-target once the G deadline passes. Steps and ticks scheduled `+= interval`; STEP/DIR via
+  port registers; sqrt/division in the ramp only when needed (6 joints at 2000 steps/s each measured
+  1995). `prueba_exigente.py` 23/23; MoveIt via the real board within 0.8 mm. Polling E nonstop
+  (~220 Hz) costs ~10 % speed; ROS polls at 20 Hz. `firmware/probar_arduino.py`
+  tests comms, one joint (`--articulacion N --grados X --volver`), `--acel`, `--cero` (Z) and the servo.
+  `firmware/README.md` has the step-by-step from bare board to MoveIt and two wiring diagrams
+  (`firmware/img/`, drawn by `firmware/fig_conexiones.py`; edit its `PINES` if a pin changes).
 - The real camera does work (`launch/camara_real.launch.py`: `orbbec_camera` v1.2.9 patched, measured
   2026-10-30 at 30 Hz, details in `docs/BRAZO.md`). Same topics and frame ids as the sim, because
   `camera_name:=gripper_camera`; `publish_tf:=false` because `robot_state_publisher` owns those frames.
@@ -386,6 +428,12 @@ spawn and AMCL's initial pose. Named locations are user-recorded (tf2_echo) in
 Nav2 on top of live SLAM, publishing straight to `/cmd_vel_teleop` (practice only, no mux).
 
 ## Conventions worth keeping
+
+- Topic prefixes per team (leader's spec, summarized in `AndesRobot-Oficial/Human-Robot-Interaction`
+  `docs/contratos_externos.md`): `/base/`, `/nav/`, `/vision/`, `/arm/` (us), `/hri/`. Since 2026-11-16
+  our own topics are `/arm/target_pose`, `/arm/objeto/...`, `/arm/manija/...`, `/arm/bolsa/asa`; camera,
+  controller and MoveIt names stay. The spec's `/arm/gripper_state`, `/arm/pick_object`, `/arm/open_door`...
+  are not implemented (P18); HRI's code still uses `/garra/...`.
 
 - `sim.sh`/`robot.sh` print their header comment as help with `sed -n '2,Np'`: when adding an option,
   add its help line and update both the range and the comment that mentions it.

@@ -20,7 +20,7 @@ brazo` y por qué): clic derecho en la esfera → **Volver a la pinza**.
 Mandar una pose a mano (en otra terminal, `./sim.sh shell`):
 
 ```bash
-ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped \
+ros2 topic pub --once /arm/target_pose geometry_msgs/msg/PoseStamped \
   "{header: {frame_id: base_footprint}, pose: {position: {x: 0.5048, y: -0.2163, z: 1.862},
     orientation: {x: -0.1252, y: 0.5501, z: -0.7869, w: 0.2502}}}"
 ```
@@ -84,7 +84,7 @@ que `prueba_pinza.py`, con la pinza en la pose inicial).
 
 Desde el 18 de octubre de 2026, `./sim.sh brazo` lanza **MoveIt 2** (`move_group`) con la
 configuración del paquete `andesrobot_moveit_config`, y `arm_moveit_node` reemplaza a `arm_ik_node`.
-Cada pose que llega a `/arm_target_pose` se convierte en una petición a la acción `/move_action`:
+Cada pose que llega a `/arm/target_pose` se convierte en una petición a la acción `/move_action`:
 
 1. `move_group` arma la **escena de planificación**: el robot (URDF + SRDF), la mesa de prueba
    (la publica `arm_moveit_node` como dos cajas en `/planning_scene`) y, con `octomap:=true`, lo
@@ -183,7 +183,7 @@ es metálica y brillante a propósito, como las reales que hacen fallar la profu
 Para mirarla con la cámara de la pinza (a ~0.5 m, apuntando hacia la puerta):
 
 ```bash
-ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped \
+ros2 topic pub --once /arm/target_pose geometry_msgs/msg/PoseStamped \
   "{header: {frame_id: base_footprint}, pose: {position: {x: 0.28, y: -0.30, z: 1.10},
     orientation: {x: 0.0, y: 0.0, z: 1.0, w: 0.0}}}"
 ```
@@ -262,11 +262,11 @@ fuera del plano de la puerta) se descarta con un aviso. Publica en `base_footpri
 
 | Topic | Qué es |
 | --- | --- |
-| `/manija/agarre` | el punto donde se empuja la palanca |
-| `/manija/pose_previa` | dónde poner la pinza, a 0.30 m de la manija y mirando a la puerta (desde ahí la profundidad mide) |
-| `/manija/marcadores` | eje, agarre, punta y la normal de la puerta, para verlos en RViz |
-| `/manija/distancia` | distancia en línea recta del efector final (`gripper_tcp`) al punto de agarre [m] |
-| `/manija/agarre_tcp` | el punto de agarre visto desde `gripper_tcp` (x negativo = lo que falta avanzar) |
+| `/arm/manija/agarre` | el punto donde se empuja la palanca |
+| `/arm/manija/pose_previa` | dónde poner la pinza, a 0.30 m de la manija y mirando a la puerta (desde ahí la profundidad mide) |
+| `/arm/manija/marcadores` | eje, agarre, punta y la normal de la puerta, para verlos en RViz |
+| `/arm/manija/distancia` | distancia en línea recta del efector final (`gripper_tcp`) al punto de agarre [m] |
+| `/arm/manija/agarre_tcp` | el punto de agarre visto desde `gripper_tcp` (x negativo = lo que falta avanzar) |
 
 En cada detección escribe en el log cuánto le falta a la pinza (`manija.distancia_desde_tcp`):
 *«manija a 0.300 m del TCP: avanzar 0.300 m, lateral −0.000 m, vertical +0.000 m»*. «Avanzar» es a
@@ -277,7 +277,7 @@ sus ejes Y y Z. Con lateral y vertical cerca de 0 basta avanzar en línea recta.
 profundidad no mide a menos de 0.25 m, así que el acercamiento va en dos tramos:
 
 1. Con 3 detecciones seguidas que no se separan más de 2 cm (una suelta puede estar mal), manda
-   a `/arm_target_pose` la pose previa: 30 cm antes del punto de agarre, mirando a la puerta.
+   a `/arm/target_pose` la pose previa: 30 cm antes del punto de agarre, mirando a la puerta.
 2. Cuando el TCP llega (a menos de 1 cm), vuelve a detectar la manija desde ahí (más cerca y de
    frente, mejor estimación) y manda el último tramo: `distancia_final` (5 cm) antes del punto de
    agarre, a ciegas. Al llegar escribe a qué distancia quedó la pinza.
@@ -299,7 +299,7 @@ alternativas a 45 y 65 cm están en [`docs/prueba_desde_cero.md`](../../../../do
 el orden de pruebas desde un PC vacío.
 
 `scripts/probar_manija_sin_gazebo.py` prueba el nodo de punta a punta **sin Gazebo ni YOLO** (un
-brazo ideal que sigue `/arm_target_pose` por TF, una puerta plana en la profundidad y los keypoints
+brazo ideal que sigue `/arm/target_pose` por TF, una puerta plana en la profundidad y los keypoints
 verdaderos con 1 px de ruido): medido el 5-nov-2026, la pinza queda a 0.050 m del punto de agarre
 y la manija estimada a 0.3 mm de la verdadera. Esa prueba encontró que el rayo de un keypoint puede
 pasar al lado de la palanca y llevar la pinza 5 cm de más (hasta tocar la manija): por eso
@@ -340,11 +340,21 @@ writing_tool) encuentra el objeto y `objeto_node` lleva la pinza frente a él. L
 
 **Escenario** (`objetos:=...`, basado en `sim_cup_bowl`): la misma mesa de siempre (así MoveIt
 ya la conoce como obstáculo) con objetos escaneados de objetos reales. El catálogo
-`config/objetos.yaml` tiene 26, de 23 clases (sin modelo: colgate_box, key, redbull_can y drink),
-de Google Scanned Objects (Gazebo Fuel) y del set YCB, todos CC-BY 4.0. `objetos:=true` pone la
+`config/objetos.yaml` tiene 40, de 24 clases (sin modelo: colgate_box, key y drink): 30
+escaneados de Google Scanned Objects (Gazebo Fuel) y del set YCB, todos CC-BY 4.0, y 10 del equipo
+de visión (ver más abajo). Cuatro de los de Fuel (`bowl_amarillo`, `taza_azul`, `consola`,
+`plato_ensalada`) se agregaron el 15-nov porque los usa la prueba de detección del equipo
+(`prueba_completa.zip`); todavía no se han puesto en la simulación ni evaluado. Cinco del equipo
+(`cubiertos_equipo`, `cuchara_equipo`, `rubik_equipo`, `botella_equipo`, `bolsa_tela`) son de su
+mundo de prueba del modelo de 9 clases (`entorno_objetos.zip`, 15-nov, `entrega: entorno_objetos`
+en el catálogo): sin licencia, salen de `ros2_ws/modelos/entorno_objetos.zip` copiado a mano.
+`bolsa_papel` es la misma bolsa de tela en café papel (como la bolsa de supermercado): misma
+malla, otra carpeta (`carpeta: bolsa_3d_papel`) y otro color (`color:`, que `descargar_objetos.py`
+aplica al material con `tenir_mtl`). Probada sola el 16-nov: ninguno de los dos modelos la
+detecta (el de 9 clases vuelve a poner su `bag` sobre la pinza; el de 27 la ve como `clothing`). `objetos:=true` pone la
 taza y el bowl originales; `objetos:=taza,platano,pringles` los que se pidan (ids o clases, hasta
 10: una fila de 5 en x = 0.80, al alcance del brazo, y otra en x = 0.95). Los modelos se bajan
-una vez a `ros2_ws/modelos/gazebo/` (no va a git, ~370 MB); el launch suma esa carpeta a
+una vez a `ros2_ws/modelos/gazebo/` (no va a git, ~450 MB); el launch suma esa carpeta a
 `GAZEBO_MODEL_PATH` y pone los objetos recién cuando los controladores del brazo están andando:
 
 ```bash
@@ -352,7 +362,7 @@ python3 /ros2_ws/src/andesrobot_arm/scripts/descargar_objetos.py               #
 python3 /ros2_ws/src/andesrobot_arm/scripts/descargar_objetos.py --lista       # ids y clases
 ros2 launch andesrobot_arm arm_sim.launch.py objetos:=true octomap:=false      # terminal 1
 # Pinza frente a la mesa, cámara a 50 cm del centro de la mesa mirando 40° hacia abajo:
-ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped "{header: {frame_id: base_footprint}, pose: {position: {x: 0.531, y: -0.009, z: 0.941}, orientation: {x: -0.1736, y: 0.0, z: -0.9848, w: 0.0}}}"
+ros2 topic pub --once /arm/target_pose geometry_msgs/msg/PoseStamped "{header: {frame_id: base_footprint}, pose: {position: {x: 0.531, y: -0.009, z: 0.941}, orientation: {x: -0.1736, y: 0.0, z: -0.9848, w: 0.0}}}"
 ros2 run andesrobot_arm objeto_node --ros-args -p use_sim_time:=true -p clase:=cup -p acercar:=true
 # opciones: -p clase:=''  (la detección más segura, de cualquier clase)  -p confianza:=0.4
 #           -p distancia_previa:=0.30  -p distancia_final:=0.10  -p inclinacion:=20.0
@@ -364,8 +374,8 @@ central, cada uno es un rayo que se sigue hasta la profundidad (la misma `punto_
 manija) y el punto del objeto es la **mediana** (no se mueve si unos pocos rayos tocan la mesa).
 Es un punto de la cara que mira a la cámara, no el centro del objeto. La pinza llega desde el lado
 de Milo, inclinada `inclinacion` grados hacia abajo, en los mismos dos tramos que la manija
-(`manija.Acercamiento`): 30 cm, detectar de nuevo y `distancia_final`. Publica `/objeto/punto`,
-`/objeto/pose_previa`, `/objeto/marcadores`, `/objeto/distancia` y `/objeto/punto_tcp`.
+(`manija.Acercamiento`): 30 cm, detectar de nuevo y `distancia_final`. Publica `/arm/objeto/punto`,
+`/arm/objeto/pose_previa`, `/arm/objeto/marcadores`, `/arm/objeto/distancia` y `/arm/objeto/punto_tcp`.
 
 **Probado en Gazebo (6-nov-2026), clase `cup`:** desde la pose de arriba, detecta la taza (0.75),
 va a la pose previa (quedó a 0.300 m), la detecta de nuevo (0.66, el punto se movió 1 cm) y
@@ -426,6 +436,77 @@ cm muchos objetos se ven chicos. Detectar la mesa como `card` es un falso positi
 sumar fotos de estos objetos simulados al entrenamiento, como se hizo con la manija (P14 en
 `docs/PENDIENTES.md`).
 
+**Con varios objetos a la vez: `scripts/evaluar_grupos.py`** (15-nov-2026). Es la prueba del equipo de visión (`prueba_completa.zip`: 5 grupos por tema,
+una foto por grupo), pero con Milo y la cámara de la pinza. Los grupos (`GRUPOS` en
+`andesrobot_arm/grupos.py`) son los suyos armados con nuestro catálogo: los mismos modelos de
+Google cuando los hay, y donde ellos usan modelos de Sketchfab que no vinieron en el zip, el
+nuestro de esa clase:
+
+| Grupo | Objetos (id del catálogo) |
+|---|---|
+| cocina | taza_blanca, bowl_turquesa, plato, bandeja, jarro |
+| cubiertos (y comida) | tenedor, cuchara, cuchillo, platano, sopa, cereal |
+| bebidas (y aseo) | redbull, pringles_equipo, botella, cloro (drink no tiene modelo) |
+| pequenos (objetos pequeños) | tarjeta_equipo, rubik, plumon (key y colgate_box no tienen modelo) |
+| varios | consola, martillo, libro, sombrero, bolsa_tela (hasta el 15-nov a las 23 h, bolsa_equipo, la negra) |
+
+Por cada grupo: pone los objetos en dos filas sin que se toquen (`grupos.acomodar` prueba todos
+los repartos, con cada objeto derecho o girado 90°, y elige el que deja las filas parejas y los
+de cara más chica hacia la cámara adelante, para que no tapen a los de atrás; los altos y
+delgados, como la lata, van siempre atrás, porque adelante la lata se cayó), lleva la pinza a
+las 3 vistas de `evaluar_objetos.py` (con la mesa llena, `frente40` y `arriba` ya muestran los
+dos extremos; `arriba` corrida 20 cm a los lados se probó y salía girada en diagonal), corre el
+modelo y, como
+sabe dónde puso cada objeto, proyecta su centro en la foto (TF `odom` → cámara y `camera_info`)
+para ver qué caja de YOLO lo contiene. Así separa «lo encontró», «lo confundió con otra clase»
+y «no salía en la foto», cosa que la prueba del equipo no puede (ella solo mira si la clase
+apareció en algún lugar de la foto). Escribe un CSV en `ros2_ws/resultados/objetos/` y las fotos
+con un punto en cada objeto (verde = encontrado) en `ros2_ws/capturas/grupos_<fecha>/`:
+
+```bash
+ros2 launch andesrobot_arm arm_sim.launch.py objetos:=true octomap:=false      # terminal 1
+python3 /ros2_ws/src/andesrobot_arm/scripts/evaluar_grupos.py                   # los 5 grupos
+python3 /ros2_ws/src/andesrobot_arm/scripts/evaluar_grupos.py cocina varios     # algunos
+python3 /ros2_ws/src/andesrobot_arm/scripts/evaluar_grupos.py \
+  --modelo /ros2_ws/modelos/entrega1_2026-11-15/best.pt                          # otro modelo
+```
+
+Las clases que el modelo no tiene (el de 9 clases del 15-nov no tiene `cup`, por ejemplo) se
+marcan aparte y no cuentan en el total. Una caja de YOLO que contiene el centro de más de un
+objeto no se cuenta para ninguno (el modelo a veces ve media mesa como `clothing` o `card`).
+
+Resultado del 15-nov-2026 (simulación sin ventanas, confianza ≥ 0.25):
+
+| Modelo | 5 grupos por tema | Grupo `equipo` (sus 9 objetos) |
+|---|---|---|
+| 27 clases (`modelos/objetos/best.pt`, 9-nov) | **10 de 23**: taza, bowl, plato (0.86–0.93), jarra 0.69, cereal 0.87, Red Bull 0.73, martillo 0.79, bolsa (caja) 0.61, cuchara 0.28 | **5 de 9**: bowl 0.93, tenedor 0.71, Red Bull 0.47, tarjeta 0.29, Rubik 0.28 |
+| 9 clases (`entrega1_2026-11-15/best.pt`) | **3 de 9** (14 de sus clases no las tiene): Red Bull 0.90, bowl 0.81, tenedor de YCB 0.57 | **4 de 9**: bowl 0.98, tenedor 0.96, Red Bull 0.92, Rubik 0.27 |
+
+El grupo `equipo` es el mundo de prueba del modelo de 9 clases (`entorno_objetos.zip`): un objeto
+por clase, los mismos modelos con que parece entrenado. Ni ahí ninguno de los dos modelos
+encuentra las Pringles (las ven como `redbull`), la cuchara (viene parada, 17 cm), la botella ni
+la bolsa de tela; la bolsa (49 cm de alto, en la fila de atrás) sale cortada por arriba en las
+tres vistas, que apuntan a (0.80, 0). **Sola y centrada** (`evaluar_objetos.py bolsa_tela
+bolsa_equipo`; ojo, ese script anota la mejor caja de la clase en TODA la foto, esté donde esté):
+el de 27 clases pone una caja `bag` justo sobre la bolsa del equipo (la caja negra, 0.86 / 0.85)
+y a la de tela la ve como `clothing` (0.58 desde arriba). El de 9 clases **no detecta la bolsa de
+tela de forma confiable**: de frente su mejor `bag` (0.38) está sobre la pinza, y la otra (0.64)
+cubre casi toda la foto (la bolsa, a 0.80 m, llena la imagen); desde arriba, con la bolsa entera
+y el asa a la vista, no da nada. Fotos en `ros2_ws/capturas/evaluacion_20261115_2337/` (9 clases)
+y `_2338/` (27 clases).
+
+Cada caja de YOLO se le asigna al objeto con el que más se superpone (IoU ≥ 0.25 con el
+rectángulo de su caja 3D proyectada en la foto). La primera versión miraba qué caja contenía el
+centro del objeto, y con la bolsa (grande, con el Rubik delante) no servía.
+
+Lo que confunde: la bandeja como `plate` (siempre), el sombrero como `bowl`, las Pringles y la
+botella como `redbull_can` o `drink`; la pinza misma sale como `plate` en casi todas las fotos
+(no cuenta porque no está sobre ningún objeto). Los objetos chicos de la fila de atrás (tarjeta,
+Rubik, plumón) quedan a ~70 cm de la cámara y ninguno de los dos modelos los ve. Con el modelo
+de 27 clases, objeto por objeto (`evaluar_objetos.py`, 9-nov) eran 9 de 26: en grupo encuentra
+más o menos lo mismo, ahora también la jarra, el cereal, la Red Bull y la bolsa. Fotos en
+`ros2_ws/capturas/grupos_20261115_2333/` (27 clases) y `grupos_20261115_2329/` (9 clases).
+
 **Modelo nuevo del equipo (9-nov-2026).** Mismas 27 clases, entrenado con `dataset_reglamento3`; el anterior quedó en `ros2_ws/modelos/objetos/anterior_2026-11-06/`. Con la base ya frenada (ver abajo), en la misma simulación: **9 de 26** con el nuevo y 3 de 26 con el anterior.
 
 | Objeto | Nuevo (frente 30° / 40° / arriba) | Anterior |
@@ -441,9 +522,14 @@ El nuevo ya no ve la mesa como `card`, pero ve la pinza y la bandeja como `plate
 **Modelos 3D del equipo (9-nov-2026).** El equipo mandó, junto con el modelo, `entrega_simulacion.zip`:
 su escena de prueba (cámara fija, sin Milo) con 6 objetos. Cuatro son nuevos para nosotros y quedaron
 en el catálogo con `fuente: equipo`: `redbull` (la clase `redbull_can` no tenía modelo),
-`pringles_equipo`, `tarjeta_equipo` y `bolsa_equipo`. No hay de dónde bajarlos: el zip se copia a
-mano a `ros2_ws/modelos/entrega_simulacion.zip` y `descargar_objetos.py redbull pringles_equipo
-tarjeta_equipo bolsa_equipo` los saca de ahí, con los mismos arreglos que los demás. Desde el
+`pringles_equipo`, `tarjeta_equipo` y `bolsa_equipo`. Red Bull y Pringles son de Sketchfab con
+licencia CC-BY (autores martin_dalm y sirerdees; página original en el catálogo): esos dos se
+publican, ya convertidos por el equipo, en el release `modelos-equipo-v1` de milo_ws, y
+`descargar_objetos.py` los baja de ahí (comprueba el sha256 del zip). La tarjeta y la bolsa salen
+de fotos del dataset del equipo, sin licencia anotada: no se publican, y para ellas hay que copiar
+a mano `entrega_simulacion.zip` a `ros2_ws/modelos/`. Las tres clases que faltaban tienen modelo en
+Sketchfab según el equipo (llaves: CC-BY; lata de bebida: CC-BY-NC; Colgate: CC-BY-NC-ND, que no
+permite repartir una versión convertida), pero no están convertidos para Gazebo. Desde el
 9-nov van **antes** que los nuestros de su clase: pedir la clase (`objetos:=pringles`, `card`,
 `bag`) elige el del equipo, y los nuestros siguen disponibles por id (`pringles_ycb`, `juego_cartas`,
 `mochila`; el tarro de YCB se llamaba `pringles`, pero un id le gana a la clase).
@@ -491,7 +577,7 @@ objeto (con confianza mínima 0.2) y lo apaga al terminar. Hace una vez la secue
    la profundidad, y `agarre.analizar_objeto` separa la mesa (la altura donde más puntos se
    juntan) del objeto (lo que queda más de 4 mm arriba). Del objeto saca el eje largo (PCA), el
    largo y el ancho (lo que ocupa a lo largo del eje y cruzado a él) y el alto. Publica
-   `/objeto/pose` (centro y giro del eje largo) y `/objeto/medidas` (largo, ancho, alto).
+   `/arm/objeto/pose` (centro y giro del eje largo) y `/arm/objeto/medidas` (largo, ancho, alto).
    `agarre_node` espera 3 mediciones seguidas que coincidan (a menos de 1 cm). Si el objeto mide
    más de 45 mm de ancho, avisa «no cabe en la pinza» y termina.
 3. **Previa**: la pinza va 10 cm sobre el objeto, apuntando hacia abajo y con los dedos cruzados al
@@ -558,7 +644,7 @@ ros2 run andesrobot_arm bolsa_node --ros-args -p modelo:=/ros2_ws/modelos/bolsa/
 # y las de agarre_node (vistas, confianza, sobre, subir, retraer, velocidad...)
 ```
 
-Publica la pose de agarre en `/bolsa/asa` para verla en RViz. Hoy no hay en Gazebo una bolsa con
+Publica la pose de agarre en `/arm/bolsa/asa` para verla en RViz. Hoy no hay en Gazebo una bolsa con
 asa (`bolsa_equipo` es una caja), así que solo está probada la geometría, con bolsas sintéticas
 (`test/test_bolsa.py`). Necesita `./sim.sh build` (archivo nuevo).
 
@@ -589,7 +675,7 @@ Deja `color.png`, `ir.png`, `profundidad_mm.png` (16 bits en mm, como la real), 
 apuntando 45° hacia abajo:
 
 ```bash
-ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped \
+ros2 topic pub --once /arm/target_pose geometry_msgs/msg/PoseStamped \
   "{header: {frame_id: base_footprint}, pose: {position: {x: 0.5, y: 0.0, z: 1.4},
     orientation: {x: 0.3827, y: 0.0, z: 0.9239, w: 0.0}}}"
 ```
@@ -653,6 +739,90 @@ fx = fy = 455.1, cx = 327.0, cy = 243.9 (640×480). La cámara no tiene IMU y se
 Falta medir la calidad a la distancia de trabajo del brazo (0.2–1 m), y no hay calibración mano-ojo:
 el montaje del URDF es el del diseño, no uno medido.
 
+## Brazo real (Arduino Mega)
+
+En palabras simples: en la simulación los motores los mueve Gazebo; en el robot real, un Arduino
+Mega que recibe las posiciones por el cable USB y genera los pulsos para los 6 drivers TB6600 (y la
+señal del servo de la garra). `brazo_real_node` se hace pasar por los controladores de la
+simulación: ofrece las mismas acciones (`/arm_controller/follow_joint_trajectory` y
+`/gripper_controller/follow_joint_trajectory`) y publica `/joint_states`, así que MoveIt,
+`arm_moveit_node`, `agarre_node`, etc. no cambian. El firmware, los pines, el protocolo y cómo
+probar están en [`firmware/README.md`](../../../../firmware/README.md).
+
+| Pieza | Qué hace |
+|---|---|
+| `firmware/brazo_mega/brazo_mega.ino` | Arduino (v2): cuenta pasos, mueve las 6 articulaciones a la vez con rampa de aceleración (trapecio en las pruebas a mano, seguimiento con aceleración acotada para ROS), perro guardián (para si el PC calla 0.5 s), servo |
+| `andesrobot_arm/brazo_real.py` | sin ROS: radianes ↔ pasos, comandos y respuestas, interpolación de la trayectoria, ángulo del servo ↔ dedos, el puerto serie (`Enlace`, con `termios`) y `ArduinoFalso`; probado en `test/test_brazo_real.py` |
+| `andesrobot_arm/brazo_real_node.py` | el puente: cada 50 ms manda `G` con dónde tiene que estar el brazo 50 ms después y lee `E` para `/joint_states`; rechaza trayectorias que muevan el lift (el Arduino no lo mueve) y avisa si piden más velocidad que la del firmware |
+| `config/brazo_real.yaml` | pasos por vuelta, micropasos, reducción (38.4), sentido y cero de cada articulación, y los ángulos del servo (abierta/cerrada); los no medidos dicen SUPUESTO |
+| `launch/brazo_real.launch.py` | `robot_state_publisher` + `brazo_real_node` + `move_group` + `arm_moveit_node` (grupo `brazo_sin_lift`, velocidad al 15 %) + marcador y RViz; usa las mismas funciones de URDF y MoveIt que `arm_sim.launch.py` |
+| `andesrobot_arm/arduino_falso.py` | `ros2 run andesrobot_arm arduino_falso`: un Arduino de mentira en `/tmp/arduino_falso` para probar todo lo anterior sin hardware |
+
+Fórmula: pasos = signo · (q − cero) · pasos_motor · micropasos · reducción / 2π; con 200 pasos, 1/8 y
+38.4:1 son 9779 pasos/rad (170.7 pasos/°). El grupo de MoveIt `brazo_sin_lift` (SRDF, cadena
+`lift_carriage_link_1` → `gripper_tcp`) es el brazo sin el lift; la simulación sigue usando
+`brazo`. La velocidad máxima del firmware (2000 pasos/s ≈ 0.2 rad/s) es menor que la de
+`joint_limits.yaml` con la escala de siempre (0.5 rad/s), por eso el launch real baja
+`velocity_scaling` a 0.15.
+
+```bash
+./robot.sh brazo                                   # Arduino en /dev/arduino_brazo (o ARDUINO=/dev/ttyUSB0)
+ros2 run andesrobot_arm arduino_falso              # sin hardware, en el contenedor
+ros2 launch andesrobot_arm brazo_real.launch.py puerto:=/tmp/arduino_falso
+```
+
+Probado el 23-nov-2026 con el Arduino falso y **con el Arduino real sin el brazo** (sin drivers ni
+motores): `firmware/prueba_exigente.py` 23 de 23 con el firmware v2 (latencia 4.3 ms, pasos
+exactos, rampa medida 4200 pasos/s² de 4000 pedidos, las 6 a 2000 pasos/s a la vez, perro
+guardián, 30 s de seguimiento tipo ROS sin errores, error ≤ 0.4°); MoveIt deja la pinza a 0.8 mm
+de la pose pedida según la cuenta de pasos; trayectoria directa, rechazo del lift, garra y aviso de
+velocidad OK; matar el nodo a mitad de camino deja al Arduino frenado y con su cuenta. El puerto se
+abre sin `HUPCL` para que el Arduino no se reinicie (y pierda la cuenta) cada vez que se reconecta
+(detalle en `firmware/README.md`). Pendiente (P19): los motores reales (sentido, micropasos,
+qué aceleración aguantan sin perder pasos), el rango del servo, homing.
+
+## Tópicos e interfaz con los otros equipos (`/arm/`)
+
+En palabras simples: cada equipo de Milo usa un prefijo para sus tópicos, así se sabe de quién es
+cada mensaje: `/base/` (estructura y electrónica), `/nav/` (navegación), `/vision/` (visión),
+`/arm/` (brazo y garra, nosotros), `/hri/` (interacción) y `/orquestador/`. La lista sale de la
+"ficha" del documento de la líder, resumida por HRI en `docs/contratos_externos.md` de su
+repositorio `AndesRobot-Oficial/Human-Robot-Interaction`. Desde el 16-nov-2026 los tópicos
+propios del brazo llevan `/arm/`:
+
+| Antes | Ahora | Tipo | Quién publica → quién lee |
+|---|---|---|---|
+| `/arm_target_pose` | `/arm/target_pose` | PoseStamped | marcador de RViz, `objeto_node`, `manija_node`, scripts → `arm_moveit_node` / `arm_ik_node` |
+| `/objeto/{punto,pose_previa,marcadores,distancia,punto_tcp,pose,medidas}` | `/arm/objeto/...` | ver `objeto_node` | `objeto_node` → `agarre_node`, RViz |
+| `/manija/{agarre,pose_previa,marcadores,distancia,agarre_tcp}` | `/arm/manija/...` | ver `manija_node` | `manija_node` → RViz, scripts |
+| `/bolsa/asa` | `/arm/bolsa/asa` | PoseStamped | `bolsa_node` (borrador) |
+
+No cambian: los de la cámara (`/gripper_camera/...`, mismos nombres que el driver real), los de
+los controladores (`/arm_controller/...`, `/gripper_controller/...`, nombres de ros2_control),
+los de MoveIt (`/move_action`, `/execute_trajectory`, `/compute_cartesian_path`,
+`/planning_scene`) y los de las pruebas en Gazebo (`/puerta/joint_states`, `/caja_suelta/odom`).
+
+**Lo que la ficha le pide al brazo** (para el orquestador de HRI). Nada de esto está hecho
+todavía:
+
+| Interfaz | Tipo | Campos | Con qué se haría |
+|---|---|---|---|
+| `/arm/gripper_state` | tópico `GripperState.msg` | state (open, closed, holding_object), object_detected | `agarre.hay_objeto` + comprobación con la profundidad (pendiente) |
+| `/arm/pick_object` | acción `PickObject.action` | target_pose, mode (grasp \| handover) → success | `agarre_node` / `bolsa_node` |
+| `/arm/move_to_pose` | acción `MoveArmToPose.action` | pose_name o look_target → success | `arm_moveit_node` con poses con nombre |
+| `/arm/point_to` | acción `PointTo.action` | PointStamped → success | — |
+| `/arm/open_door` | acción `OpenDoor.action` | handle_pose, direction (pull \| push) → success | `manija_node` + empujar |
+| `/arm/gesture` | acción `Gesture.action` | wave, point, nod → success | — |
+| `/arm/place_object` | acción `PlaceObject.action` | no confirmado en la ficha (HRI lo pide para dejar la bolsa) | — |
+
+Y de visión, lo que le sirve al brazo: `/vision/detect_handle` (servicio: door_pose → found,
+handle_pose, handle_type) y `/vision/detect_bag` (→ bag_pose, found). Ojo: el código de HRI
+(`hri_orchestrator/config/topicos.yaml`) todavía usa `/garra/agarrar` (String con la clase),
+`/garra/tiene_objeto` (Bool), `/garra/entregar`, `/garra/entregado` y `/garra/proceder` (Bool,
+la bolsa), y de visión `/detected_object` y `/object_position`, sin prefijo: hay que acordar con
+HRI que use los nombres `/arm/...` de la ficha (en su diseño basta cambiar el yaml). Las poses de
+visión vienen en el frame de la cámara; nuestros nodos las pasan a `base_footprint` con TF2.
+
 ## Qué corre
 
 ![Lazo cerrado del brazo](figuras/fig_lazo_cerrado.png)
@@ -669,16 +839,17 @@ MoveIt 2, que es lo que corre por defecto: figura C del informe, `scripts/fig_la
 |---|---|
 | `arm_sim.launch.py` | xacro con `lock_arm:=false arm_control:=true gripper_camera:=true` → Gazebo, spawn de Milo y la mesa (o la puerta), controladores, MoveIt (`moveit:=true`), nodos, RViz |
 | `move_group` | MoveIt 2: escena de planificación (robot + mesa + OctoMap), IK (KDL), planificador (OMPL) y ejecución vigilada; configuración en `andesrobot_moveit_config` |
-| `arm_moveit_node` | escucha `/arm_target_pose` y se lo pide a MoveIt (acción `/move_action`); publica la mesa en la escena |
+| `arm_moveit_node` | escucha `/arm/target_pose` y se lo pide a MoveIt (acción `/move_action`); publica la mesa en la escena |
 | `arm_controller` | `JointTrajectoryController`: `vertical_lift_joint` + `joint_1..6` en una sola trayectoria, con tolerancias de meta (aborta si una articulación no llega; ver «Limitaciones») |
 | `gripper_controller` | `JointTrajectoryController`: `right_finger_joint` (el izquierdo lo copia Gazebo, `mimic`) |
-| `arm_ik_node` | (con `moveit:=false`) escucha `/arm_target_pose`, resuelve la IK propia y manda la trayectoria, sin revisión de choques |
-| `arm_marker_node` | marcador en RViz sobre `gripper_tcp`; al soltar publica en `/arm_target_pose` (frame `base_footprint`) |
+| `arm_ik_node` | (con `moveit:=false`) escucha `/arm/target_pose`, resuelve la IK propia y manda la trayectoria, sin revisión de choques |
+| `arm_marker_node` | marcador en RViz sobre `gripper_tcp`; al soltar publica en `/arm/target_pose` (frame `base_footprint`) |
 | `capturar_camara` | guarda una imagen de cada canal de la cámara de la pinza (`ros2 run andesrobot_arm capturar_camara`) |
 | `scripts/prueba_gazebo.sh` | prueba de humo sin ventanas (ver «Usarlo») |
 | `objeto_node` | detecta un objeto del reglamento (`clase`, por ejemplo `cup`) con `modelos/objetos/best.pt` y lleva la pinza frente a él (ver «Objetos sobre la mesa») |
 | `scripts/descargar_objetos.py` | baja los objetos del catálogo `config/objetos.yaml` (Gazebo Fuel y YCB) y los deja listos para Gazebo |
 | `scripts/evaluar_objetos.py` | pone cada objeto solo en la mesa, lo mira desde 3 vistas y anota si el modelo lo reconoce (CSV) |
+| `scripts/evaluar_grupos.py` | lo mismo con los 5 grupos de objetos de la prueba del equipo, varios a la vez en la mesa |
 | `scripts/generar_dataset_manija.py` | fotos de la manija ya etiquetadas, con variantes al azar de la puerta |
 | `scripts/entrenar_manija.py` | afina YOLO (pose, máscara o caja) con esas fotos |
 | `scripts/figuras.py`, `fig_*.py` | figuras de la geometría y de los lazos de control (ver «Geometría») |

@@ -19,7 +19,7 @@
 #                    agarre_node <id>. OK si termina con "Listo: <id> levantado".
 # Sin argumentos corre: acercar cup, agarrar tenedor, agarrar cuchara y agarrar martillo.
 # Con MODELO=... se usa ese .pt en vez de best.pt: en "agarrar" se arranca objeto_node a mano con
-# ese modelo antes de agarre_node (agarre_node usa el que ya publica /objeto/pose).
+# ese modelo antes de agarre_node (agarre_node usa el que ya publica /arm/objeto/pose).
 #
 # Al final de cada prueba anota también dónde quedó la base (TF odom -> base_footprint): si se
 # corrió más de 1 cm, la prueba no es confiable (deriva de la base, P13 en docs/PENDIENTES.md).
@@ -74,7 +74,7 @@ acercar() {
   local clase=$1 log=/tmp/prueba_objetos_acercar_$1.log
   echo ">> acercar $clase"
   sim true
-  ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped "{header: {frame_id: base_footprint}, pose: {position: {x: 0.531, y: -0.009, z: 0.941}, orientation: {x: -0.1736, y: 0.0, z: -0.9848, w: 0.0}}}" > /dev/null
+  ros2 topic pub --once /arm/target_pose geometry_msgs/msg/PoseStamped "{header: {frame_id: base_footprint}, pose: {position: {x: 0.531, y: -0.009, z: 0.941}, orientation: {x: -0.1736, y: 0.0, z: -0.9848, w: 0.0}}}" > /dev/null
   sleep 15
   timeout 150 ros2 run andesrobot_arm objeto_node --ros-args -p use_sim_time:=true \
     -p clase:=$clase -p acercar:=true "${modelo_args[@]}" > $log 2>&1

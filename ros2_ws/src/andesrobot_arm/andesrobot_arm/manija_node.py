@@ -9,18 +9,19 @@ profundidad falla sobre la manija brillante, usa el plano de la puerta ajustado 
 de alrededor. Descarta las detecciones sin sentido (palanca de largo raro, fuera del plano de la
 puerta) y publica, en el frame `frame_destino` (base_footprint):
 
-  /manija/agarre       PointStamped   el punto donde se empuja la palanca
-  /manija/pose_previa  PoseStamped    dónde poner la pinza antes de acercarse (mirando a la puerta)
-  /manija/marcadores   MarkerArray    eje, agarre, punta y la normal de la puerta, para RViz
-  /manija/distancia    Float32        distancia en línea recta del efector final (gripper_tcp)
+  /arm/manija/agarre       PointStamped   el punto donde se empuja la palanca
+  /arm/manija/pose_previa  PoseStamped    dónde poner la pinza antes de acercarse (mirando a la
+                                          puerta)
+  /arm/manija/marcadores   MarkerArray    eje, agarre, punta y la normal de la puerta, para RViz
+  /arm/manija/distancia    Float32        distancia en línea recta del efector final (gripper_tcp)
                                       al punto de agarre [m]
-  /manija/agarre_tcp   PointStamped   el punto de agarre visto desde gripper_tcp: x negativo =
+  /arm/manija/agarre_tcp   PointStamped   el punto de agarre visto desde gripper_tcp: x negativo =
                                       lo que falta avanzar (la pinza apunta con su −X local)
 
 En cada detección escribe en el log cuánto le falta a la pinza: total, cuánto avanzar y cuánto
 corrimiento lateral/vertical (manija.distancia_desde_tcp).
 
-Mover el brazo (por /arm_target_pose, como arm_marker_node; lo planifica MoveIt):
+Mover el brazo (por /arm/target_pose, como arm_marker_node; lo planifica MoveIt):
   acercar:=true        lleva la pinza a la manija en dos tramos (manija.Acercamiento): con 3
                        detecciones estables va a la pose previa (30 cm, mirando a la puerta);
                        desde ahí vuelve a detectar, ahora de cerca, y va a `distancia_final`
@@ -93,12 +94,12 @@ class ManijaNode(Node):
         self.create_subscription(Image, '/gripper_camera/depth/image_raw', self.on_prof, s)
         self.create_subscription(CameraInfo, '/gripper_camera/color/camera_info', self.on_kc, s)
         self.create_subscription(CameraInfo, '/gripper_camera/depth/camera_info', self.on_kp, s)
-        self.pub_agarre = self.create_publisher(PointStamped, '/manija/agarre', 1)
-        self.pub_previa = self.create_publisher(PoseStamped, '/manija/pose_previa', 1)
-        self.pub_marcas = self.create_publisher(MarkerArray, '/manija/marcadores', 1)
-        self.pub_objetivo = self.create_publisher(PoseStamped, '/arm_target_pose', 1)
-        self.pub_distancia = self.create_publisher(Float32, '/manija/distancia', 1)
-        self.pub_agarre_tcp = self.create_publisher(PointStamped, '/manija/agarre_tcp', 1)
+        self.pub_agarre = self.create_publisher(PointStamped, '/arm/manija/agarre', 1)
+        self.pub_previa = self.create_publisher(PoseStamped, '/arm/manija/pose_previa', 1)
+        self.pub_marcas = self.create_publisher(MarkerArray, '/arm/manija/marcadores', 1)
+        self.pub_objetivo = self.create_publisher(PoseStamped, '/arm/target_pose', 1)
+        self.pub_distancia = self.create_publisher(Float32, '/arm/manija/distancia', 1)
+        self.pub_agarre_tcp = self.create_publisher(PointStamped, '/arm/manija/agarre_tcp', 1)
         # tol_llegada 1 cm: MoveIt deja el TCP a menos de 2 mm (prueba del 18-oct).
         distancias = (self.get_parameter('distancia_previa').value,
                       self.get_parameter('distancia_final').value)

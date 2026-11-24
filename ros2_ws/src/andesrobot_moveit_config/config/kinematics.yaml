@@ -10,3 +10,10 @@ brazo:
   # Paso de búsqueda sobre el eje redundante (rad) y tiempo máximo por intento (s).
   kinematics_solver_search_resolution: 0.005
   kinematics_solver_timeout: 0.05
+
+# El mismo solver para el brazo sin el lift (robot real, ver andesrobot.srdf).
+brazo_sin_lift:
+  kinematics_solver: kdl_kinematics_plugin/KDLKinematicsPlugin
+  # Paso de búsqueda sobre el eje redundante (rad) y tiempo máximo por intento (s).
+  kinematics_solver_search_resolution: 0.005
+  kinematics_solver_timeout: 0.05

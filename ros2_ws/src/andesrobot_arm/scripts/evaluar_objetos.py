@@ -64,7 +64,7 @@ class Evaluador(Node):
         self.foto = None
         self.create_subscription(Image, '/gripper_camera/color/image_raw',
                                  lambda m: setattr(self, 'foto', m), qos_profile_sensor_data)
-        self.pub = self.create_publisher(PoseStamped, '/arm_target_pose', 1)
+        self.pub = self.create_publisher(PoseStamped, '/arm/target_pose', 1)
         self.poner = self.create_client(SpawnEntity, '/spawn_entity')
         self.sacar = self.create_client(DeleteEntity, '/delete_entity')
         self.lista = self.create_client(GetModelList, '/get_model_list')
@@ -111,9 +111,10 @@ class Evaluador(Node):
             return None
         return np.array([t.translation.x, t.translation.y, t.translation.z])
 
-    def ir(self, vista, limite=30.0):
-        """Manda la pinza a una vista y espera que llegue (a 1.5 cm). True si llegó."""
-        x, y, z, qx, qy, qz, qw = VISTAS[vista]
+    def ir(self, vista, limite=30.0, vistas=None):
+        """Manda la pinza a una vista y espera que llegue (a 1.5 cm). True si llegó. vistas: otro
+        diccionario de vistas (evaluar_grupos.py usa las suyas)."""
+        x, y, z, qx, qy, qz, qw = (vistas or VISTAS)[vista]
         msg = PoseStamped()
         msg.header.frame_id = 'base_footprint'
         msg.pose.position.x, msg.pose.position.y, msg.pose.position.z = x, y, z

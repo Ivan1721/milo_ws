@@ -102,7 +102,7 @@ class BolsaNode(AgarreNode):
         self.create_subscription(CameraInfo, '/gripper_camera/color/camera_info', self.al_kc, s)
         self.create_subscription(CameraInfo, '/gripper_camera/depth/camera_info', self.al_kp, s)
         # Para ver en RViz dónde encontró el asa (Pose, frame base_footprint): la pose de agarre.
-        self.pub_asa = self.create_publisher(PoseStamped, '/bolsa/asa', 1)
+        self.pub_asa = self.create_publisher(PoseStamped, '/arm/bolsa/asa', 1)
 
     # ------------------------------------------------------------------ cámara
     def al_color(self, m):

@@ -42,7 +42,7 @@ def main():
     Y = 7.3   # fila principal
     # ---------------------------------------------------------------- fila principal
     A = caja(ax, 1.35, Y, 2.1, 1.7, 'OBJETIVO',
-             'pose de la pinza\n(RViz, /arm_target_pose\no la pose del objeto\ndetectado)',
+             'pose de la pinza\n(RViz, /arm/target_pose\no la pose del objeto\ndetectado)',
              color=C_GRIP, fill=C_NOTE)
     M = caja(ax, 5.35, Y, 4.9, 2.4, 'MOVEIT 2 (move_group)',
              'Escena: URDF + SRDF (pares que no chocan) + estado actual\n'

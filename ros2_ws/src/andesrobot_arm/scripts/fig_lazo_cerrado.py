@@ -86,7 +86,7 @@ def main():
     Y = 7.3   # fila principal: de la orden al movimiento
     # ---------------------------------------------------------------- fila principal
     A = caja(ax, 1.45, Y, 2.3, 1.6, 'OBJETIVO',
-             'pose de la pinza\n(x, y, z + orientación)\nmarcador de RViz o\n/arm_target_pose',
+             'pose de la pinza\n(x, y, z + orientación)\nmarcador de RViz o\n/arm/target_pose',
              color=C_GRIP, fill=C_NOTE)
     B = caja(ax, 4.55, Y, 2.8, 1.7, 'CINEMÁTICA INVERSA',
              'arm_ik_node\nDLS ponderado, 7 ejes\n(lift con peso 10)\n'

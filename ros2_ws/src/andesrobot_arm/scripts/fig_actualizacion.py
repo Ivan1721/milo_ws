@@ -69,7 +69,7 @@ def flujo():
                C_ARM, C_FILL)
     sim = caja(ax, XL, ys[4], W, H, 'Gazebo', 'brazo simulado\n(mando por velocidad)',
                C_ARM, C_FILL)
-    obj = caja(ax, XR, ys[0], W, H, 'Objetivo', 'marcador en RViz o\n/arm_target_pose', C_ARM,
+    obj = caja(ax, XR, ys[0], W, H, 'Objetivo', 'marcador en RViz o\n/arm/target_pose', C_ARM,
                C_FILL)
     sen = caja(ax, XR, ys[2], W, H, 'Sensores', 'IMU MPU-9250 (I²C)\nfinales de carrera',
                C_GRIP, C_NOTE, ls=DASH)

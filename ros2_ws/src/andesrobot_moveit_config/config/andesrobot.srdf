@@ -22,6 +22,11 @@
   <group name="brazo">
     <chain base_link="base_footprint" tip_link="gripper_tcp"/>
   </group>
+  <!-- El mismo brazo SIN el lift (desde el carro del lift hasta la pinza, 6 articulaciones): lo
+       usa el robot real (brazo_real.launch.py), porque el Arduino del brazo no mueve el lift. -->
+  <group name="brazo_sin_lift">
+    <chain base_link="lift_carriage_link_1" tip_link="gripper_tcp"/>
+  </group>
   <group name="pinza">
     <joint name="right_finger_joint"/>
     <joint name="left_finger_joint"/>

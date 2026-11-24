@@ -30,7 +30,11 @@ def leer_catalogo(texto_yaml):
 
 def carpeta(objeto):
     """Nombre de la carpeta (y del modelo de Gazebo) de un objeto: sin espacios, porque Gazebo
-    busca "model://<carpeta>" y un espacio rompe la ruta."""
+    busca "model://<carpeta>" y un espacio rompe la ruta. Un objeto puede pedir otra carpeta
+    (`carpeta:` en el catálogo) para tener dos versiones del mismo modelo, por ejemplo la bolsa de
+    tela en otro color."""
+    if objeto.get('carpeta'):
+        return objeto['carpeta']
     return re.sub(r'[^A-Za-z0-9_.-]+', '_', objeto['nombre']).strip('_')
 
 
@@ -119,6 +123,20 @@ def corregir_uris(sdf, nombre_carpeta):
             ruta = partes[1] if len(partes) == 2 else ''
         return f'<uri>model://{nombre_carpeta}/{ruta}</uri>'
     return re.sub(r'<uri>\s*(.*?)\s*</uri>', cambiar, sdf)
+
+
+def tenir_mtl(texto, color):
+    """El material (.mtl) con el color difuso (Kd) y ambiente (Ka) cambiados a color = (r, g, b)
+    de 0 a 1. Sirve para mallas sin textura (la bolsa de tela en café papel); con textura
+    (map_Kd) el color se mezclaría con la foto."""
+    import re as _re
+    rgb = ' '.join(f'{float(c):.6f}' for c in color)
+    for clave in ('Kd', 'Ka'):
+        if _re.search(rf'^{clave} ', texto, _re.M):
+            texto = _re.sub(rf'^{clave} .*$', f'{clave} {rgb}', texto, flags=_re.M)
+        else:
+            texto = texto.rstrip('\n') + f'\n{clave} {rgb}\n'
+    return texto
 
 
 def altura_de_spawn(medida):

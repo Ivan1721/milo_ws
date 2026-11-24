@@ -174,7 +174,7 @@ Ordenado de lo general a lo específico. La última columna dice dónde aparece 
 | <a id="g-motor-paso-a-paso"></a>Motor paso a paso | Motor que gira en pasos fijos, muy preciso sin sensor; en inglés *stepper*. El reductor es un engranaje que lo hace más lento y con más fuerza. | Los 6 del EB300 (NEMA23 y NEMA17). |
 | <a id="g-ros-2"></a>ROS 2 | *Robot Operating System*: conjunto de programas y reglas para que las partes de un robot se comuniquen. Versión usada: Humble. | Todo el software de Milo. |
 | <a id="g-nodo"></a>Nodo | Un programa de ROS que hace una tarea. | `arm_ik_node` calcula la cinemática inversa. |
-| <a id="g-topic"></a>Topic | Canal con nombre por donde los nodos se mandan mensajes (como un grupo de chat). | `/arm_target_pose`: «lleva la pinza aquí». |
+| <a id="g-topic"></a>Topic | Canal con nombre por donde los nodos se mandan mensajes (como un grupo de chat). | `/arm/target_pose`: «lleva la pinza aquí». |
 | <a id="g-tf"></a>TF | Sistema de ROS que guarda dónde está cada frame respecto a los demás, en cada instante. | De `base_footprint` a `gripper_tcp`. |
 | <a id="g-launch"></a>Launch | Archivo que arranca varios nodos a la vez con su configuración. | `arm_sim.launch.py`. |
 | <a id="g-controlador"></a>Controlador | Programa que lleva los motores a los valores pedidos y avisa si lo logró. | `arm_controller`: lift + joint_1…6. |
@@ -853,13 +853,13 @@ Como la distancia hombro–TCP llega a 0.843 m en cualquier dirección, el espac
 
 > **En palabras simples:** Cómo se mueve el brazo en el simulador ([Gazebo](#g-gazebo)): se arrastra una esfera con el mouse (o un programa manda un punto), un programa calcula la cinemática inversa y otro ([controlador](#g-controlador)) mueve los motores virtuales hasta ahí. Si el brazo no llega (porque choca), avisa.
 
-`./sim.sh brazo` corre `arm_sim.launch.py`. Este launch procesa el xacro con `lock_arm:=false arm_control:=true` y mallas como colisión, abre la misma arena, pone a Milo, arranca los controladores solo si el spawn terminó bien y lanza los dos nodos y RViz. Desde el 18 de octubre, con `moveit:=true` (el default) arranca además `move_group` (MoveIt 2) cuando los controladores están activos, y `arm_moveit_node` reemplaza a `arm_ik_node`: cada pose de `/arm_target_pose` se planifica sin choques (figura C). Con `moveit:=false` queda la cinemática inversa propia (figura B).
+`./sim.sh brazo` corre `arm_sim.launch.py`. Este launch procesa el xacro con `lock_arm:=false arm_control:=true` y mallas como colisión, abre la misma arena, pone a Milo, arranca los controladores solo si el spawn terminó bien y lanza los dos nodos y RViz. Desde el 18 de octubre, con `moveit:=true` (el default) arranca además `move_group` (MoveIt 2) cuando los controladores están activos, y `arm_moveit_node` reemplaza a `arm_ik_node`: cada pose de `/arm/target_pose` se planifica sin choques (figura C). Con `moveit:=false` queda la cinemática inversa propia (figura B).
 
 ```mermaid
 flowchart LR
   RV["RViz<br/>marcador interactivo"] -- "/arm_target_marker/feedback" --> MK["arm_marker_node"]
-  CLI["ros2 topic pub"] -- "/arm_target_pose" --> IK
-  MK -- "/arm_target_pose" --> IK["arm_moveit_node (default)<br/>o arm_ik_node (moveit:=false)"]
+  CLI["ros2 topic pub"] -- "/arm/target_pose" --> IK
+  MK -- "/arm/target_pose" --> IK["arm_moveit_node (default)<br/>o arm_ik_node (moveit:=false)"]
   IK -- "MoveGroup (acción)" --> MG["move_group<br/>escena + IK + OMPL + TOTG"]
   MG -- "FollowJointTrajectory" --> AC["arm_controller<br/>lift + joint_1..6, por velocidad"]
   IK -. "FollowJointTrajectory<br/>(solo arm_ik_node)" .-> AC
@@ -893,7 +893,7 @@ flowchart LR
 
 | Bloque | Sin MoveIt, `moveit:=false` (figura B) | Con MoveIt 2, el default (figura C) |
 | --- | --- | --- |
-| Objetivo | pose de la pinza en `/arm_target_pose` | igual; además MoveIt acepta metas en articulaciones y poses con restricciones (por ejemplo, «mantener la pinza horizontal») |
+| Objetivo | pose de la pinza en `/arm/target_pose` | igual; además MoveIt acepta metas en articulaciones y poses con restricciones (por ejemplo, «mantener la pinza horizontal») |
 | Qué sabe del entorno | nada: la IK no conoce la base, la columna ni la mesa | la **escena de planificación**: el robot (URDF + SRDF con los pares de piezas que nunca chocan), la mesa como objeto conocido y lo que ve la cámara como **OctoMap** (celdas ocupadas) |
 | Cinemática inversa | DLS propio, una pose final | KDL, dentro del planificador (pick_ik opcional con `ik:=pick_ik`, sin probar); la solución se descarta si choca |
 | Camino | va directo en el espacio de articulaciones | **planificado** (OMPL, RRT-Connect): cada tramo se revisa contra la escena; se suaviza |
@@ -902,7 +902,7 @@ flowchart LR
 | Vigilancia | el nodo solo imprime el resultado | MoveIt sigue la ejecución: si el controlador no llega a tiempo o fuera de tolerancia, aborta y puede replanificar |
 | Lazo de posición | sensores → controlador, 100 Hz | **igual**; sigue cerrándose sobre la orden en Gazebo y necesita encoders en el robot real |
 | Cámara | solo imágenes; detección pendiente | la nube alimenta el OctoMap (obstáculos) en forma continua; ya hay un detector de la manija entrenado (sección 14), pero todavía no cierra el lazo |
-| nodo cliente | `arm_ik_node` hace la IK y manda la trayectoria | `arm_moveit_node` traduce `/arm_target_pose` a la acción `MoveGroup` y publica la mesa en la escena; avisa en español por qué no se movió |
+| nodo cliente | `arm_ik_node` hace la IK y manda la trayectoria | `arm_moveit_node` traduce `/arm/target_pose` a la acción `MoveGroup` y publica la mesa en la escena; avisa en español por qué no se movió |
 
 **Se lee así**, comparando con la figura B:
 
@@ -928,7 +928,7 @@ Cómo quedó hecho (paquete `andesrobot_moveit_config`): el grupo `brazo` es la 
 
 ### Nodo `arm_ik_node`
 
-Recibe `geometry_msgs/PoseStamped` en `/arm_target_pose`, en cualquier frame de TF. La transforma al frame base de la cadena, resuelve la IK desde la posición actual (`/joint_states`) y manda una trayectoria de un punto a `/arm_controller/follow_joint_trajectory`. La duración la marca la articulación más lenta:
+Recibe `geometry_msgs/PoseStamped` en `/arm/target_pose`, en cualquier frame de TF. La transforma al frame base de la cadena, resuelve la IK desde la posición actual (`/joint_states`) y manda una trayectoria de un punto a `/arm_controller/follow_joint_trajectory`. La duración la marca la articulación más lenta:
 
 ```math
 T = \max\!\left(T_{\min},\ \max_i \frac{\lvert q_i^{\text{nuevo}} - q_i^{\text{actual}} \rvert}{v_i}\right), \qquad v_{\text{brazo}} = 0.5\ \text{rad/s},\ \ v_{\text{lift}} = 0.1\ \text{m/s},\ \ T_{\min} = 1\ \text{s}
@@ -948,7 +948,7 @@ T = \max\!\left(T_{\min},\ \max_i \frac{\lvert q_i^{\text{nuevo}} - q_i^{\text{a
 
 ### Nodo `arm_marker_node`
 
-Crea un marcador interactivo sobre `gripper_tcp`, con flechas para mover y anillos para girar en X, Y y Z. Al soltar el mouse publica la pose en `/arm_target_pose`, en `base_footprint` (así el marcador no sube y baja con el lift). Con clic derecho: “Enviar objetivo” y “Volver a la pinza”. La pinza no pasa por la IK: se manda directo a `gripper_controller`.
+Crea un marcador interactivo sobre `gripper_tcp`, con flechas para mover y anillos para girar en X, Y y Z. Al soltar el mouse publica la pose en `/arm/target_pose`, en `base_footprint` (así el marcador no sube y baja con el lift). Con clic derecho: “Enviar objetivo” y “Volver a la pinza”. La pinza no pasa por la IK: se manda directo a `gripper_controller`.
 
 <a id="camara"></a>
 
@@ -1099,7 +1099,7 @@ flowchart LR
 ```bash
 ./sim.sh brazo                      # terminal 1: cámara y mesa activadas
 ./sim.sh shell                      # terminal 2
-ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped \
+ros2 topic pub --once /arm/target_pose geometry_msgs/msg/PoseStamped \
   "{header: {frame_id: base_footprint}, pose: {position: {x: 0.5, y: 0.0, z: 1.4},
     orientation: {x: 0.3827, y: 0.0, z: 0.9239, w: 0.0}}}"
 ros2 run andesrobot_arm capturar_camara   # -> ~/milo_ws/ros2_ws/capturas/<fecha>/
@@ -1144,7 +1144,7 @@ Deja `color.png`, `ir.png`, `profundidad_mm.png` (16 bits en mm, como la real), 
 
 **Avance (30 de octubre):** ya hay un nodo `manija_node` que detecta la manija en vivo y la ubica en 3D con la profundidad (o con el plano de la puerta cuando la manija brillante la hace fallar), y la geometría para la pose previa y el arco de la palanca (`andesrobot_arm/manija.py`, con pruebas sobre una puerta sintética). **El nodo no se ha probado en la simulación.** Falta probarlo, ejecutar el movimiento y el detector con fotos reales.
 
-**Avance (5 de noviembre):** con `acercar:=true`, `manija_node` lleva la pinza hasta la manija en dos tramos: con la manija vista de forma estable va a 30 cm de ella (donde la profundidad todavía mide), la vuelve a detectar desde ahí y avanza a ciegas hasta 5 cm. En cada detección calcula cuánto le falta al efector final (`gripper_tcp`): la distancia total y cuánto avanzar en la dirección en que apunta la pinza y cuánto corregir de lado y en altura (`/manija/distancia`). Se probó de punta a punta sin Gazebo (`scripts/probar_manija_sin_gazebo.py`: brazo ideal, puerta plana, keypoints verdaderos con 1 píxel de ruido): la pinza queda a 0.050 m y la manija estimada a 0.3 mm de la verdadera. Esa prueba mostró que, como la palanca es delgada, el rayo de un keypoint puede pasar al lado y medir la hoja de detrás: la pinza habría avanzado 5 cm de más, hasta tocar la manija. Ahora un keypoint que cae sobre la hoja se corrige con el plano de la manija. Falta probarlo en Gazebo con MoveIt y el modelo real.
+**Avance (5 de noviembre):** con `acercar:=true`, `manija_node` lleva la pinza hasta la manija en dos tramos: con la manija vista de forma estable va a 30 cm de ella (donde la profundidad todavía mide), la vuelve a detectar desde ahí y avanza a ciegas hasta 5 cm. En cada detección calcula cuánto le falta al efector final (`gripper_tcp`): la distancia total y cuánto avanzar en la dirección en que apunta la pinza y cuánto corregir de lado y en altura (`/arm/manija/distancia`). Se probó de punta a punta sin Gazebo (`scripts/probar_manija_sin_gazebo.py`: brazo ideal, puerta plana, keypoints verdaderos con 1 píxel de ruido): la pinza queda a 0.050 m y la manija estimada a 0.3 mm de la verdadera. Esa prueba mostró que, como la palanca es delgada, el rayo de un keypoint puede pasar al lado y medir la hoja de detrás: la pinza habría avanzado 5 cm de más, hasta tocar la manija. Ahora un keypoint que cae sobre la hoja se corrige con el plano de la manija. Falta probarlo en Gazebo con MoveIt y el modelo real.
 
 **Avance (7 de noviembre):** la cámara se movió detrás de la muñeca (ver «Montaje en el modelo») y el acercamiento a la manija se probó por primera vez en la simulación completa (Gazebo, MoveIt y el modelo YOLO): la pinza terminó a 6.3 cm del punto de agarre, cuando el nodo creía haber quedado a 5.0 cm; la manija detectada estaba 1.3 cm más cerca de lo que está. Dos efectos del nuevo lugar: la pinza tapa el tercio de abajo de la imagen, y como la cámara ya no gira con la última articulación (joint_6), el brazo podía llegar a la misma pose con la imagen de cabeza; ahora se le pide a MoveIt que joint_6 quede a menos de 90° de cero. El mismo día empezó el plan para agarrar objetos (P15): su primera fase dejó la pinza simulada mandada por fuerza, como la real, y la segunda levantó una caja suelta de hasta 0.5 kg sin que resbale, para lo que el brazo pasó a mandarse por velocidad (sección 13, «Control en Gazebo»). Al final del día, `ros2 run andesrobot_arm agarre_node tenedor` encontró el tenedor con la cámara, lo agarró desde arriba, lo levantó y retrajo el brazo (3 de 3).
 
@@ -1531,7 +1531,7 @@ Desde `~/milo_ws`. El código se edita en el PC; Docker ejecuta. Al terminar: Ct
 ./sim.sh brazo            # en RViz: herramienta Interact (tecla i), arrastrar la esfera naranja
 
 ./sim.sh shell            # otra terminal: mandar una pose o mover la pinza
-ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped \
+ros2 topic pub --once /arm/target_pose geometry_msgs/msg/PoseStamped \
   "{header: {frame_id: base_footprint}, pose: {position: {x: 0.5048, y: -0.2163, z: 1.862},
     orientation: {x: -0.1252, y: 0.5501, z: -0.7869, w: 0.2502}}}"
 ros2 action send_goal /gripper_controller/follow_joint_trajectory control_msgs/action/FollowJointTrajectory \

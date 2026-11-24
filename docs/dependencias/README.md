@@ -87,7 +87,7 @@ Se instala una vez por computador. Los comandos están en el
 | Controlador NVIDIA | usar la GPU | 580.178.04, RTX 3070 Laptop de 8 GB | opcional |
 | `nvidia-container-toolkit` | pasar la GPU al contenedor | 1.20.1 | opcional |
 | `usbutils` (`lsusb`) y `udev` | `./robot.sh camara` y `./robot.sh puertos` los usan | del sistema | despliegue |
-| Arduino IDE o PlatformIO | grabar el firmware en el Arduino; no hace falta para correr el robot | sin instalar: el firmware aún no existe | a futuro, con el brazo real |
+| `arduino-cli` (o Arduino IDE / PlatformIO) | compilar y grabar el firmware en el Arduino; no hace falta para correr el robot | `arduino-cli` 1.5.1 en `~/.local/bin` (binario oficial de GitHub, suma verificada), núcleo `arduino:avr` 1.8.8 y biblioteca `Servo` 1.3.0 (23-nov-2026); ver [`firmware/`](../../firmware/README.md) | desarrollo del brazo real |
 
 No hace falta instalar ROS en el computador: todo corre en el contenedor. **Nunca hay que compilar
 con el ROS del computador dentro de `ros2_ws`**, porque rompe la compilación que usa el contenedor
@@ -102,7 +102,7 @@ Son archivos del computador, no del contenedor, y requieren `sudo`.
 |---|---|---|---|
 | `docker/udev/99-gemini.rules` | `2bc5:0511` y `2bc5:0614` | permiso para abrir la cámara sin ser root | ✅ instalada en el PC de desarrollo; falta en cada PC nuevo |
 | `docker/udev/99-milo.rules` | `10c4:ea60` (lidar) y el adaptador del hoverboard | nombres fijos `/dev/rplidar` y `/dev/hoverboard` | 🔶 hay que completar los `CAMBIAR_...` con `./robot.sh puertos` |
-| Regla para el Arduino | Arduino Mega | nombre fijo, por ejemplo `/dev/arduino`, para no confundirlo con los otros puertos serie | ❌ por agregar a `99-milo.rules` cuando se conecte; `./robot.sh puertos` entrega sus datos |
+| Regla para el Arduino | Arduino Mega (clon con chip CH340, `1a86:7523`) | nombre fijo `/dev/arduino_brazo`, para no confundirlo con los otros puertos serie | ✅ en `99-milo.rules` (23-nov-2026), sin instalar todavía; en Ubuntu hay que quitar `brltty`, que se apodera de los CH340 (ver [`docker/udev`](../../docker/udev/README.md)) |
 
 ### Disco y datos fuera de git
 
@@ -256,7 +256,7 @@ flowchart LR
 
 | Pieza | Función | Se conecta a | Software que necesita | Estado |
 |---|---|---|---|---|
-| Arduino Mega 2560 | generar los pulsos y leer los sensores | computador, por USB serie | firmware por escribir | ❌ sin montar |
+| Arduino Mega 2560 (clon, chip USB CH340) | generar los pulsos y leer los sensores | computador, por USB serie | firmware v2 en [`firmware/`](../../firmware/README.md) (pulsos de las 6 articulaciones, servo) y `brazo_real_node` del lado de ROS | ⏳ firmware cargado y comunicación probada el 23-nov-2026; motores sin mover |
 | 6 drivers TB6600 | dar corriente a los motores | Arduino (STEP/DIR/EN) y fuente de 24 V | ninguno; se configuran con interruptores | ❌ sin conectar |
 | Brazo EB300 (6 motores paso a paso NEMA17 y NEMA23) | moverse | un driver TB6600 por motor | driver del brazo (sección 7) | ❌ sin conectar |
 | IMU MPU-9250 (pinza) | verificar la orientación | Arduino, por I²C (pines 20 y 21 del Mega) | firmware, `imu_sensor_broadcaster`, `imu_filter_madgwick` | ❌ por montar; ver [riesgos](#10-riesgos-lo-que-se-puede-romper) |

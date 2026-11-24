@@ -30,3 +30,7 @@ ros2_ws/datasets/
 ros2_ws/resultados/deriva_base/
 # Resultados de andesrobot_arm/scripts/evaluar_objetos.py (un CSV por corrida): datos, se rehacen.
 ros2_ws/resultados/objetos/
+
+# Respaldos de lo que traía grabado un Arduino antes de cargarle otro programa (.hex de toda la
+# memoria, ~600 kB): se guardan en el PC, no en git.
+firmware/respaldos/

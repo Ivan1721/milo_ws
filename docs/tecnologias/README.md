@@ -442,7 +442,7 @@ Un nodo nuevo, `nbv_planner`, en `andesrobot_arm`:
    choquen (MoveIt).
 4. Puntuar: celdas desconocidas del objeto que vería esa vista, menos un costo proporcional a
    cuánto hay que mover las articulaciones.
-5. Publicar la mejor en `/arm_target_pose` (o pedírsela a MoveIt), esperar a que llegue y repetir.
+5. Publicar la mejor en `/arm/target_pose` (o pedírsela a MoveIt), esperar a que llegue y repetir.
 6. Parar cuando el detector de agarres proponga uno con buena calidad, o cuando ninguna vista
    agregue información.
 

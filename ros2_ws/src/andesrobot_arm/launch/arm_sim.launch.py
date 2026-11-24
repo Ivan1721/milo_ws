@@ -6,7 +6,7 @@ Orden de lo que pasa:
     /robot_description.
  2. Gazebo abre el mundo y spawn_entity.py pone a Milo y la mesa de prueba frente a él.
  3. Si Milo apareció bien, el spawner arranca los controladores del brazo.
- 4. arm_ik_node espera poses en /arm_target_pose; arm_marker_node las publica desde RViz.
+ 4. arm_ik_node espera poses en /arm/target_pose; arm_marker_node las publica desde RViz.
 
 Uso:  ros2 launch andesrobot_arm arm_sim.launch.py   [gui:=false] [rviz:=false]
                                                     [camara:=false] [mesa:=false]
@@ -23,7 +23,7 @@ config/objetos.yaml, hasta 10: 5 al alcance del brazo y 5 más atrás). Los mode
 vez con scripts/descargar_objetos.py; para el detector de objetos, objeto_node.
 Con moveit:=true (default) arranca move_group (MoveIt 2) con la configuración de
 andesrobot_moveit_config y arm_moveit_node reemplaza a arm_ik_node: las poses de
-/arm_target_pose se planifican sin choques (robot, mesa y, con octomap:=true, lo que ve la
+/arm/target_pose se planifican sin choques (robot, mesa y, con octomap:=true, lo que ve la
 cámara). Con moveit:=false queda la cinemática inversa propia (arm_ik_node), sin revisión
 de choques.
 Cámara: topics /gripper_camera/{color,depth,ir}/image_raw y /gripper_camera/depth/points
@@ -219,7 +219,7 @@ def launch_setup(context):
         # activos): así encuentra las acciones FollowJointTrajectory al conectarse.
         move_group = Node(package='moveit_ros_move_group', executable='move_group',
                           output='screen', parameters=[config.to_dict(), {'use_sim_time': True}])
-        # Cliente: /arm_target_pose -> acción MoveGroup (y la mesa como obstáculo).
+        # Cliente: /arm/target_pose -> acción MoveGroup (y la mesa como obstáculo).
         mover = Node(package='andesrobot_arm', executable='arm_moveit_node', output='screen',
                      parameters=[{'use_sim_time': True, 'mesa': con_mesa}])
         after_controllers = RegisterEventHandler(

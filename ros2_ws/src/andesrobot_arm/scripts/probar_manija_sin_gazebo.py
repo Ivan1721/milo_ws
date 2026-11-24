@@ -3,7 +3,7 @@
 Prueba manija_node de punta a punta SIN Gazebo ni YOLO: ¿la pinza llega a la manija?
 
 Arma un "mundo falso" con ROS dentro del mismo proceso:
-  - un brazo ideal: el TF base_footprint -> gripper_tcp va a cada objetivo de /arm_target_pose
+  - un brazo ideal: el TF base_footprint -> gripper_tcp va a cada objetivo de /arm/target_pose
     en 2 s, en línea recta (no hay MoveIt: se prueba la lógica del nodo, no la planificación);
   - una cámara 8 cm sobre el TCP, mirando hacia donde apunta la pinza (su −X local), con color y
     profundidad (una puerta plana en x = 0.80, la hoja de puerta_prueba.sdf);
@@ -58,7 +58,7 @@ class MundoFalso(Node):
         self.r = orientacion_pinza([1.0, 0.0, 0.0])
         self.t0 = None
         self.camara = None
-        self.create_subscription(PoseStamped, '/arm_target_pose', self.on_objetivo, 1)
+        self.create_subscription(PoseStamped, '/arm/target_pose', self.on_objetivo, 1)
         self.pub_color = self.create_publisher(Image, '/gripper_camera/color/image_raw', 1)
         self.pub_prof = self.create_publisher(Image, '/gripper_camera/depth/image_raw', 1)
         self.pub_k_color = self.create_publisher(CameraInfo, '/gripper_camera/color/camera_info',

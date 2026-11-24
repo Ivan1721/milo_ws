@@ -32,9 +32,14 @@ objetos:
   # de juego, no una tarjeta; la mochila no es una bolsa) y el modelo de objetos los reconoce
   # (0.6–0.9) y a los nuestros no. La tarjeta y la bolsa no son escaneos: son cajas (4 mm y
   # 20 x 26 x 35 cm) con una foto como textura, fijas (sirven para ver, no para agarrar).
-  - {id: redbull, clase: redbull_can, fuente: equipo, nombre: redbull_sketchfab, masa: 0.27}
+  # Red Bull y Pringles son de Sketchfab con licencia CC-BY: se bajan del release de milo_ws
+  # (release: true), con su autor y su página original anotados aquí y en LICENCIAS.md del zip.
+  - {id: redbull, clase: redbull_can, fuente: equipo, nombre: redbull_sketchfab, masa: 0.27,
+     release: true, autor: martin_dalm, licencia: CC-BY-4.0,
+     original: 'https://sketchfab.com/3d-models/red-bull-energy-drink-can-2a29aa47ffd74b6395d07cd270db4735'}
   - {id: pringles_equipo, clase: pringles, fuente: equipo, nombre: pringles_sketchfab,
-     masa: 0.20}
+     masa: 0.20, release: true, autor: sirerdees, licencia: CC-BY-4.0,
+     original: 'https://sketchfab.com/3d-models/pringles-chips-can-d5f767ccd8514f9b9a3db325660653b6'}
   - {id: tarjeta_equipo, clase: card, fuente: equipo, nombre: card, masa: 0.01}
   - {id: bolsa_equipo, clase: bag, fuente: equipo, nombre: bag, masa: 0.30}
 
@@ -46,6 +51,11 @@ objetos:
   - {id: botella, clase: bottle, fuente: ycb, nombre: 006_mustard_bottle, masa: 0.45}
   - {id: bowl_turquesa, clase: bowl, fuente: fuel, dueno: GoogleResearch, masa: 0.30,
      nombre: Room_Essentials_Bowl_Turquiose}
+  # Estos cuatro (bowl_amarillo, taza_azul, consola, plato_ensalada) los usa la prueba de
+  # detección del equipo de visión (prueba_completa.zip, 15-nov-2026); son de Fuel, como los demás.
+  # Van después del nuestro de su clase, así que pedir la clase sigue eligiendo el de antes.
+  - {id: bowl_amarillo, clase: bowl, fuente: fuel, dueno: GoogleResearch, masa: 0.30,
+     nombre: Cole_Hardware_Bowl_Scirocco_YellowBlue}
   - {id: caja_azucar, clase: box, fuente: ycb, nombre: 004_sugar_box, masa: 0.50}
   - {id: juego_cartas, clase: card, fuente: fuel, dueno: GoogleResearch, masa: 0.30,
      nombre: Mad_Gab_Refresh_Card_Game}
@@ -56,11 +66,16 @@ objetos:
      nombre: DPC_tropical_Trends_Hat}
   - {id: taza, clase: cup, fuente: fuel, dueno: GoogleResearch, masa: 0.35,
      nombre: ACE_Coffee_Mug_Kristen_16_oz_cup}
+  - {id: taza_azul, clase: cup, fuente: fuel, dueno: GoogleResearch, masa: 0.35,
+     nombre: Cole_Hardware_Mug_Classic_Blue}
   # drink: la lata de Coca-Cola de Fuel (OpenRobotics/Coke Can, el modelo clásico de Gazebo) no
   # sirve: su malla .dae deja la lata ~28 cm bajo su origen, y aun puesta más alta salió
   # disparada de la mesa (probado el 6-nov). Queda sin modelo, como colgate_box, key y redbull_can.
   - {id: mouse, clase: electronic_device, fuente: fuel, dueno: GoogleResearch, masa: 0.10,
      nombre: Razer_Taipan_White_Ambidextrous_Gaming_Mouse}
+  # La consola está escaneada abierta (156 x 137 x 91 mm), con las dos pantallas a la vista.
+  - {id: consola, clase: electronic_device, fuente: fuel, dueno: GoogleResearch, masa: 0.33,
+     nombre: BlackBlack_Nintendo_3DSXL}
   - {id: sopa, clase: food, fuente: ycb, nombre: 005_tomato_soup_can, masa: 0.35}
   - {id: tenedor, clase: fork, fuente: ycb, nombre: 030_fork, masa: 0.02}
   # El plátano y el cubo Rubik de Fuel traen otra forma de armar el modelo (mallas .dae con
@@ -72,6 +87,8 @@ objetos:
      nombre: Threshold_Porcelain_Pitcher_White}
   - {id: plato, clase: plate, fuente: fuel, dueno: GoogleResearch, masa: 0.50,
      nombre: Threshold_Dinner_Plate_Square_Rim_White_Porcelain}
+  - {id: plato_ensalada, clase: plate, fuente: fuel, dueno: GoogleResearch, masa: 0.40,
+     nombre: Threshold_Salad_Plate_Square_Rim_Porcelain}
   - {id: pringles_ycb, clase: pringles, fuente: ycb, nombre: 001_chips_can, masa: 0.20}
   - {id: rubik, clase: rubik_cube, fuente: ycb, nombre: 077_rubiks_cube, masa: 0.10}
   - {id: cuchara, clase: spoon, fuente: ycb, nombre: 031_spoon, masa: 0.03}
@@ -80,3 +97,27 @@ objetos:
   - {id: bandeja, clase: tray, fuente: fuel, dueno: GoogleResearch, masa: 0.60,
      nombre: Threshold_Tray_Rectangle_Porcelain}
   - {id: plumon, clase: writing_tool, fuente: ycb, nombre: 040_large_marker, masa: 0.02}
+
+  # Los del mundo de prueba del modelo "para simulación" del equipo (entorno_objetos.zip,
+  # 15-nov-2026): un objeto por cada una de sus 9 clases; el modelo parece entrenado con estos.
+  # Bowl, Red Bull, Pringles y tarjeta ya estaban arriba (son los mismos archivos). Van al final,
+  # así que pedir la clase (objetos:=fork) sigue eligiendo el de antes; a estos se los pide por id.
+  # Sin licencia anotada: no se publican, salen de ros2_ws/modelos/entorno_objetos.zip copiado a
+  # mano.
+  # cubiertos_equipo es tenedor y cuchara en un solo modelo (sin textura); la cuchara viene parada
+  # (17 cm de alto); la bolsa es de tela, con asas que solo se ven (no tienen colisión).
+  - {id: cubiertos_equipo, clase: fork, fuente: equipo, entrega: entorno_objetos, masa: 0.06,
+     nombre: cubiertos_sketchfab}
+  - {id: cuchara_equipo, clase: spoon, fuente: equipo, entrega: entorno_objetos, masa: 0.03,
+     nombre: spoon_sketchfab}
+  - {id: rubik_equipo, clase: rubik_cube, fuente: equipo, entrega: entorno_objetos, masa: 0.10,
+     nombre: rubik_sketchfab}
+  - {id: botella_equipo, clase: bottle, fuente: equipo, entrega: entorno_objetos, masa: 0.30,
+     nombre: bottle_sketchfab}
+  - {id: bolsa_tela, clase: bag, fuente: equipo, entrega: entorno_objetos, masa: 0.30,
+     nombre: bolsa_3d}
+  # La misma bolsa de tela en café papel (como la bolsa de supermercado de referencia): misma
+  # malla, otro color (tenir_mtl) y otra carpeta, para tener las dos. El modelo de 9 clases quizás
+  # se entrenó con la crema; sin probar si reconoce esta.
+  - {id: bolsa_papel, clase: bag, fuente: equipo, entrega: entorno_objetos, masa: 0.30,
+     nombre: bolsa_3d, carpeta: bolsa_3d_papel, color: [0.70, 0.53, 0.35]}

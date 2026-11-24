@@ -11,22 +11,23 @@ el punto 3D se saca de la profundidad (ver objetos.py):
      imagen de profundidad; el punto del objeto es la mediana (un punto de la cara que mira a la
      cámara).
   3. Publica, en `frame_destino` (base_footprint):
-       /objeto/punto        PointStamped  el punto del objeto
-       /objeto/pose_previa  PoseStamped   dónde poner la pinza antes de acercarse (mirándolo)
-       /objeto/marcadores   MarkerArray   el punto y la dirección de llegada, para RViz
-       /objeto/distancia    Float32       distancia del efector final (gripper_tcp) al objeto [m]
-       /objeto/punto_tcp    PointStamped  el objeto visto desde gripper_tcp (x negativo = lo que
-                                          falta avanzar)
-       /objeto/pose         PoseStamped   para agarrarlo (agarre.analizar_objeto): centro del
-                                          objeto y, como orientación, el giro en Z de su eje
-                                          largo (PCA de sus puntos sobre la mesa)
-       /objeto/medidas      Vector3Stamped  largo (x), ancho (y) y alto (z) sobre la mesa [m]
+       /arm/objeto/punto        PointStamped  el punto del objeto
+       /arm/objeto/pose_previa  PoseStamped   dónde poner la pinza antes de acercarse
+       /arm/objeto/marcadores   MarkerArray   el punto y la dirección de llegada, para RViz
+       /arm/objeto/distancia    Float32       distancia del efector final (gripper_tcp) al
+                                              objeto [m]
+       /arm/objeto/punto_tcp    PointStamped  el objeto visto desde gripper_tcp (x negativo =
+                                              lo que falta avanzar)
+       /arm/objeto/pose         PoseStamped   para agarrarlo (agarre.analizar_objeto): centro
+                                              del objeto y, como orientación, el giro en Z de
+                                              su eje largo (PCA de sus puntos sobre la mesa)
+       /arm/objeto/medidas      Vector3Stamped  largo (x), ancho (y) y alto (z) sobre la mesa
      y anota en el log la clase, la confianza y cuánto le falta a la pinza.
-     /objeto/pose y /objeto/medidas salen de una grilla de `grilla` x `grilla` rayos por TODA la
-     caja (hacen falta puntos de la mesa alrededor para saber dónde empieza el objeto); los usa
-     agarre_node.
+     /arm/objeto/pose y /arm/objeto/medidas salen de una grilla de `grilla` x `grilla` rayos por
+     TODA la caja (hacen falta puntos de la mesa alrededor para saber dónde empieza el objeto);
+     los usa agarre_node.
 
-Mover el brazo (por /arm_target_pose; lo planifica MoveIt):
+Mover el brazo (por /arm/target_pose; lo planifica MoveIt):
   acercar:=true   lleva la pinza frente al objeto en dos tramos, igual que con la manija
                   (manija.Acercamiento): con 3 detecciones estables va a `distancia_previa`
                   (30 cm); desde ahí vuelve a detectar y va a `distancia_final` (10 cm). La
@@ -89,14 +90,14 @@ class ObjetoNode(Node):
         self.create_subscription(Image, '/gripper_camera/depth/image_raw', self.on_prof, s)
         self.create_subscription(CameraInfo, '/gripper_camera/color/camera_info', self.on_kc, s)
         self.create_subscription(CameraInfo, '/gripper_camera/depth/camera_info', self.on_kp, s)
-        self.pub_punto = self.create_publisher(PointStamped, '/objeto/punto', 1)
-        self.pub_previa = self.create_publisher(PoseStamped, '/objeto/pose_previa', 1)
-        self.pub_marcas = self.create_publisher(MarkerArray, '/objeto/marcadores', 1)
-        self.pub_objetivo = self.create_publisher(PoseStamped, '/arm_target_pose', 1)
-        self.pub_distancia = self.create_publisher(Float32, '/objeto/distancia', 1)
-        self.pub_punto_tcp = self.create_publisher(PointStamped, '/objeto/punto_tcp', 1)
-        self.pub_pose = self.create_publisher(PoseStamped, '/objeto/pose', 1)
-        self.pub_medidas = self.create_publisher(Vector3Stamped, '/objeto/medidas', 1)
+        self.pub_punto = self.create_publisher(PointStamped, '/arm/objeto/punto', 1)
+        self.pub_previa = self.create_publisher(PoseStamped, '/arm/objeto/pose_previa', 1)
+        self.pub_marcas = self.create_publisher(MarkerArray, '/arm/objeto/marcadores', 1)
+        self.pub_objetivo = self.create_publisher(PoseStamped, '/arm/target_pose', 1)
+        self.pub_distancia = self.create_publisher(Float32, '/arm/objeto/distancia', 1)
+        self.pub_punto_tcp = self.create_publisher(PointStamped, '/arm/objeto/punto_tcp', 1)
+        self.pub_pose = self.create_publisher(PoseStamped, '/arm/objeto/pose', 1)
+        self.pub_medidas = self.create_publisher(Vector3Stamped, '/arm/objeto/medidas', 1)
         distancias = (self.get_parameter('distancia_previa').value,
                       self.get_parameter('distancia_final').value)
         self.acercamiento = Acercamiento(distancias, tol_llegada=0.01,
@@ -243,8 +244,8 @@ class ObjetoNode(Node):
             self.acercar(destino, punto, llegada)
 
     def medir(self, frame, caja, c2p, p2d, profundidad):
-        """Medidas para agarrar (agarre.analizar_objeto): publica /objeto/pose y
-        /objeto/medidas, o nada si no hay suficientes puntos del objeto sobre la mesa."""
+        """Medidas para agarrar (agarre.analizar_objeto): publica /arm/objeto/pose y
+        /arm/objeto/medidas, o nada si no hay suficientes puntos del objeto sobre la mesa."""
         rd, td = p2d
         puntos = []
         for u, v in pixeles_centrales(caja, fraccion=1.0, n=self.get_parameter('grilla').value):

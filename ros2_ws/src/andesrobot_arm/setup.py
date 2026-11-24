@@ -36,5 +36,7 @@ setup(
         'objeto_node = andesrobot_arm.objeto_node:main',
         'agarre_node = andesrobot_arm.agarre_node:main',
         'bolsa_node = andesrobot_arm.bolsa_node:main',
+        'brazo_real_node = andesrobot_arm.brazo_real_node:main',
+        'arduino_falso = andesrobot_arm.arduino_falso:main',
     ]},
 )

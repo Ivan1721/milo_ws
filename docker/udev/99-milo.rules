@@ -14,3 +14,10 @@
 SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ATTRS{serial}=="CAMBIAR_SERIAL_LIDAR", SYMLINK+="rplidar", MODE="0666"
 # Adaptador USB-TTL del hoverboard (completar VID/PID/serial con ./robot.sh puertos)
 SUBSYSTEM=="tty", ATTRS{idVendor}=="CAMBIAR_VID", ATTRS{idProduct}=="CAMBIAR_PID", ATTRS{serial}=="CAMBIAR_SERIAL_HOVER", SYMLINK+="hoverboard", MODE="0666"
+# Arduino Mega del brazo (drivers de los motores y servo de la garra). Es un clon con chip USB
+# CH340 (1a86:7523), que NO tiene número de serie: si otro adaptador del robot también es CH340
+# (por ejemplo el del hoverboard), las dos reglas no se distinguen y hay que agregar la condición
+# KERNELS=="X-Y" con el puerto USB físico donde va conectado cada uno (sale en
+# "udevadm info -a -n /dev/ttyUSBx", la primera línea KERNELS=="3-2" o parecida). Un Mega original
+# trae otro chip (2341:0042) y aparece como /dev/ttyACM0 en vez de ttyUSB.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", SYMLINK+="arduino_brazo", MODE="0666"

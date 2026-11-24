@@ -5,10 +5,18 @@ Son escaneos 3D de objetos reales, con su textura (licencia CC-BY 4.0), de dos f
   fuel  Gazebo Fuel: ya vienen como modelo de Gazebo (los de GoogleResearch son Google Scanned
         Objects, la taza y el bowl del escenario original salen de ahí)
   ycb   el set YCB (ycb-benchmarks): vienen como malla .obj sola; aquí se les arma el model.sdf
-y uno más, sin internet:
+y una tercera:
   equipo  los que mandó el equipo de visión el 9-nov-2026 en entrega_simulacion.zip (los de su
-          escena de prueba: lata de Red Bull, Pringles, tarjeta y bolsa). El zip se copia a mano a
-          ros2_ws/modelos/entrega_simulacion.zip (o se da con --zip_equipo) y de ahí se sacan.
+          escena de prueba: lata de Red Bull, Pringles, tarjeta y bolsa), ya convertidos por ellos
+          a modelo de Gazebo. Los que tienen licencia CC-BY (Red Bull y Pringles, de Sketchfab;
+          `release: true` en el catálogo) se bajan de un release de milo_ws en GitHub
+          (RELEASE_EQUIPO, con su autoría en LICENCIAS.md). La tarjeta y la bolsa salen de fotos
+          del dataset del equipo, sin licencia anotada: esas no se publican, y se sacan del zip
+          del equipo copiado a mano a ros2_ws/modelos/entrega_simulacion.zip (--zip_equipo).
+          Los del 15-nov-2026 (entorno_objetos.zip: el mundo con un objeto por cada una de las 9
+          clases del modelo "para simulación") llevan `entrega: entorno_objetos` en el catálogo y
+          salen de ros2_ws/modelos/entorno_objetos.zip (al lado del otro), carpeta
+          entorno_objetos/models/<nombre>/; tampoco traen licencia.
 Quedan en /ros2_ws/modelos/gazebo/<carpeta>/ (en tu PC ~/milo_ws/ros2_ws/modelos/gazebo/, no va a
 git): arm_sim.launch.py suma esa carpeta a GAZEBO_MODEL_PATH, la lista de carpetas donde Gazebo
 busca los "model://...".
@@ -28,6 +36,7 @@ Uso (dentro del contenedor; necesita internet; ~370 MB todos):
   python3 /ros2_ws/src/andesrobot_arm/scripts/descargar_objetos.py --lista      # ver el catálogo
 """
 import argparse
+import hashlib
 import io
 import json
 import re
@@ -43,11 +52,16 @@ from pathlib import Path
 AQUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(AQUI.parent))      # andesrobot_arm/ sin tener que compilar
 from andesrobot_arm.catalogo_objetos import (  # noqa: E402
-    carpeta, corregir_uris, leer_catalogo, medidas, vertices_obj, xml_inercial)
+    carpeta, corregir_uris, leer_catalogo, medidas, tenir_mtl, vertices_obj, xml_inercial)
 
 CATALOGO = AQUI.parent / 'config' / 'objetos.yaml'
 FUEL = 'https://fuel.gazebosim.org/1.0'
 YCB = 'http://ycb-benchmarks.s3.amazonaws.com/data'
+# Release de milo_ws con los modelos del equipo que se pueden redistribuir (CC-BY). El sha256 es
+# del zip publicado: si no coincide, el archivo se bajó mal o alguien lo cambió.
+RELEASE_EQUIPO = ('https://github.com/Ivan1721/milo_ws/releases/download/modelos-equipo-v1/'
+                  'modelos_equipo_v1.zip')
+SHA256_EQUIPO = '1a9b0537b44628646758c428288ca394a37bd84208672cbccd5abcd7cb7ff2f5'
 
 
 def bajar(url):
@@ -91,12 +105,31 @@ def desde_ycb(objeto, d):
         '</collision>\n    </link>\n  </model>\n</sdf>\n')
 
 
-def desde_equipo(objeto, d, zip_equipo):
-    """Equipo: el zip trae entrega_simulacion/models/<nombre>/, ya como modelo de Gazebo."""
-    if not Path(zip_equipo).exists():
-        raise FileNotFoundError(f'falta {zip_equipo} (copiarlo a mano, ver el docstring)')
-    prefijo = f'entrega_simulacion/models/{objeto["nombre"]}/'
-    with zipfile.ZipFile(zip_equipo) as z:
+def zip_del_release(cache):
+    """El zip del release, bajado una sola vez a `cache` (y comprobado con su sha256)."""
+    if not cache.exists():
+        datos = bajar(RELEASE_EQUIPO)
+        if hashlib.sha256(datos).hexdigest() != SHA256_EQUIPO:
+            raise ValueError(f'el zip de {RELEASE_EQUIPO} no es el esperado (sha256 distinto)')
+        cache.write_bytes(datos)
+    return cache
+
+
+def desde_equipo(objeto, d, zip_equipo, cache_release):
+    """Equipo: el modelo ya viene como modelo de Gazebo. Si el objeto está en el release
+    (`release: true`), de ahí (carpeta modelos_equipo/<nombre>/); si no, del zip del equipo
+    copiado a mano (carpeta entrega_simulacion/models/<nombre>/), o del de otra entrega
+    (`entrega: entorno_objetos` -> entorno_objetos.zip al lado de zip_equipo)."""
+    if objeto.get('release'):
+        archivo, prefijo = zip_del_release(cache_release), f'modelos_equipo/{objeto["nombre"]}/'
+    else:
+        entrega = objeto.get('entrega', 'entrega_simulacion')
+        archivo = (Path(zip_equipo) if entrega == 'entrega_simulacion'
+                   else Path(zip_equipo).parent / f'{entrega}.zip')
+        if not archivo.exists():
+            raise FileNotFoundError(f'falta {archivo} (copiarlo a mano, ver el docstring)')
+        prefijo = f'{entrega}/models/{objeto["nombre"]}/'
+    with zipfile.ZipFile(archivo) as z:
         for miembro in z.namelist():
             if miembro.startswith(prefijo) and not miembro.endswith('/'):
                 destino = d / miembro[len(prefijo):]
@@ -152,6 +185,9 @@ def preparar(objeto, d):
     sdf_path = archivo_sdf(d)
     sdf = corregir_uris(sdf_path.read_text(), nombre)
     arreglar_material(d)
+    if objeto.get('color'):         # otro color para una malla sin textura (ver tenir_mtl)
+        for mtl in d.rglob('*.mtl'):
+            mtl.write_text(tenir_mtl(mtl.read_text(), objeto['color']))
     # Medidas de la malla visual (.obj). Las .dae (la lata de Coca-Cola) no se miden: su origen
     # ya está en la base.
     medida = None
@@ -187,6 +223,8 @@ def main():
     ap.add_argument('--otra_vez', action='store_true', help='bajar aunque ya estén')
     ap.add_argument('--zip_equipo', default='/ros2_ws/modelos/entrega_simulacion.zip',
                     help='zip con los modelos del equipo (fuente: equipo)')
+    ap.add_argument('--cache_release', default='/ros2_ws/modelos/modelos_equipo_v1.zip',
+                    help='dónde guardar el zip del release al bajarlo')
     a = ap.parse_args()
     catalogo = leer_catalogo(CATALOGO.read_text())
     if a.lista:
@@ -207,7 +245,7 @@ def main():
             if nuevo:
                 d.mkdir(parents=True, exist_ok=True)
                 if objeto['fuente'] == 'equipo':
-                    desde_equipo(objeto, d, a.zip_equipo)
+                    desde_equipo(objeto, d, a.zip_equipo, Path(a.cache_release))
                 else:
                     (desde_fuel if objeto['fuente'] == 'fuel' else desde_ycb)(objeto, d)
             medida = preparar(objeto, d)

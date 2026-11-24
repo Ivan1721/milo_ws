@@ -93,7 +93,7 @@ if [ "$MOVEIT" = true ]; then
 fi
 
 # 4. Pose alcanzable (la de la validación del informe) y comprobación por TF.
-ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped \
+ros2 topic pub --once /arm/target_pose geometry_msgs/msg/PoseStamped \
   "{header: {frame_id: base_footprint}, pose: {position: {x: 0.5048, y: -0.2163, z: 1.862}, orientation: {x: -0.1252, y: 0.5501, z: -0.7869, w: 0.2502}}}" > /dev/null
 sleep $([ "$MOVEIT" = true ] && echo 25 || echo 14)
 tf=$(timeout 6 ros2 run tf2_ros tf2_echo base_footprint gripper_tcp 2>/dev/null | grep -m1 Translation)
@@ -109,7 +109,7 @@ else fallo "4. pose alcanzable: TCP a $err mm ($tf), 'Objetivo alcanzado' en el 
 #     sin choque) y el brazo quedarse donde estaba.
 if [ "$MOVEIT" = true ]; then
   antes=$(timeout 6 ros2 run tf2_ros tf2_echo base_footprint gripper_tcp 2>/dev/null | grep -m1 Translation)
-  ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped \
+  ros2 topic pub --once /arm/target_pose geometry_msgs/msg/PoseStamped \
     "{header: {frame_id: base_footprint}, pose: {position: {x: 0.80, y: 0.0, z: 0.70}, orientation: {x: 0.0, y: -0.7071, z: 0.0, w: 0.7071}}}" > /dev/null
   sleep 20
   despues=$(timeout 6 ros2 run tf2_ros tf2_echo base_footprint gripper_tcp 2>/dev/null | grep -m1 Translation)
@@ -121,7 +121,7 @@ fi
 # 5c. Con MoveIt y la cámara: mirar la mesa desde arriba (45° hacia abajo) y comprobar que el
 #     OctoMap de la escena tiene celdas (la nube de la cámara entró como obstáculo).
 if [ "$MOVEIT" = true ]; then
-  ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped \
+  ros2 topic pub --once /arm/target_pose geometry_msgs/msg/PoseStamped \
     "{header: {frame_id: base_footprint}, pose: {position: {x: 0.5, y: 0.0, z: 1.4}, orientation: {x: 0.3827, y: 0.0, z: 0.9239, w: 0.0}}}" > /dev/null
   sleep 25
   # components 32 = el OctoMap; se cuentan los bytes del campo data.

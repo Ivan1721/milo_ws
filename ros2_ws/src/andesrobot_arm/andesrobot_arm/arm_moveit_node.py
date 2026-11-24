@@ -1,6 +1,6 @@
 """Nodo arm_moveit_node: lleva la pinza de Milo a una pose usando MoveIt 2 (planifica sin choques).
 
-Hace lo mismo que arm_ik_node (escucha /arm_target_pose y mueve el brazo), pero en vez de
+Hace lo mismo que arm_ik_node (escucha /arm/target_pose y mueve el brazo), pero en vez de
 resolver la cinemática inversa y mandar un solo punto, le pide a move_group que:
   1. resuelva la IK (KDL) para la pose,
   2. busque un camino completo desde la postura actual que no choque con el robot, la mesa ni lo
@@ -9,7 +9,7 @@ resolver la cinemática inversa y mandar un solo punto, le pide a move_group que
      llegue.
 Es el "cliente de MoveIt" de la figura C del informe.
 
-Escucha:  /arm_target_pose (geometry_msgs/PoseStamped, en cualquier frame que conozca TF)
+Escucha:  /arm/target_pose (geometry_msgs/PoseStamped, en cualquier frame que conozca TF)
 Manda:    la acción /move_action (moveit_msgs/MoveGroup) con la pose como meta del grupo "brazo"
           y, al arrancar, la mesa de prueba como obstáculo conocido en /planning_scene.
 
@@ -192,7 +192,7 @@ class ArmMoveItNode(Node):
         self.mesa = self.declare_parameter('mesa', True).value
         self.mesa_frame = self.declare_parameter('mesa_frame', 'base_footprint').value
         # mantener_orientacion:=true = cada nueva meta es solo una TRASLACIÓN: se ignora la
-        # orientación que traiga /arm_target_pose y la pinza llega con la que tiene ahora, sin
+        # orientación que traiga /arm/target_pose y la pinza llega con la que tiene ahora, sin
         # girar en el camino (para llevar un objeto agarrado, por ejemplo una taza con líquido,
         # sin volcarlo). Se intenta en dos pasos:
         #   1. LÍNEA RECTA (camino cartesiano de MoveIt, sin choques): la orientación no cambia
@@ -216,13 +216,13 @@ class ArmMoveItNode(Node):
         self.cartesiano = self.create_client(GetCartesianPath, '/compute_cartesian_path')
         self.ejecutar = ActionClient(self, ExecuteTrajectory, '/execute_trajectory')
         self.scene_pub = self.create_publisher(PlanningScene, '/planning_scene', 10)
-        self.create_subscription(PoseStamped, '/arm_target_pose', self.on_target, 10)
+        self.create_subscription(PoseStamped, '/arm/target_pose', self.on_target, 10)
         self.en_curso = None
         # Esperar a move_group y, cuando esté, publicar la mesa en la escena.
         self.mesa_publicada = 0
         self.startup_timer = self.create_timer(1.0, self.al_arrancar)
         self.get_logger().info(
-            f"Escuchando /arm_target_pose; MoveIt planifica el grupo '{self.group}' hasta "
+            f"Escuchando /arm/target_pose; MoveIt planifica el grupo '{self.group}' hasta "
             f"'{self.tcp_frame}' ({'solo posición' if self.position_only else 'pose completa'})")
 
     def al_arrancar(self):

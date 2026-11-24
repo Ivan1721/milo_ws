@@ -8,7 +8,7 @@ import pytest
 
 from andesrobot_arm.catalogo_objetos import (
     ALTO_MESA, altura_de_spawn, carpeta, corregir_uris, elegir, inercia_caja, leer_catalogo,
-    medidas, posiciones_en_mesa, vertices_obj)
+    medidas, posiciones_en_mesa, tenir_mtl, vertices_obj)
 
 CATALOGO = os.path.join(os.path.dirname(__file__), '..', 'config', 'objetos.yaml')
 CLASES = {'bag', 'book', 'bottle', 'bowl', 'box', 'card', 'cereal_box', 'cleaning_supply',
@@ -31,6 +31,8 @@ def test_catalogo_bien_formado(catalogo):
         assert o['fuente'] in ('fuel', 'ycb', 'equipo'), o['id']
         assert 0 < o['masa'] < 2, o['id']
         assert o['fuente'] != 'fuel' or o.get('dueno'), o['id']
+        # Lo que se republica en el release tiene que tener licencia y autor anotados.
+        assert not o.get('release') or (o.get('licencia') and o.get('autor')), o['id']
     # Las 24 clases que tienen modelo (faltan colgate_box, key y drink; redbull_can llegó con
     # los modelos del equipo el 9-nov).
     sin_modelo = {'colgate_box', 'key', 'drink'}
@@ -84,3 +86,15 @@ def test_carpeta_y_uris():
     assert corregir_uris(sdf, 'Coke_Can') == (
         '<uri>model://Coke_Can/meshes/a.dae</uri><uri>model://Coke_Can/meshes/b.dae</uri>'
         '<uri> https://fuel/x.dae </uri>')
+
+
+def test_carpeta_propia_y_color(catalogo):
+    """Dos versiones del mismo modelo (la bolsa de tela crema y café papel) en carpetas distintas;
+    tenir_mtl cambia el color difuso y el ambiente, y agrega el que falte."""
+    tela = next(o for o in catalogo if o['id'] == 'bolsa_tela')
+    papel = next(o for o in catalogo if o['id'] == 'bolsa_papel')
+    assert tela['nombre'] == papel['nombre'] and carpeta(tela) != carpeta(papel)
+    assert len({carpeta(o) for o in catalogo}) == len(catalogo)
+    mtl = tenir_mtl('newmtl m\nKa 0.4 0.4 0.4\nKd 0.9 0.9 0.8\nNs 1\n', (0.7, 0.5, 0.3))
+    assert 'Kd 0.700000 0.500000 0.300000' in mtl and 'Ka 0.700000 0.500000 0.300000' in mtl
+    assert 'Ka 0.700000' in tenir_mtl('newmtl m\nKd 1 1 1\n', (0.7, 0.5, 0.3))

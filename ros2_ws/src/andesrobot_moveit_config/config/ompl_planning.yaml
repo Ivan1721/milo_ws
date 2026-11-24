@@ -47,6 +47,16 @@ brazo:
   # Cada cuánto (fracción del rango) se revisa el choque a lo largo de un tramo del camino.
   longest_valid_segment_fraction: 0.005
 
+# El brazo sin el lift (robot real, ver andesrobot.srdf): lo mismo que brazo.
+brazo_sin_lift:
+  default_planner_config: RRTConnectkConfigDefault
+  planner_configs:
+    - RRTConnectkConfigDefault
+    - RRTstarkConfigDefault
+    - PRMkConfigDefault
+  projection_evaluator: joints(joint_1,joint_2)
+  longest_valid_segment_fraction: 0.005
+
 pinza:
   default_planner_config: RRTConnectkConfigDefault
   planner_configs:

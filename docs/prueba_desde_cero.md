@@ -159,7 +159,7 @@ Sin `octomap:=false`, MoveIt toma la puerta que ve la cámara como obstáculo y 
 manija.
 
 ```bash
-ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped "{header: {frame_id: base_footprint}, pose: {position: {x: 0.387, y: -0.319, z: 1.086}, orientation: {x: 0.0, y: 0.0, z: 1.0, w: 0.0}}}"
+ros2 topic pub --once /arm/target_pose geometry_msgs/msg/PoseStamped "{header: {frame_id: base_footprint}, pose: {position: {x: 0.387, y: -0.319, z: 1.086}, orientation: {x: 0.0, y: 0.0, z: 1.0, w: 0.0}}}"
 ```
 
 **Debe pasar:** el brazo llega y en RViz la pinza queda frente a la puerta apuntando a la manija.
@@ -198,7 +198,7 @@ lleva la pinza a 30 cm del punto de agarre. Ahí la detecta de nuevo, ya más ce
 avanza a ciegas hasta quedar a 5 cm.
 
 **Debe pasar:**
-- En RViz los marcadores de `/manija/marcadores` caen sobre la manija, con un error de pocos mm.
+- En RViz los marcadores de `/arm/manija/marcadores` caen sobre la manija, con un error de pocos mm.
 - MoveIt llega a la pose previa (30 cm) y después a 5 cm.
 - El log termina con «Listo: la pinza quedó a … m del punto de agarre», y esa distancia coincide
   con la que se ve en RViz. En la prueba del 7-nov-2026 el log dijo 0.050 m y la pinza quedó a
@@ -219,7 +219,7 @@ bottle...) y objetos escaneados sobre la mesa (26, del catálogo `config/objetos
 **Antes, una vez por computador:** el modelo de objetos tampoco va en git. Copia su `best.pt` a
 `ros2_ws/modelos/objetos/best.pt` (desde el 9-nov-2026, el del equipo entrenado con
 `dataset_reglamento3`; el anterior se guarda en `ros2_ws/modelos/objetos/anterior_2026-11-06/`, para
-el tenedor), y baja los objetos (necesita internet; ~370 MB en
+el tenedor), y baja los objetos (necesita internet; ~450 MB en
 `ros2_ws/modelos/gazebo/`):
 
 ```bash
@@ -227,10 +227,11 @@ el tenedor), y baja los objetos (necesita internet; ~370 MB en
 python3 /ros2_ws/src/andesrobot_arm/scripts/descargar_objetos.py
 ```
 
-Cuatro objetos (`redbull`, `pringles_equipo`, `tarjeta_equipo`, `bolsa_equipo`) no se bajan de
-internet: vienen en `entrega_simulacion.zip`, del equipo de visión. Copia ese zip a
+Dos objetos del equipo (`tarjeta_equipo` y `bolsa_equipo`) no se bajan de internet: vienen en
+`entrega_simulacion.zip`, del equipo de visión. Copia ese zip a
 `ros2_ws/modelos/entrega_simulacion.zip` antes del comando de arriba; si no está, el script avisa
-que no pudo con esos cuatro y sigue con los demás.
+que no pudo con esos dos y sigue con los demás. Red Bull y Pringles del equipo sí se bajan solos,
+del release `modelos-equipo-v1` de milo_ws.
 
 **Terminal 1** (`./sim.sh shell`):
 
@@ -246,7 +247,7 @@ vuelve a correr `descargar_objetos.py`: arregla el material). Para otros objetos
 centro de la mesa mirando 40° hacia abajo.
 
 ```bash
-ros2 topic pub --once /arm_target_pose geometry_msgs/msg/PoseStamped "{header: {frame_id: base_footprint}, pose: {position: {x: 0.531, y: -0.009, z: 0.941}, orientation: {x: -0.1736, y: 0.0, z: -0.9848, w: 0.0}}}"
+ros2 topic pub --once /arm/target_pose geometry_msgs/msg/PoseStamped "{header: {frame_id: base_footprint}, pose: {position: {x: 0.531, y: -0.009, z: 0.941}, orientation: {x: -0.1736, y: 0.0, z: -0.9848, w: 0.0}}}"
 ```
 
 **Terminal 2:** detectar la taza y acercar la pinza.

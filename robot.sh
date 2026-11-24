@@ -12,12 +12,13 @@
 #   ./robot.sh nav <mapa>    navegación autónoma (AMCL + Nav2) con un mapa ya guardado (SIN PROBAR)
 #   ./robot.sh ir <lugar>    (otra terminal) mandar a Milo a una ubicación (ver ./robot.sh ir --lista)
 #   ./robot.sh camara [alineada:=true]   solo la cámara de la pinza (no necesita lidar ni ruedas)
+#   ./robot.sh brazo [rviz:=false]       brazo real: Arduino Mega + MoveIt (ARDUINO=/dev/ttyUSB0 ...)
 #   ./robot.sh imagen        reconstruir la imagen de Docker (después de cambiar algo en docker/)
 #
 # Puertos (por defecto /dev/rplidar y /dev/hoverboard, ver docker/udev/README.md). Sin udev:
 #   LIDAR=/dev/ttyUSB0 HOVER=/dev/ttyUSB1 ./robot.sh
 set -e
-# (Las líneas 2-18 de arriba son la ayuda que imprime "sed -n '2,18p'" si escribes una opción
+# (Las líneas 2-19 de arriba son la ayuda que imprime "sed -n '2,19p'" si escribes una opción
 #  que no existe. Los comentarios explicativos van desde aquí.)
 #
 # "set -e": si un comando falla, el script se detiene.
@@ -29,6 +30,8 @@ source docker/lib.sh
 # (LIDAR=/dev/ttyUSB0 ./robot.sh); si no, /dev/rplidar (nombre fijo que crean las reglas udev).
 LIDAR="${LIDAR:-/dev/rplidar}"
 HOVER="${HOVER:-/dev/hoverboard}"
+# Arduino Mega del brazo (firmware/brazo_mega): /dev/arduino_brazo con la regla udev.
+ARDUINO="${ARDUINO:-/dev/arduino_brazo}"
 # RViz junto con Milo: sí si hay pantalla (portátil de Milo), no si se corre sin pantalla (SSH).
 # Se puede forzar: RVIZ=false ./robot.sh
 if [ -n "$DISPLAY" ]; then RVIZ="${RVIZ:-true}"; else RVIZ="${RVIZ:-false}"; fi
@@ -47,7 +50,7 @@ case "$1" in
       udevadm info -a -n "$d" | grep -m3 -E 'ATTRS\{(idVendor|idProduct|serial)\}'
     done
     # Si las reglas udev ya están instaladas, se ven los enlaces fijos.
-    ls -l /dev/rplidar /dev/hoverboard 2>/dev/null || true
+    ls -l /dev/rplidar /dev/hoverboard /dev/arduino_brazo 2>/dev/null || true
     exit 0 ;;
   rviz)
     # Si el contenedor ya está corriendo (Milo andando en este mismo portátil): abrir RViz
@@ -88,10 +91,18 @@ case "$1" in
     # shift quita la palabra "camara"; lo que queda (alineada:=true) va al launch.
     shift
     exec $DC exec ros bash -ic "ros2 launch andesrobot_arm camara_real.launch.py $*" ;;
+  brazo)
+    # Brazo real: el Arduino del brazo + robot_state_publisher + MoveIt (brazo_real.launch.py).
+    # No necesita lidar ni ruedas. Antes: firmware cargado y el brazo en su pose cero (ver
+    # firmware/README.md). Lo que venga después de "brazo" (rviz:=false) va al launch.
+    [ -e "$ARDUINO" ] || { echo "[milo] No existe $ARDUINO. Conecta el Arduino, ./robot.sh puertos, o ARDUINO=/dev/ttyUSB0 ./robot.sh brazo"; exit 1; }
+    milo_up
+    shift
+    exec $DC exec ros bash -ic "ros2 launch andesrobot_arm brazo_real.launch.py puerto:=$ARDUINO rviz:=$RVIZ $*" ;;
   # Sin palabra: sigue abajo a levantar a Milo.
   "") ;;
   # Opción desconocida: mostrar ayuda.
-  *) sed -n '2,18p' "$0"; exit 1 ;;
+  *) sed -n '2,19p' "$0"; exit 1 ;;
 esac
 
 # Antes de arrancar, revisar que el lidar y el hoverboard estén conectados.
