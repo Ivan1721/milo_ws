@@ -1,138 +1,191 @@
-"""Pruebas de bolsa.py (encontrar el asa de una bolsa) con bolsas sintéticas. BORRADOR, P17.
+"""Pruebas de bolsa.py (tomar una bolsa por el asa a partir de los 3 puntos clave del modelo). P17.
 
 No necesitan ROS: python3 -m pytest -q test/test_bolsa.py
-La "bolsa" es como la de papel de referencia (315 x 160 x 410 mm), vista como nube de puntos: sus
-cuatro paredes, el suelo (o la mesa) alrededor y las asas, cada asa una U invertida de 12 cm de
-ancho que sobresale 9 cm de la boca, con 6 mm de grosor. Es lo que darían los puntos de la máscara
-de la bolsa con su profundidad, sin el ruido ni los huecos de una cámara real.
+La escena sintética imita la bolsa de tela cruda del equipo (asas.json: 10 x 36 x 38 cm, asa en
+arco de 20 cm entre bases que sobresale 24 cm, cinta de 25 x 4 mm) parada en el suelo frente a
+Milo, vista por una cámara como la de la muñeca desde ~0.5 m. La imagen de profundidad se DIBUJA
+punto por punto (cada pixel guarda lo más cercano que cae en él, como una cámara real), y los
+puntos clave son la proyección de la punta y las bases verdaderas, corridos unos píxeles como
+los daría el modelo. Sin el ruido ni los huecos de una cámara real.
 """
 import numpy as np
 import pytest
 
 from andesrobot_arm.agarre import PUNTA_DEDO, estable
 from andesrobot_arm.bolsa import (
-    altura_de_la_boca, buscar_asa, en_la_mascara, nube_de_profundidad, pose_de_agarre,
-    promediar_asas, separar_asas)
+    asa_de_puntos, elegir_asa, nube_de_profundidad, pose_de_agarre, promediar_asas, proyectar,
+    punto_del_pixel)
 
-ANCHO, FONDO, ALTO = 0.315, 0.16, 0.41
-ALTO_ASA, ANCHO_ASA, GROSOR = 0.09, 0.12, 0.006
+FONDO, ANCHO, ALTO = 0.10, 0.36, 0.38          # bolsa de tela cruda [m]
+R_ASA, H_ASA, CINTA, GRUESO = 0.10, 0.24, 0.025, 0.004
+K = np.array([[554.0, 0.0, 320.0], [0.0, 554.0, 240.0], [0.0, 0.0, 1.0]])   # 640 x 480, 60°
 
 
-def asa(y_pared, paso=0.004):
-    """Puntos de una U invertida en el plano x = y_pared (coordenada a lo largo del fondo), en el
-    frame de la bolsa (x = fondo, y = ancho, z desde la boca)."""
+def arco(x_pared, paso=0.001):
+    """Puntos (superficie densa) de un asa en arco en el plano x = x_pared, frame de la bolsa
+    (x = fondo, y = ancho, z desde el piso). Devuelve (puntos, base izquierda, punta, base
+    derecha). La base "izquierda" es la de +Y (la izquierda de Milo) como la vería la cámara."""
     puntos = []
-    for g in np.arange(-GROSOR / 2, GROSOR / 2 + 1e-9, 0.002):
-        for z in np.arange(0.0, ALTO_ASA, paso):           # las dos patas
-            puntos += [[y_pared + g, -ANCHO_ASA / 2, z], [y_pared + g, ANCHO_ASA / 2, z]]
-        for y in np.arange(-ANCHO_ASA / 2, ANCHO_ASA / 2 + 1e-9, paso):   # el tramo de arriba
-            puntos.append([y_pared + g, y, ALTO_ASA])
-    return np.array(puntos)
+    for t in np.arange(0.0, np.pi + 1e-9, paso / max(R_ASA, H_ASA)):
+        c = np.array([x_pared, R_ASA * np.cos(t), ALTO + H_ASA * np.sin(t)])
+        for g in np.arange(-GRUESO / 2, GRUESO / 2 + 1e-9, 0.002):
+            for w in np.arange(-CINTA / 2, CINTA / 2 + 1e-9, 0.002):
+                # la cinta: ancha en el plano del arco (hacia afuera del arco), delgada en x
+                normal = np.array([0.0, np.cos(t), np.sin(t) * R_ASA / H_ASA])
+                normal /= np.linalg.norm(normal)
+                puntos.append(c + [g, 0, 0] + w * normal * 0.5)
+    izq = np.array([x_pared, R_ASA, ALTO])
+    der = np.array([x_pared, -R_ASA, ALTO])
+    punta = np.array([x_pared, 0.0, ALTO + H_ASA])
+    return np.array(puntos), izq, punta, der
 
 
-def bolsa(centro=(0.60, 0.0), angulo=0.0, piso=0.0, asas='dos', paso=0.005):
-    """(puntos de la bolsa, puntos del suelo alrededor) en base_footprint. La bolsa está girada
-    `angulo` [rad] en Z; su fondo (16 cm) va a lo largo de X cuando angulo = 0.
-    asas: 'dos' (una en cada pared, a 14 cm), 'juntas' (las dos en el medio), 'ninguna'."""
-    paredes = []
-    for z in np.arange(0.0, ALTO, paso):
-        for y in np.arange(-ANCHO / 2, ANCHO / 2, paso):
-            paredes += [[-FONDO / 2, y, z], [FONDO / 2, y, z]]
-        for x in np.arange(-FONDO / 2, FONDO / 2, paso):
-            paredes += [[x, -ANCHO / 2, z], [x, ANCHO / 2, z]]
-    p = [np.array(paredes)]
-    if asas == 'dos':
-        p += [asa(-0.07) + [0, 0, ALTO], asa(0.07) + [0, 0, ALTO]]
-    elif asas == 'juntas':
-        p += [asa(0.0) + [0, 0, ALTO]]
-    p = np.vstack(p)
+def escena(centro=(0.60, 0.0), angulo=0.0, asa='parada'):
+    """Puntos del mundo (base_footprint) y los 3 puntos clave verdaderos del asa de la pared
+    cercana a Milo. asa: 'parada', 'doblada' (caída 70° hacia la bolsa) o 'ninguna'."""
+    p = []
+    for x in np.arange(-0.5, 0.5, 0.003):                  # suelo alrededor
+        for y in np.arange(-0.5, 0.5, 0.003):
+            p.append([centro[0] + x, centro[1] + y, 0.0])
+    caja = []
+    for z in np.arange(0.0, ALTO, 0.003):                  # paredes
+        for y in np.arange(-ANCHO / 2, ANCHO / 2, 0.003):
+            caja += [[-FONDO / 2, y, z], [FONDO / 2, y, z]]
+        for x in np.arange(-FONDO / 2, FONDO / 2, 0.003):
+            caja += [[x, -ANCHO / 2, z], [x, ANCHO / 2, z]]
+    caja = [np.array(caja)]
+    clave = None
+    if asa != 'ninguna':
+        for x_pared in (-FONDO / 2, FONDO / 2):
+            puntos, izq, punta, der = arco(x_pared)
+            if asa == 'doblada':           # girada alrededor de la línea de las bases
+                a = np.radians(70.0) * np.sign(-x_pared)
+                giro = np.array([[np.cos(a), 0, np.sin(a)], [0, 1, 0], [-np.sin(a), 0, np.cos(a)]])
+                eje = np.array([x_pared, 0.0, ALTO])
+                puntos = (puntos - eje) @ giro.T + eje
+                punta = giro @ (punta - eje) + eje
+            caja.append(puntos)
+            if x_pared < 0:                # la pared cercana a Milo (x menor)
+                clave = (izq, punta, der)
+    caja = np.vstack(caja)
     c, s = np.cos(angulo), np.sin(angulo)
-    giro = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
-    p = p @ giro.T + [centro[0], centro[1], piso]
-    g = np.arange(-0.30, 0.30, 0.01)
-    suelo = np.array([[centro[0] + a, centro[1] + b, piso] for a in g for b in g
-                      if abs(a) > FONDO / 2 + 0.02 or abs(b) > ANCHO / 2 + 0.02])
-    return p, suelo
+    giro_z = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
+    mover = np.array([centro[0], centro[1], 0.0])
+    caja = caja @ giro_z.T + mover
+    if clave is not None:
+        clave = tuple(giro_z @ q + mover for q in clave)
+    return np.vstack([np.array(p), caja]), clave
 
 
-@pytest.mark.parametrize('piso', [0.0, 0.72])
-def test_boca_de_la_bolsa(piso):
-    p, _ = bolsa(piso=piso)
-    assert altura_de_la_boca(p[:, 2]) == pytest.approx(piso + ALTO, abs=0.012)
+def camara(posicion=(0.30, 0.0, 0.95), mira=(0.60, 0.0, 0.45)):
+    """(rot, pos) de la cámara óptica (Z adelante, X derecha, Y abajo) en base_footprint."""
+    z = np.asarray(mira, float) - posicion
+    z /= np.linalg.norm(z)
+    x = np.cross(z, [0.0, 0.0, 1.0])
+    x /= np.linalg.norm(x)
+    y = np.cross(z, x)
+    return np.column_stack([x, y, z]), np.asarray(posicion, float)
 
 
-@pytest.mark.parametrize('piso', [0.0, 0.72])
-def test_encuentra_el_asa_mas_cercana(piso):
-    """Bolsa en el suelo o en la mesa: se elige el asa de la pared cercana a Milo (x = 0.53)."""
-    p, _ = bolsa(piso=piso)
-    a, problema = buscar_asa(p)
+def dibujar(puntos_mundo, rot, pos, alto=480, ancho=640):
+    """Imagen de profundidad: cada píxel guarda la z más cercana que cae en él (z-buffer)."""
+    pc = (puntos_mundo - pos) @ rot
+    pc = pc[pc[:, 2] > 0.05]
+    u = np.round(K[0, 0] * pc[:, 0] / pc[:, 2] + K[0, 2]).astype(int)
+    v = np.round(K[1, 1] * pc[:, 1] / pc[:, 2] + K[1, 2]).astype(int)
+    ok = (u >= 0) & (u < ancho) & (v >= 0) & (v < alto)
+    img = np.full(alto * ancho, np.inf)
+    np.minimum.at(img, v[ok] * ancho + u[ok], pc[ok, 2])
+    img[np.isinf(img)] = 0.0
+    return img.reshape(alto, ancho)
+
+
+def pixel(p_mundo, rot, pos, corrido=(0.0, 0.0)):
+    pc = rot.T @ (p_mundo - pos)
+    return (K[0, 0] * pc[0] / pc[2] + K[0, 2] + corrido[0],
+            K[1, 1] * pc[1] / pc[2] + K[1, 2] + corrido[1])
+
+
+def medir(mundo, clave, rot, pos, corrido=(0.0, 0.0)):
+    """Lo que hace bolsa_node con una imagen: nube, proyección y los 3 puntos 3D -> asa."""
+    nube = nube_de_profundidad(dibujar(mundo, rot, pos), K)
+    uvz = proyectar(nube, K, np.eye(3), np.zeros(3))      # color = profundidad en la prueba
+    puntos = [punto_del_pixel(nube, uvz, pixel(q, rot, pos, corrido)) for q in clave]
+    assert all(p is not None for p in puntos)
+    return asa_de_puntos(*[rot @ p + pos for p in puntos])
+
+
+@pytest.fixture(scope='module')
+def parada():
+    return escena()
+
+
+def test_asa_parada(parada):
+    """Bolsa a 0.60 m: el vértice sale a menos de 1 cm del verdadero y el eje va a lo largo de Y
+    (el ancho de la bolsa), aunque el modelo se equivoque 2 px en la punta."""
+    mundo, clave = parada
+    rot, pos = camara()
+    a, problema = medir(mundo, clave, rot, pos, corrido=(2.0, -2.0))
     assert problema == ''
-    assert a['n_asas'] == 2
-    assert a['centro'][0] == pytest.approx(0.53, abs=0.005)
-    assert a['centro'][1] == pytest.approx(0.0, abs=0.01)
-    assert a['centro'][2] == pytest.approx(piso + ALTO + ALTO_ASA, abs=0.01)
-    assert abs(a['eje'][1]) == pytest.approx(1.0, abs=0.01)       # el asa va a lo largo de Y
-    assert a['alto'] == pytest.approx(ALTO_ASA, abs=0.015)
-    assert a['largo'] == pytest.approx(ANCHO_ASA, abs=0.01)
-    assert a['grosor'] < 0.012
+    assert np.linalg.norm(a['centro'] - clave[1]) < 0.01
+    assert abs(a['eje'][1]) == pytest.approx(1.0, abs=0.02)
+    assert a['alto'] == pytest.approx(H_ASA, abs=0.02)
+    assert a['largo'] == pytest.approx(2 * R_ASA, abs=0.02)
+
+
+def test_la_capa_de_adelante_es_el_asa(parada):
+    """Con el píxel exacto de la punta corrido 3 px, el píxel mismo puede ver el suelo de atrás
+    (a ~0.9 m); punto_del_pixel igual devuelve el asa (~0.5 m), no el suelo."""
+    mundo, clave = parada
+    rot, pos = camara()
+    nube = nube_de_profundidad(dibujar(mundo, rot, pos), K)
+    uvz = proyectar(nube, K, np.eye(3), np.zeros(3))
+    p = punto_del_pixel(nube, uvz, pixel(clave[1], rot, pos, (0.0, -3.0)))
+    assert np.linalg.norm(rot @ p + pos - clave[1]) < 0.01
+    lejos = punto_del_pixel(nube, uvz, (1000.0, 1000.0))      # fuera de la imagen
+    assert lejos is None
 
 
 def test_bolsa_girada():
-    p, _ = bolsa(centro=(0.55, 0.10), angulo=np.radians(30))
-    a, problema = buscar_asa(p)
+    mundo, clave = escena(centro=(0.55, 0.08), angulo=np.radians(30))
+    rot, pos = camara(mira=(0.55, 0.08, 0.45))
+    a, problema = medir(mundo, clave, rot, pos)
     assert problema == ''
     eje = np.array([-np.sin(np.radians(30)), np.cos(np.radians(30)), 0.0])
-    assert abs(a['eje'] @ eje) == pytest.approx(1.0, abs=0.01)
+    assert abs(a['eje'] @ eje) == pytest.approx(1.0, abs=0.02)
+    assert np.linalg.norm(a['centro'] - clave[1]) < 0.01
 
 
-def test_asas_juntas_son_una():
-    p, _ = bolsa(asas='juntas')
-    a, problema = buscar_asa(p)
-    assert problema == '' and a['n_asas'] == 1
-    assert a['centro'][0] == pytest.approx(0.60, abs=0.005)
+def test_asa_doblada_se_rechaza():
+    mundo, clave = escena(asa='doblada')
+    rot, pos = camara()
+    a, problema = medir(mundo, clave, rot, pos)
+    assert a is None and 'doblada' in problema
 
 
-def test_mascara_sin_asa_usa_toda_la_imagen():
-    """Si el modelo dejó el asa fuera de la máscara, se busca en todos los puntos, dentro de la
-    huella de la bolsa (el suelo de alrededor no cuenta)."""
-    p, suelo = bolsa()
-    cuerpo = p[p[:, 2] <= ALTO]
-    a, problema = buscar_asa(cuerpo, todos=np.vstack([p, suelo]))
-    assert problema == ''
-    assert a['centro'][2] == pytest.approx(ALTO + ALTO_ASA, abs=0.01)
-    assert buscar_asa(cuerpo)[0] is None                 # solo con la máscara, no hay asa
+def test_validaciones():
+    izq, punta, der = [0.6, 0.1, 0.38], [0.6, 0.0, 0.62], [0.6, -0.1, 0.38]
+    assert asa_de_puntos(izq, punta, der)[1] == ''
+    assert 'sobresale' in asa_de_puntos(izq, [0.6, 0.0, 0.395], der)[1]     # aplastada
+    assert 'bases' in asa_de_puntos([0.6, 0.01, 0.38], punta, [0.6, -0.01, 0.38])[1]
+    assert 'desnivel' in asa_de_puntos(izq, punta, [0.6, -0.1, 0.20])[1]    # tumbada
+    # Una base 8 cm más arriba en el arco (lo hace el modelo): sirve, y la boca es la más baja.
+    a, problema = asa_de_puntos([0.6, 0.09, 0.46], punta, der)
+    assert problema == '' and a['boca_z'] == pytest.approx(0.38)
+    assert asa_de_puntos(izq, punta, izq)[0] is None
 
 
-def test_sin_asa_o_tumbada():
-    p, _ = bolsa(asas='ninguna')
-    a, problema = buscar_asa(p)
-    assert a is None and 'sobresale' in problema
+def test_elegir_la_mas_cercana():
+    cerca = asa_de_puntos([0.55, 0.1, 0.38], [0.55, 0.0, 0.62], [0.55, -0.1, 0.38])[0]
+    lejos = asa_de_puntos([0.65, 0.1, 0.38], [0.65, 0.0, 0.62], [0.65, -0.1, 0.38])[0]
+    e = elegir_asa([lejos, cerca])
+    assert e['centro'][0] == pytest.approx(0.55) and e['n_asas'] == 2
+    assert elegir_asa([]) is None
 
 
-def test_algo_lejos_sobre_la_boca_no_es_asa():
-    """Un objeto a la altura del asa pero fuera de la huella de la bolsa (un mueble detrás) no se
-    cuenta como asa."""
-    p, _ = bolsa(asas='ninguna')
-    mueble = np.array([[0.90, y, ALTO + 0.05] for y in np.arange(-0.1, 0.1, 0.005)])
-    assert buscar_asa(p, todos=np.vstack([p, mueble]))[0] is None
-
-
-def test_asa_baja_se_rechaza():
-    p, _ = bolsa()
-    p = p[p[:, 2] <= ALTO + 0.015]                        # asas aplastadas: 15 mm sobre la boca
-    a, problema = buscar_asa(p, minimo=5)
-    assert a is None
-
-
-def test_separar_asas():
-    dos = np.vstack([asa(-0.07), asa(0.07)])
-    assert len(separar_asas(dos)) == 2
-    assert len(separar_asas(asa(0.0))) == 1
-
-
-def test_pose_de_agarre():
-    p, _ = bolsa()
-    a, _ = buscar_asa(p)
+def test_pose_de_agarre(parada):
+    mundo, clave = parada
+    a, _ = asa_de_puntos(*clave)
     posicion, giro = pose_de_agarre(a, metido=0.012)
     assert posicion[2] == pytest.approx(a['centro'][2] + PUNTA_DEDO - 0.012)
     assert giro[:, 0] == pytest.approx([0.0, 0.0, 1.0])      # la pinza apunta hacia abajo (−X)
@@ -141,8 +194,7 @@ def test_pose_de_agarre():
 
 
 def test_promediar_y_estable():
-    p, _ = bolsa()
-    a, _ = buscar_asa(p)
+    a, _ = asa_de_puntos([0.55, 0.1, 0.38], [0.55, 0.0, 0.62], [0.55, -0.1, 0.38])
     b = dict(a, centro=a['centro'] + [0.004, 0, 0], eje=-a['eje'])
     m = promediar_asas([a, b, a])
     assert m['centro'] == pytest.approx(a['centro'])
@@ -150,21 +202,16 @@ def test_promediar_y_estable():
     assert estable([a, b, a], tol=0.01)
 
 
-def test_nube_y_mascara():
-    """Una pared plana a 1 m: la nube sale a 1 m, y con la máscara de la mitad izquierda de la
-    imagen quedan los puntos con x < 0 (X óptico = a la derecha). Con las cámaras corridas 2.5 cm,
-    la mitad se corre 2.5 cm."""
-    k = np.array([[500.0, 0, 320], [0, 500.0, 240], [0, 0, 1]])
+def test_nube_y_proyeccion():
+    """Una pared plana a 1 m: la nube sale a 1 m y cada punto vuelve a su píxel. Con las cámaras
+    separadas 2.5 cm a lo largo de X, la imagen a color ve todo corrido 0.025 · 554 / 1 = 13.85
+    px."""
     prof = np.full((480, 640), 1.0)
     prof[:10, :] = 0.0                                     # filas sin dato
-    p = nube_de_profundidad(prof, k, paso=4)
+    p = nube_de_profundidad(prof, K, paso=4)
     assert np.allclose(p[:, 2], 1.0)
     assert len(p) == (480 - 12) // 4 * 640 // 4
-    mascara = np.zeros((480, 640), bool)
-    mascara[:, :320] = True
-    dentro = en_la_mascara(p, mascara, k, np.eye(3), np.zeros(3))
-    assert np.all(p[dentro, 0] < 0.001) and np.all(p[~dentro, 0] >= -0.001)
-    dentro = en_la_mascara(p, mascara, k, np.eye(3), np.array([0.025, 0, 0]))
-    centro = np.abs(p[:, 0]) < 0.5         # los del borde caen fuera de la imagen a color
-    assert np.all(p[dentro, 0] < 0.026)
-    assert np.all(p[~dentro & centro, 0] >= 0.024)
+    uvz = proyectar(p, K, np.eye(3), np.zeros(3))
+    assert uvz[0, 0] == pytest.approx(0.0) and uvz[0, 1] == pytest.approx(12.0)
+    corrida = proyectar(p, K, np.eye(3), np.array([-0.025, 0.0, 0.0]))
+    assert corrida[0, 0] - uvz[0, 0] == pytest.approx(0.025 * 554.0)

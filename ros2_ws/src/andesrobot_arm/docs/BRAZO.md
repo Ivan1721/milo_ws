@@ -37,8 +37,15 @@ Sin Docker (ROS Humble instalado en el PC): `ros2 launch andesrobot_arm arm_sim.
 (`gui:=false` sin ventana de Gazebo, `rviz:=false` sin RViz, `camara:=false` sin la cámara de la
 pinza, `mesa:=false` sin la mesa de prueba, `puerta:=true` la puerta de prueba en vez de la mesa,
 `moveit:=false` con la cinemática inversa propia en vez de MoveIt, `octomap:=false` sin el mapa de
-la cámara en la escena). `./sim.sh brazo` no pasa argumentos: para cambiarlos, `./sim.sh shell` y
-el `ros2 launch` directo.
+la cámara en la escena, `bolsa:=true` una bolsa con asas en el suelo en vez de la mesa). Con
+Docker los mismos argumentos van después de `./sim.sh brazo` (por ejemplo
+`./sim.sh brazo objetos:=tenedor octomap:=false`).
+
+**Ojo con `octomap:=false` antes del 24-nov-2026:** no apagaba nada. `MoveItConfigsBuilder` carga
+`config/sensors_3d.yaml` por su cuenta si nadie lo pidió, así que `move_group` seguía armando el
+OctoMap con la cámara. Se vio porque la bolsa agarrada "chocaba" con el OctoMap. Ahora el launch
+vacía los sensores. Las pruebas anteriores que dicen `octomap:=false` (tenedor, puerta, objetos)
+corrieron en realidad CON OctoMap.
 
 Tests (sin ROS corriendo, dentro de `./sim.sh shell`):
 `source /ros2_ws/install/setup.bash && cd /ros2_ws/src/andesrobot_arm && python3 -m pytest -q test`
@@ -626,27 +633,68 @@ soltarlo, abrir la pinza:
 ros2 action send_goal /gripper_controller/follow_joint_trajectory control_msgs/action/FollowJointTrajectory "{trajectory: {joint_names: [right_finger_joint, left_finger_joint], points: [{positions: [0.016, -0.016], time_from_start: {sec: 1}}]}}"
 ```
 
-### Tomar una bolsa por el asa (`bolsa_node`, borrador)
+### Tomar una bolsa por el asa (`bolsa_node`)
 
-**Borrador sin probar** (13-nov-2026, P17 en `docs/PENDIENTES.md`; guía en
-`docs/robocup/README.md` §8.1). Espera el modelo de segmentación del equipo de visión, con una sola
-clase `bag`. Es `agarre_node` (la misma clase `AgarreNode`, con otras vistas por defecto) con otra
-visión: el nodo corre el modelo, toma la máscara de la bolsa y `bolsa.py` encuentra el asa por
-geometría (lo que sobresale de la boca), su vértice y su eje. Después: previa 10 cm sobre el asa,
-bajada en línea recta hasta tener el asa 12 mm adentro de los dedos (`metido`), cerrar del todo,
-subir 15 cm y retraer sin girar.
+P17 en `docs/PENDIENTES.md`; guía en `docs/robocup/README.md` §8.1. Desde el 24-nov-2026 usa el
+**modelo de puntos clave del equipo de visión** (YOLO11n-pose, una clase `bag_handle`): por cada
+asa da una caja y 3 puntos, **base izquierda, punta y base derecha**. Lo entrenaron con 400
+imágenes de Gazebo de tres bolsas hechas por ellos (tela cruda, tela negra y papel; 340 para
+entrenar y 60 para validar). Con esas 60: mAP50 de las cajas 0.991 y de los puntos 0.986, ~8 ms
+por imagen en la GPU del PC. Va en `ros2_ws/modelos/bolsa/best.pt` (gitignored; se copia a mano).
+
+Es `agarre_node` (la misma clase `AgarreNode`, con otras vistas por defecto) con otra visión. El
+nodo corre el modelo. Cada punto del asa se pasa a 3D con la profundidad: se toma la capa más
+cercana a la cámara alrededor del punto, porque el asa es delgada y el píxel exacto puede ver lo
+que hay detrás. Después `bolsa.py` mide el asa:
+- el vértice es la punta;
+- el eje va de una base a la otra;
+- la boca es la base más baja;
+- se valida que el asa sobresalga de la boca, que las bases estén a 5–40 cm y que la punta no se
+  salga de la línea de las bases (un asa doblada no se toma desde arriba).
+
+De las asas que sirven elige la más cercana a Milo. Después: previa 10 cm sobre el asa, bajada en
+línea recta hasta tener el asa 12 mm adentro de los dedos (`metido`), cerrar del todo, subir 15 cm
+y retraer sin girar.
 
 ```bash
-ros2 launch andesrobot_arm arm_sim.launch.py mesa:=false octomap:=false    # terminal 1
-ros2 run andesrobot_arm bolsa_node --ros-args -p modelo:=/ros2_ws/modelos/bolsa/best.pt
-# opciones propias: -p clase:=bag  -p usar_toda_la_imagen:=true  -p metido:=0.012
-#                   -p minimo_frenado:=0.002  -p unir:=true  -p medidas_bolsa:=[0.315,0.16,0.41]
+./sim.sh brazo bolsa:=true octomap:=false     # terminal 1: bolsa de papel parada en el suelo
+ros2 run andesrobot_arm bolsa_node            # terminal 2 (./sim.sh shell)
+# opciones propias: -p modelo:=<.pt>  -p clase:=bag_handle  -p confianza_punto:=0.5
+#                   -p radio:=6.0  -p metido:=0.012  -p minimo_frenado:=0.0005
+#                   -p unir:=true  -p medidas_bolsa:=[0.32,0.17,0.33]
 # y las de agarre_node (vistas, confianza, sobre, subir, retraer, velocidad...)
 ```
 
-Publica la pose de agarre en `/arm/bolsa/asa` para verla en RViz. Hoy no hay en Gazebo una bolsa con
-asa (`bolsa_equipo` es una caja), así que solo está probada la geometría, con bolsas sintéticas
-(`test/test_bolsa.py`). Necesita `./sim.sh build` (archivo nuevo).
+`bolsa:=true` pone `worlds/bolsa_prueba.sdf` en vez de la mesa. Es la bolsa de papel del equipo con
+las medidas de su `asas.json`: cuerpo de 17 × 32 × 33 cm, asas en arco de 12 cm entre bases que
+suben 9 cm, cordón de 8 × 8 mm. Es un solo cuerpo rígido de 0.3 kg, **con colisión** (sus modelos
+solo se veían). Centro en x = 0.685 m; asas en x = 0.60 y 0.77 m. La genera
+`scripts/crear_bolsa_sdf.py` (`--tipo bolsa_tela_cruda` para la de tela, `--x`, `--masa`). Publica
+la pose de agarre en `/arm/bolsa/asa` para verla en RViz.
+
+Cuidados:
+- **Asas muy delgadas.** La cinta de la bolsa de tela mide 4 mm, y la pinza cerrada del todo
+  deja 3 mm entre las caras. Cada dedo queda a solo 0.5 mm de su meta, y con la ganancia del
+  controlador (10 000 N/m) eso es ~5 N de apriete, no 20. Con la bolsa de tela la tomó y la
+  levantó, pero se resbaló al retraer (2 de 2). Por eso la bolsa de prueba es la de papel.
+  `minimo_frenado` es 0.5 mm aquí (2 mm en `agarre_node`) para aceptar la cinta.
+- **Qué ve el modelo.** Ve bien un asa recortada contra el suelo, y casi nunca una vista desde
+  arriba contra la boca de la bolsa (del mismo color). Por eso a veces toma el asa de atrás; con
+  la bolsa de papel, de asas bajas, eso no estorba.
+- **La profundidad cubre menos que el color.** En la simulación la imagen de profundidad es de
+  640 × 400 y la de color de 640 × 480: un punto en la franja de arriba de la imagen queda sin
+  profundidad ("sin profundidad en algún punto"). Las vistas dejan el asa al medio.
+- El modelo a veces pone una base 7–8 cm más arriba en el arco. Por eso la boca es la base más
+  baja y se aceptan hasta 12 cm de desnivel entre las bases.
+- Solo se probó con la bolsa en el suelo; falta una vista para una bolsa en la mesa.
+- Todo es simulación. El modelo nunca vio fotos reales ni la imagen de nuestra cámara en la muñeca
+  (sus imágenes son de una cámara fija).
+
+**Resultado (24-nov-2026, Gazebo, simulación nueva en cada intento): 4 de 4.** Bolsa de papel
+parada en el suelo, vistas por defecto. En los 4 encontró un asa (vértice a menos de 1.5 cm del
+verdadero), la tomó, la levantó 15 cm y retrajo el brazo. Al terminar los dedos seguían frenados en
+el cordón (8.9–11.4 mm) y la bolsa colgaba a 0.61 m del suelo. Tomó el asa cercana en 3 intentos y
+la de atrás en 1.
 
 ## Cámara de la pinza (Orbbec Gemini Plus)
 

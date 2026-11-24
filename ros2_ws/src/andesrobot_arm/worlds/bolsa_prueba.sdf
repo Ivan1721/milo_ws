@@ -1,0 +1,163 @@
+<?xml version="1.0"?>
+<!-- GENERADO por scripts/crear_bolsa_sdf.py (no editar a mano): bolsa_papel del equipo de visión
+     (asas.json, entrega_VC.zip del 20-nov-2026), con colisión. La pone arm_sim.launch.py con
+     bolsa:=true. Milo aparece en (0, 0) mirando a +X; su frente está en x = 0.436. La bolsa queda
+     en (0.685, 0.0) con el fondo (0.17 m) a lo largo de X: el asa cercana en x = 0.600, su
+     punta a 0.42 m del suelo. Un solo cuerpo rígido de 0.3 kg. -->
+<sdf version="1.6">
+  <model name="bolsa_prueba">
+    <pose>0.685 0.0 0 0 0 0</pose>
+    <link name="bolsa">
+      <inertial><pose>0 0 0.1650 0 0 0</pose><mass>0.3</mass>
+        <inertia><ixx>0.005282</ixx><iyy>0.003445</iyy><izz>0.003283</izz>
+          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia></inertial>
+      <collision name="cuerpo_c"><pose>0.00000 0.00000 0.16500 0.00000 0.00000 0.00000</pose><geometry><box><size>0.17000 0.32000 0.33000</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="cuerpo_v"><pose>0.00000 0.00000 0.16500 0.00000 0.00000 0.00000</pose><geometry><box><size>0.17000 0.32000 0.33000</size></box></geometry><material><ambient>0.66 0.48 0.30 1</ambient><diffuse>0.66 0.48 0.30 1</diffuse></material></visual>
+      <collision name="asa_cerca_00_c"><pose>-0.08500 -0.05974 0.33587 1.52713 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01476 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_00_v"><pose>-0.08500 -0.05974 0.33587 1.52713 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01476 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_cerca_01_c"><pose>-0.08500 -0.05872 0.34752 1.43896 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01465 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_01_v"><pose>-0.08500 -0.05872 0.34752 1.43896 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01465 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_cerca_02_c"><pose>-0.08500 -0.05669 0.35887 1.34824 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01443 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_02_v"><pose>-0.08500 -0.05669 0.35887 1.34824 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01443 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_cerca_03_c"><pose>-0.08500 -0.05370 0.36972 1.25316 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01411 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_03_v"><pose>-0.08500 -0.05370 0.36972 1.25316 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01411 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_cerca_04_c"><pose>-0.08500 -0.04978 0.37989 1.15173 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01372 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_04_v"><pose>-0.08500 -0.04978 0.37989 1.15173 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01372 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_cerca_05_c"><pose>-0.08500 -0.04501 0.38921 1.04174 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01325 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_05_v"><pose>-0.08500 -0.04501 0.38921 1.04174 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01325 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_cerca_06_c"><pose>-0.08500 -0.03948 0.39752 0.92081 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01275 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_06_v"><pose>-0.08500 -0.03948 0.39752 0.92081 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01275 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_cerca_07_c"><pose>-0.08500 -0.03326 0.40467 0.78653 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01224 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_07_v"><pose>-0.08500 -0.03326 0.40467 0.78653 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01224 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_cerca_08_c"><pose>-0.08500 -0.02648 0.41055 0.63689 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01176 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_08_v"><pose>-0.08500 -0.02648 0.41055 0.63689 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01176 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_cerca_09_c"><pose>-0.08500 -0.01925 0.41504 0.47097 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01134 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_09_v"><pose>-0.08500 -0.01925 0.41504 0.47097 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01134 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_cerca_10_c"><pose>-0.08500 -0.01168 0.41808 0.28996 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01103 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_10_v"><pose>-0.08500 -0.01168 0.41808 0.28996 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01103 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_cerca_11_c"><pose>-0.08500 -0.00392 0.41962 0.09800 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01087 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_11_v"><pose>-0.08500 -0.00392 0.41962 0.09800 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01087 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_cerca_12_c"><pose>-0.08500 0.00392 0.41962 -0.09800 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01087 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_12_v"><pose>-0.08500 0.00392 0.41962 -0.09800 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01087 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_cerca_13_c"><pose>-0.08500 0.01168 0.41808 -0.28996 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01103 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_13_v"><pose>-0.08500 0.01168 0.41808 -0.28996 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01103 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_cerca_14_c"><pose>-0.08500 0.01925 0.41504 -0.47097 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01134 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_14_v"><pose>-0.08500 0.01925 0.41504 -0.47097 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01134 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_cerca_15_c"><pose>-0.08500 0.02648 0.41055 -0.63689 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01176 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_15_v"><pose>-0.08500 0.02648 0.41055 -0.63689 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01176 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_cerca_16_c"><pose>-0.08500 0.03326 0.40467 -0.78653 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01224 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_16_v"><pose>-0.08500 0.03326 0.40467 -0.78653 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01224 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_cerca_17_c"><pose>-0.08500 0.03948 0.39752 -0.92081 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01275 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_17_v"><pose>-0.08500 0.03948 0.39752 -0.92081 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01275 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_cerca_18_c"><pose>-0.08500 0.04501 0.38921 -1.04174 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01325 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_18_v"><pose>-0.08500 0.04501 0.38921 -1.04174 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01325 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_cerca_19_c"><pose>-0.08500 0.04978 0.37989 -1.15173 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01372 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_19_v"><pose>-0.08500 0.04978 0.37989 -1.15173 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01372 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_cerca_20_c"><pose>-0.08500 0.05370 0.36972 -1.25316 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01411 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_20_v"><pose>-0.08500 0.05370 0.36972 -1.25316 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01411 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_cerca_21_c"><pose>-0.08500 0.05669 0.35887 -1.34824 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01443 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_21_v"><pose>-0.08500 0.05669 0.35887 -1.34824 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01443 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_cerca_22_c"><pose>-0.08500 0.05872 0.34752 -1.43896 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01465 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_22_v"><pose>-0.08500 0.05872 0.34752 -1.43896 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01465 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_cerca_23_c"><pose>-0.08500 0.05974 0.33587 -1.52713 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01476 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_cerca_23_v"><pose>-0.08500 0.05974 0.33587 -1.52713 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01476 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_00_c"><pose>0.08500 -0.05974 0.33587 1.52713 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01476 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_00_v"><pose>0.08500 -0.05974 0.33587 1.52713 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01476 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_01_c"><pose>0.08500 -0.05872 0.34752 1.43896 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01465 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_01_v"><pose>0.08500 -0.05872 0.34752 1.43896 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01465 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_02_c"><pose>0.08500 -0.05669 0.35887 1.34824 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01443 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_02_v"><pose>0.08500 -0.05669 0.35887 1.34824 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01443 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_03_c"><pose>0.08500 -0.05370 0.36972 1.25316 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01411 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_03_v"><pose>0.08500 -0.05370 0.36972 1.25316 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01411 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_04_c"><pose>0.08500 -0.04978 0.37989 1.15173 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01372 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_04_v"><pose>0.08500 -0.04978 0.37989 1.15173 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01372 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_05_c"><pose>0.08500 -0.04501 0.38921 1.04174 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01325 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_05_v"><pose>0.08500 -0.04501 0.38921 1.04174 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01325 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_06_c"><pose>0.08500 -0.03948 0.39752 0.92081 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01275 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_06_v"><pose>0.08500 -0.03948 0.39752 0.92081 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01275 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_07_c"><pose>0.08500 -0.03326 0.40467 0.78653 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01224 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_07_v"><pose>0.08500 -0.03326 0.40467 0.78653 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01224 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_08_c"><pose>0.08500 -0.02648 0.41055 0.63689 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01176 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_08_v"><pose>0.08500 -0.02648 0.41055 0.63689 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01176 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_09_c"><pose>0.08500 -0.01925 0.41504 0.47097 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01134 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_09_v"><pose>0.08500 -0.01925 0.41504 0.47097 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01134 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_10_c"><pose>0.08500 -0.01168 0.41808 0.28996 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01103 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_10_v"><pose>0.08500 -0.01168 0.41808 0.28996 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01103 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_11_c"><pose>0.08500 -0.00392 0.41962 0.09800 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01087 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_11_v"><pose>0.08500 -0.00392 0.41962 0.09800 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01087 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_12_c"><pose>0.08500 0.00392 0.41962 -0.09800 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01087 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_12_v"><pose>0.08500 0.00392 0.41962 -0.09800 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01087 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_13_c"><pose>0.08500 0.01168 0.41808 -0.28996 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01103 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_13_v"><pose>0.08500 0.01168 0.41808 -0.28996 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01103 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_14_c"><pose>0.08500 0.01925 0.41504 -0.47097 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01134 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_14_v"><pose>0.08500 0.01925 0.41504 -0.47097 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01134 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_15_c"><pose>0.08500 0.02648 0.41055 -0.63689 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01176 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_15_v"><pose>0.08500 0.02648 0.41055 -0.63689 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01176 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_16_c"><pose>0.08500 0.03326 0.40467 -0.78653 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01224 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_16_v"><pose>0.08500 0.03326 0.40467 -0.78653 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01224 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_17_c"><pose>0.08500 0.03948 0.39752 -0.92081 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01275 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_17_v"><pose>0.08500 0.03948 0.39752 -0.92081 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01275 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_18_c"><pose>0.08500 0.04501 0.38921 -1.04174 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01325 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_18_v"><pose>0.08500 0.04501 0.38921 -1.04174 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01325 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_19_c"><pose>0.08500 0.04978 0.37989 -1.15173 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01372 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_19_v"><pose>0.08500 0.04978 0.37989 -1.15173 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01372 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_20_c"><pose>0.08500 0.05370 0.36972 -1.25316 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01411 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_20_v"><pose>0.08500 0.05370 0.36972 -1.25316 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01411 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_21_c"><pose>0.08500 0.05669 0.35887 -1.34824 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01443 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_21_v"><pose>0.08500 0.05669 0.35887 -1.34824 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01443 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_22_c"><pose>0.08500 0.05872 0.34752 -1.43896 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01465 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_22_v"><pose>0.08500 0.05872 0.34752 -1.43896 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01465 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+      <collision name="asa_lejos_23_c"><pose>0.08500 0.05974 0.33587 -1.52713 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01476 0.00800</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+      <visual name="asa_lejos_23_v"><pose>0.08500 0.05974 0.33587 -1.52713 0.00000 0.00000</pose><geometry><box><size>0.00800 0.01476 0.00800</size></box></geometry><material><ambient>0.58 0.42 0.26 1</ambient><diffuse>0.58 0.42 0.26 1</diffuse></material></visual>
+    </link>
+  </model>
+</sdf>

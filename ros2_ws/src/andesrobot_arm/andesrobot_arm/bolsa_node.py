@@ -1,42 +1,42 @@
-"""Nodo bolsa_node: toma una bolsa por el asa (del suelo o una mesa) y la levanta. BORRADOR, P17.
+"""Nodo bolsa_node: toma una bolsa por el asa (del suelo o una mesa) y la levanta. P17.
 
-  ros2 run andesrobot_arm bolsa_node --ros-args -p modelo:=/ros2_ws/modelos/bolsa/best.pt
+  ros2 run andesrobot_arm bolsa_node            # modelo en /ros2_ws/modelos/bolsa/best.pt
 
-ESTADO: esqueleto escrito el 13-nov-2026 esperando el modelo de segmentación del equipo de visión
-(una clase, `bag`, entrenado con la bolsa de papel de supermercado). La geometría (bolsa.py) está
-probada con nubes sintéticas (test/test_bolsa.py); el nodo NO se ha corrido nunca: falta el modelo
-y una bolsa con asa en Gazebo (la `bolsa_equipo` del catálogo es una caja sin asas). Las vistas y
-la pose `retraer` de abajo son estimaciones sin probar. Guía en docs/robocup/README.md §8.1.
+ESTADO (24-nov-2026): usa el modelo de PUNTOS CLAVE del equipo de visión (YOLO11n-pose, una clase
+`bag_handle`, 3 puntos por asa: base izquierda, punta, base derecha), entrenado con 400 imágenes
+de Gazebo de tres bolsas (tela cruda, tela negra y papel). La geometría (bolsa.py) está probada
+con escenas sintéticas (test/test_bolsa.py). Guía en docs/robocup/README.md §8.1.
 
 Es agarre_node (la misma clase, AgarreNode: mismos movimientos, misma pinza, mismos parámetros)
-con otra visión: en vez de pedirle a objeto_node una caja y medidas, corre AQUÍ el modelo de
-segmentación y busca el asa por geometría (ver bolsa.py):
+con otra visión: en vez de pedirle a objeto_node una caja y medidas, corre AQUÍ el modelo de puntos
+y pasa los puntos del asa a 3D con la profundidad (ver bolsa.py):
 
-  1. MIRAR: abre la pinza y prueba las `vistas` una por una (primero para una bolsa en el suelo,
-     después para una en la mesa) hasta ver la bolsa.
-  2. ENCONTRAR: en cada imagen nueva, el modelo da la máscara de la bolsa (la detección `bag` más
-     segura); la profundidad la convierte en puntos 3D; bolsa.buscar_asa encuentra la boca y el
-     asa que sobresale (la más cercana a Milo si se ven dos). Con `n_mediciones` (3) seguidas
-     que coinciden (vértice a menos de `tol_estable`), sigue. Si el asa no cumple (muy baja,
-     muy gruesa...), lo anota y sigue mirando.
+  1. MIRAR: abre la pinza y prueba las `vistas` una por una hasta ver un asa que sirva.
+  2. ENCONTRAR: en cada imagen nueva, el modelo da las asas (caja + 3 puntos con su confianza).
+     De cada asa con la caja y los TRES puntos sobre `confianza`, cada punto se vuelve un punto
+     3D (la capa de la nube de profundidad más cercana a la cámara alrededor del punto: el asa
+     es delgada) y bolsa.asa_de_puntos la mide y la valida (que esté parada, que sobresalga de
+     la boca...). De las que sirven, la más cercana a Milo. Con `n_mediciones` (3) seguidas
+     que coinciden (vértice a menos de `tol_estable`), sigue. Si ninguna sirve, anota por qué.
   3. PREVIA: la pinza va `sobre` (10 cm) encima del vértice del asa, apuntando hacia abajo, con los
      dedos cruzados al asa (MoveIt, camino libre de choques).
   4. BAJAR en línea recta hasta que el asa quede `metido` (12 mm) adentro de los dedos.
   5. CERRAR del todo: el asa mide pocos mm, así que no se usa "ancho − apriete" como con el
      tenedor; los 20 N de la pinza la aprietan. Se comprueba que los dedos se frenaron (si no,
-     abre, sube y termina con error). OJO: hay_objeto pide que se frenen `minimo_frenado` (2 mm)
-     antes de cerrar del todo (3 mm entre caras), o sea un asa de 5 mm o más; con un asa más
-     delgada hay que bajar `minimo_frenado` (y aceptar más falsos "hay objeto").
+     abre, sube y termina con error). OJO: cerrada del todo la pinza deja 3 mm entre las caras;
+     hay_objeto pide que se frenen `minimo_frenado` antes, o sea un asa de 3 mm + minimo_frenado.
+     Las cintas de tela de las bolsas del equipo miden 4 mm: por eso minimo_frenado es 0.5 mm
+     aquí (2 mm en agarre_node).
   6. UNIR (si `unir`): una caja del tamaño de la bolsa (`medidas_bolsa`) colgando bajo la pinza en
      la escena de MoveIt, para que el brazo no la lleve contra el robot al retraer.
   7. LEVANTAR `subir` (15 cm: la bolsa cuelga del asa y despega del suelo) en línea recta y
      RETRAER sin girar la pinza (mantener_orientacion, en línea recta).
   8. Revisar que los dedos sigan frenados.
 
-Para probarlo en la simulación (cuando exista la bolsa con asa en el catálogo):
-  ros2 launch andesrobot_arm arm_sim.launch.py mesa:=false octomap:=false    # bolsa en el suelo
-  ros2 run andesrobot_arm bolsa_node --ros-args -p modelo:=<ruta al .pt>
-Parámetros propios (además de los de agarre_node): modelo, clase, paso, usar_toda_la_imagen,
+Para probarlo en la simulación (bolsa de tela cruda con colisión, worlds/bolsa_prueba.sdf):
+  ./sim.sh brazo bolsa:=true octomap:=false
+  ros2 run andesrobot_arm bolsa_node
+Parámetros propios (además de los de agarre_node): modelo, clase, confianza_punto, paso, radio,
 metido, minimo_frenado, unir, medidas_bolsa.
 """
 import signal
@@ -54,21 +54,28 @@ from andesrobot_arm.agarre import ABIERTA, CERRADA, apertura, estable, hay_objet
 from andesrobot_arm.agarre_node import FRAME, TCP, TOCAN, AgarreNode, Fallo
 from andesrobot_arm.arm_moveit_node import caja
 from andesrobot_arm.bolsa import (
-    buscar_asa, en_la_mascara, nube_de_profundidad, pose_de_agarre, promediar_asas)
+    BASE_DER, BASE_IZQ, PUNTA, asa_de_puntos, elegir_asa, nube_de_profundidad, pose_de_agarre,
+    promediar_asas, proyectar, punto_del_pixel)
 from andesrobot_arm.capturar_camara import image_to_array
 from andesrobot_arm.manija_node import profundidad_en_metros
 
 # Valores por defecto distintos de los de agarre_node (con -p se cambian igual).
 DEFECTOS = {
     # Vistas, de a 6 números: TCP (x, y, z) y punto al que apunta la pinza (x, y, z), en
-    # base_footprint. ESTIMADAS, SIN PROBAR. Las dos primeras, para una bolsa en el suelo frente a
-    # Milo (x ~ 0.6 m: el asa queda a ~0.5 m de altura); la tercera, para una en la mesa de prueba
-    # (x ~ 0.8 m, asa a ~1.2 m). Como en agarre_node, apuntan un poco ANTES del asa: la cámara va
-    # sobre la pinza y mira por encima de ella.
-    'vistas': [0.35, 0.0, 0.85, 0.55, 0.0, 0.40,
-               0.30, 0.0, 0.95, 0.55, 0.0, 0.45,
-               0.45, 0.0, 1.35, 0.74, 0.0, 1.05],
-    'confianza': 0.5,              # del modelo de segmentación (a ajustar cuando llegue)
+    # base_footprint. Para la bolsa de papel de bolsa_prueba.sdf parada en el suelo frente a Milo
+    # (centro en x = 0.685 m, asas en x = 0.60 y 0.77, punta a 0.42 m). Elegidas el 24-nov en
+    # Gazebo probando 19:
+    # - el asa de ATRÁS, recortada contra el suelo gris, la ve con confianza > 0.9 en sus 3
+    #   puntos; la de adelante, vista desde arriba contra la boca café de la bolsa, casi nunca;
+    # - la imagen de profundidad (640 x 400) cubre menos que la de color (640 x 480): una punta en
+    #   la franja de arriba de la imagen queda sin profundidad. Estas vistas dejan el asa al medio.
+    # Una vista para una bolsa en la MESA está pendiente.
+    'vistas': [0.42, 0.0, 0.70, 0.62, 0.0, 0.40,
+               0.45, 0.0, 0.75, 0.65, 0.0, 0.40,
+               0.40, 0.0, 0.75, 0.60, 0.0, 0.42],
+    # Confianza mínima de la caja del asa. En la validación del equipo (60 imágenes de Gazebo)
+    # el F1 es máximo con 0.69, pero desde 0.3 casi no cambia.
+    'confianza': 0.5,
     'subir': 0.15,                 # la bolsa cuelga del asa: con 15 cm despega del suelo
     'retraer': [0.55, 0.0, 1.05],  # más lejos del cuerpo que con el tenedor: la bolsa cuelga
     'tiempo_por_vista': 15.0,
@@ -77,20 +84,22 @@ DEFECTOS = {
 
 class BolsaNode(AgarreNode):
     def __init__(self):
-        super().__init__({'id': 'bolsa', 'clase': 'bag'}, nombre='bolsa_node', defectos=DEFECTOS)
+        super().__init__({'id': 'bolsa', 'clase': 'bag_handle'}, nombre='bolsa_node',
+                         defectos=DEFECTOS)
         self.declare_parameter('modelo', '/ros2_ws/modelos/bolsa/best.pt')
-        self.declare_parameter('clase', 'bag')           # el nombre de la clase en el modelo
-        self.declare_parameter('paso', 2)                # un píxel de profundidad de cada 2
-        # El asa se busca en TODOS los puntos de la imagen que caen sobre la bolsa vista desde
-        # arriba, no solo en la máscara: así sirve aunque el equipo haya dibujado las máscaras sin
-        # las asas. False = solo los puntos de la máscara.
-        self.declare_parameter('usar_toda_la_imagen', True)
+        self.declare_parameter('clase', 'bag_handle')    # el nombre de la clase en el modelo
+        # Confianza mínima de CADA uno de los 3 puntos: un punto tapado (la base detrás de la
+        # bolsa, la punta fuera de la imagen) sale con confianza baja y no se usa.
+        self.declare_parameter('confianza_punto', 0.5)
+        self.declare_parameter('paso', 1)                # todos los píxeles de profundidad
+        self.declare_parameter('radio', 6.0)             # [px] alrededor de cada punto clave
         self.declare_parameter('metido', 0.012)          # asa adentro de los dedos [m]
-        self.declare_parameter('minimo_frenado', 0.002)  # ver el paso 5 arriba
+        self.declare_parameter('minimo_frenado', 0.0005)  # ver el paso 5 arriba
         self.declare_parameter('unir', True)
-        self.declare_parameter('medidas_bolsa', [0.315, 0.16, 0.41])   # ancho, fondo, alto [m]
-        for n in ('modelo', 'clase', 'paso', 'usar_toda_la_imagen', 'metido', 'minimo_frenado',
-                  'unir', 'medidas_bolsa'):
+        # ancho, fondo, alto [m]: la bolsa de papel del equipo (asas.json)
+        self.declare_parameter('medidas_bolsa', [0.32, 0.17, 0.33])
+        for n in ('modelo', 'clase', 'confianza_punto', 'paso', 'radio', 'metido',
+                  'minimo_frenado', 'unir', 'medidas_bolsa'):
             self.p[n] = self.get_parameter(n).value
 
         self.color = self.profundidad = self.k_color = self.k_prof = None
@@ -127,47 +136,61 @@ class BolsaNode(AgarreNode):
         if self.p['clase'] not in self.modelo.names.values():
             raise Fallo(f'el modelo no tiene la clase "{self.p["clase"]}" (tiene: '
                         + ', '.join(self.modelo.names.values()) + ')')
-        if getattr(self.modelo, 'task', 'segment') != 'segment':
-            raise Fallo(f'el modelo es de tarea "{self.modelo.task}", no de segmentación')
+        if getattr(self.modelo, 'task', None) != 'pose':
+            raise Fallo(f'el modelo es de tarea "{self.modelo.task}", no de puntos clave (pose)')
 
-    def mascara(self):
-        """Máscara (alto x ancho, True/False) de la bolsa más segura en la imagen a color, o
-        None."""
+    def detectar(self):
+        """Las asas que ve el modelo en la imagen a color: lista de (confianza de la caja,
+        puntos 3 x 2 en píxeles, confianza de cada punto). Solo las de la clase pedida."""
         imagen = image_to_array(self.color)[:, :, ::-1]   # RGB -> BGR (ver objeto_node)
-        # retina_masks: máscaras del tamaño de la imagen original (si no, del tamaño de entrada
-        # del modelo, 640 px).
-        r = self.modelo.predict(imagen, conf=self.p['confianza'], retina_masks=True,
-                                verbose=False)[0]
-        if r.masks is None or len(r.boxes) == 0:
-            return None
+        r = self.modelo.predict(imagen, conf=self.p['confianza'], verbose=False)[0]
+        if r.keypoints is None or len(r.boxes) == 0:
+            return []
         nombres = self.modelo.names
-        indices = [i for i, c in enumerate(r.boxes.cls.cpu().numpy())
-                   if nombres[int(c)] == self.p['clase']]
-        if not indices:
-            return None
+        clases = r.boxes.cls.cpu().numpy()
         conf = r.boxes.conf.cpu().numpy()
-        i = max(indices, key=lambda j: conf[j])
-        m = r.masks.data[i].cpu().numpy() > 0.5
-        alto, ancho = imagen.shape[:2]
-        if m.shape != (alto, ancho):   # por si no vino del tamaño original: vecino más cercano
-            filas = np.arange(alto) * m.shape[0] // alto
-            columnas = np.arange(ancho) * m.shape[1] // ancho
-            m = m[filas][:, columnas]
-        return m
+        xy = r.keypoints.xy.cpu().numpy()
+        conf_p = (r.keypoints.conf.cpu().numpy() if r.keypoints.conf is not None
+                  else np.ones(xy.shape[:2]))
+        return [(float(conf[i]), xy[i], conf_p[i]) for i in range(len(clases))
+                if nombres[int(clases[i])] == self.p['clase']]
 
     def medir_asa(self):
-        """Busca el asa en la imagen actual: (asa, problema) como bolsa.buscar_asa."""
-        m = self.mascara()
-        if m is None:
+        """Busca el asa en la imagen actual: (asa o None, problemas). Cada asa detectada con sus 3 puntos
+        confiables se pasa a 3D y se valida (bolsa.asa_de_puntos); de las que sirven, la más
+        cercana a Milo (bolsa.elegir_asa)."""
+        detecciones = self.detectar()
+        if not detecciones:
             return None, f'no veo {self.p["clase"]}'
         frame_color, frame_prof = self.color.header.frame_id, self.profundidad.header.frame_id
         c2p = self.transformacion(frame_prof, frame_color)
         r, t = self.transformacion(FRAME, frame_prof)
         nube = nube_de_profundidad(profundidad_en_metros(self.profundidad), self.k_prof,
                                    int(self.p['paso']))
-        dentro = en_la_mascara(nube, m, self.k_color, *c2p)
-        base = nube @ r.T + t
-        return buscar_asa(base[dentro], base if self.p['usar_toda_la_imagen'] else None)
+        uvz = proyectar(nube, self.k_color, *c2p)
+        validas, problemas = [], []
+        for i, (_, puntos, conf_p) in enumerate(detecciones):
+            if np.min(conf_p) < self.p['confianza_punto']:
+                nombres = ('base izquierda', 'punta', 'base derecha')
+                dudosos = [nombres[j] for j in range(3) if conf_p[j] < self.p['confianza_punto']]
+                problemas.append(f'asa {i + 1}: no se ve bien ' + ', '.join(dudosos))
+                continue
+            en_3d = []
+            for j in (BASE_IZQ, PUNTA, BASE_DER):
+                p = punto_del_pixel(nube, uvz, puntos[j], self.p['radio'])
+                if p is None:
+                    break
+                en_3d.append(r @ p + t)
+            if len(en_3d) < 3:
+                problemas.append(f'asa {i + 1}: sin profundidad en algún punto')
+                continue
+            asa, problema = asa_de_puntos(*en_3d)
+            if asa is None:
+                problemas.append(f'asa {i + 1}: {problema}')
+            else:
+                validas.append(asa)
+        # Con un asa válida, `problema` igual lista las descartadas (sirve para depurar).
+        return elegir_asa(validas), '; '.join(problemas)
 
     def encontrar_aqui(self):
         """Como en agarre_node, pero midiendo el asa aquí: espera `n_mediciones` seguidas con el
@@ -181,8 +204,8 @@ class BolsaNode(AgarreNode):
             if any(x is None for x in (self.color, self.profundidad, self.k_color, self.k_prof)):
                 continue
             sello = Time.from_msg(self.color.header.stamp)
-            if sello < desde or sello == self.ultima:   # imagen vieja o ya procesada
-                continue
+            if sello < desde or (self.ultima is not None and sello == self.ultima):
+                continue                                  # imagen vieja o ya procesada
             self.ultima = sello
             asa, problema = self.medir_asa()
             if asa is None:
@@ -233,10 +256,8 @@ class BolsaNode(AgarreNode):
         asa = self.encontrar()
         v = asa['centro']
         log.info(f'   ¡Asa encontrada! Vértice en ({v[0]:.3f}, {v[1]:.3f}, {v[2]:.3f}), '
-                 f'{asa["alto"] * 100:.0f} cm sobre la boca (a {asa["boca_z"]:.2f} m); mide '
-                 f'{asa["largo"] * 100:.0f} cm de largo y {asa["grosor"] * 1000:.0f} mm de '
-                 'grosor; '
-                 f'{asa["n_asas"]} asa(s) a la vista')
+                 f'{asa["alto"] * 100:.0f} cm sobre la boca (a {asa["boca_z"]:.2f} m); bases '
+                 f'a {asa["largo"] * 100:.0f} cm; {asa["n_asas"]} asa(s) que sirven a la vista')
 
         agarre, giro = pose_de_agarre(asa, self.p['metido'])
         previa = agarre + np.array([0.0, 0.0, self.p['sobre']])
@@ -253,7 +274,7 @@ class BolsaNode(AgarreNode):
             self.pinza(ABIERTA)
             self.linea_recta(self.pose(previa, giro), 'Subir sin bolsa')
             raise Fallo(f'los dedos cerraron hasta {abierta_en * 1000:.1f} mm: no agarré el asa '
-                        '(¿se movió la bolsa? ¿el asa es más delgada que minimo_frenado?)')
+                        '(¿se movió la bolsa? ¿el asa mide menos de 3 mm + minimo_frenado?)')
         log.info(f'   los dedos se frenaron a {abierta_en * 1000:.1f} mm: tengo el asa')
 
         if self.p['unir']:

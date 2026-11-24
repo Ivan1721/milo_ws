@@ -13,10 +13,14 @@ Uso:  ros2 launch andesrobot_arm arm_sim.launch.py   [gui:=false] [rviz:=false]
                                                     [moveit:=false] [octomap:=false]
                                                     [ik:=pick_ik] [suavizado:=ruckig]
                                                     [puerta:=true] [objetos:=true]
+                                                    [bolsa:=true]
 Con ik:=pick_ik usa el solver pick_ik en vez de KDL, y con suavizado:=ruckig acota también el
 tirón de la trayectoria (los dos sin probar todavía; ver docs/BRAZO.md y moveit_opciones.py).
 Con puerta:=true pone la puerta de prueba (worlds/puerta_prueba.sdf: se abre empujando, manija de
 palanca a 1 m) en vez de la mesa.
+Con bolsa:=true pone en el suelo, en vez de la mesa, una bolsa de tela con dos asas rígidas que
+chocan (worlds/bolsa_prueba.sdf, de scripts/crear_bolsa_sdf.py con las medidas de las bolsas del
+equipo de visión), para probar bolsa_node.
 Con objetos:=true la mesa lleva una taza y un bowl escaneados de verdad en vez de los cubos de
 colores, y con objetos:=taza,platano,pringles los objetos que se pidan (ids o clases del catálogo
 config/objetos.yaml, hasta 10: 5 al alcance del brazo y 5 más atrás). Los modelos se bajan una
@@ -146,6 +150,12 @@ def moveit_config(simple_collision, camara, octomap, ik='kdl', suavizado='totg')
         # OctoMap desde la nube de la cámara de la pinza (config/sensors_3d.yaml).
         builder = builder.sensors_3d(file_path='config/sensors_3d.yaml')
     config = builder.to_moveit_configs()
+    if octomap != 'true':
+        # OJO: no basta con no llamar a sensors_3d(): si nadie lo llamó, to_moveit_configs()
+        # carga config/sensors_3d.yaml por su cuenta (MoveItConfigsBuilder de Humble). Hasta el
+        # 24-nov-2026 octomap:=false no apagaba nada (move_group seguía con el sensor
+        # camara_pinza); se vio porque la bolsa agarrada "chocaba" con el OctoMap.
+        config.sensors_3d = {}
     if suavizado == 'ruckig':
         # Suavizado Ruckig (acota también el tirón) encima de TOTG; ver moveit_opciones.py.
         if aplicar_ruckig(config.planning_pipelines) == 0:
@@ -162,10 +172,14 @@ def launch_setup(context):
     moveit = LaunchConfiguration('moveit').perform(context) == 'true'
     # Escenario: la puerta reemplaza a la mesa (las dos ocuparían el mismo lugar frente a Milo).
     puerta = LaunchConfiguration('puerta').perform(context) == 'true'
-    con_mesa = LaunchConfiguration('mesa').perform(context) == 'true' and not puerta
+    # La bolsa va en el suelo, donde estaría la mesa (y MoveIt no debe creer que hay mesa).
+    bolsa = LaunchConfiguration('bolsa').perform(context) == 'true' and not puerta
+    con_mesa = (LaunchConfiguration('mesa').perform(context) == 'true' and not puerta
+                and not bolsa)
     # objetos:=true (taza y bowl) u objetos:=taza,platano,... cambia los cubos de colores por
     # objetos del catálogo (sobre la misma mesa).
-    objetos = LaunchConfiguration('objetos').perform(context) not in ('', 'false') and not puerta
+    objetos = (LaunchConfiguration('objetos').perform(context) not in ('', 'false')
+               and not puerta and not bolsa)
     con_mesa = con_mesa or objetos
 
     # robot_state_publisher: publica /robot_description y las TF, con el reloj de Gazebo.
@@ -243,7 +257,8 @@ def launch_setup(context):
     # Mesa con tres objetos frente a Milo (worlds/mesa_prueba.sdf): algo que la cámara vea a
     # 0.6-1 m (en la arena no hay nada a menos de 2.5 m, el alcance de la profundidad) y que el
     # brazo alcance.
-    escenario = ('puerta_prueba' if puerta else 'mesa_objetos' if objetos else 'mesa_prueba')
+    escenario = ('puerta_prueba' if puerta else 'bolsa_prueba' if bolsa
+                 else 'mesa_objetos' if objetos else 'mesa_prueba')
     mueble = Node(
         package='gazebo_ros',
         executable='spawn_entity.py',
@@ -252,7 +267,7 @@ def launch_setup(context):
                    '-entity', escenario],
         output='screen',
     )
-    extra = [mueble] if (puerta or con_mesa) else []
+    extra = [mueble] if (puerta or bolsa or con_mesa) else []
     if objetos:
         # Objetos del catálogo: "-database" busca el modelo por nombre de carpeta en
         # GAZEBO_MODEL_PATH (generate_launch_description le suma MODELOS_GAZEBO). En Gazebo cada
@@ -303,6 +318,9 @@ def generate_launch_description():
                               description='Mesa con objetos de prueba frente a Milo'),
         DeclareLaunchArgument('puerta', default_value='false',
                               description='Puerta de prueba (abre empujando) en vez de la mesa'),
+        DeclareLaunchArgument('bolsa', default_value='false',
+                              description='Bolsa con asas en el suelo (bolsa_node) en vez de la '
+                                          'mesa'),
         DeclareLaunchArgument('objetos', default_value='false',
                               description='Objetos reales sobre la mesa en vez de los cubos: '
                                           'true (taza y bowl) o ids/clases separados por comas '
