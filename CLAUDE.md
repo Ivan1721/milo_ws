@@ -96,7 +96,7 @@ There are no ament_lint tests; keep Python within 99 columns (flake8) to match t
 
 CI (`.github/workflows/ci.yml`, GitHub Actions on every push to `brazo`/`main` and every PR) runs
 three jobs without ROS or Docker: `pytest` of `andesrobot_safety` plus the arm tests that need no
-ROS (`test_torques.py`, `test_medidas.py`, `test_revisar_docs.py`, `test_moveit_opciones.py`, `test_manija.py`, `test_agarre.py`, `test_bolsa.py`, `test_grupos.py`, `test_brazo_real.py`), `flake8 --max-line-length=99`
+ROS (`test_torques.py`, `test_medidas.py`, `test_revisar_docs.py`, `test_moveit_opciones.py`, `test_manija.py`, `test_agarre.py`, `test_bolsa.py`, `test_grupos.py`, `test_brazo_real.py`, `test_sliders.py`), `flake8 --max-line-length=99`
 on `andesrobot_arm`, `andesrobot_description` and `andesrobot_moveit_config`, and
 `scripts/revisar_docs.py` (broken links/anchors across every `.md`, informe figures and sections in
 order, `\operatorname` forbidden because GitHub rejects it, and every "**N de N** en `X`" test count
@@ -365,7 +365,7 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   `config/brazo_real.yaml` (SUPUESTO values), `launch/brazo_real.launch.py` (imports arm_sim.launch.py's
   `robot_description_urdf`/`moveit_config`; `arm_moveit_node` group `brazo_sin_lift` = new SRDF chain
   `lift_carriage_link_1 -> gripper_tcp`, kinematics/OMPL entries added; scaling 0.15), `./robot.sh brazo`,
-  `ros2 run andesrobot_arm arduino_falso` (pty at `/tmp/arduino_falso`). Tested on the real board WITHOUT the arm
+  `ros2 run andesrobot_arm arduino_falso` (pty at `/tmp/arduino_falso`). `sliders_node` (2026-11-24; Tk window, one slider per joint + gripper, sends a one-point trajectory on slider RELEASE at `velocidad` 0.1 rad/s, no collision check; limits from `/robot_description` top-level `<joint>`s only, since `<ros2_control>` repeats joint names; when idle, untouched joints are sent to their MEASURED position so a MoveIt move isn't undone; SIGINT handled because Tk swallows KeyboardInterrupt; `brazo_real.launch.py sliders:=true`, sim: `-p use_sim_time:=true -p lift:=true`; math in `sliders.py`, `test/test_sliders.py`), tested with `arduino_falso` and headless Gazebo, not on the real arm. Tested on the real board WITHOUT the arm
   (no drivers/motors): `firmware/prueba_exigente.py` (moves all joints thousands of steps: never run
   it with the arm attached), MoveIt via the real board within 1.7 mm by step count, node killed
   mid-trajectory -> watchdog stops, counts kept. `Enlace` opens the port WITHOUT HUPCL: with it, closing the

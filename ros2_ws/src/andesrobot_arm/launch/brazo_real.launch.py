@@ -9,6 +9,9 @@ Es lo mismo que arm_sim.launch.py pero sin Gazebo:
   3. move_group (MoveIt 2) con la misma configuración, y arm_moveit_node con el grupo
      "brazo_sin_lift" (6 articulaciones): el Arduino no mueve el lift, así que MoveIt no lo usa.
   4. arm_marker_node (el marcador de RViz) y RViz.
+  5. Con sliders:=true, sliders_node: una ventana con un slider por articulación para moverlas
+     una por una (primeras pruebas con los motores; mejor con moveit:=false, para que no haya
+     dos cosas mandando al brazo).
 
 Antes: cargar firmware/brazo_mega/brazo_mega.ino en el Arduino y encenderlo con el brazo en la
 pose "cero" de config/brazo_real.yaml (el Arduino empieza a contar desde ahí). Probar primero cada
@@ -17,6 +20,7 @@ articulación sola con firmware/probar_arduino.py.
 Uso:
   ros2 launch andesrobot_arm brazo_real.launch.py                       # /dev/arduino_brazo
   ros2 launch andesrobot_arm brazo_real.launch.py puerto:=/dev/ttyUSB0 rviz:=false
+  ros2 launch andesrobot_arm brazo_real.launch.py moveit:=false sliders:=true   # calibrar
   (sin hardware: ros2 run andesrobot_arm arduino_falso, y puerto:=/tmp/arduino_falso)
 """
 import importlib.util
@@ -70,6 +74,9 @@ def launch_setup(context):
         ]
         rviz_params += [config.robot_description, config.robot_description_semantic,
                         config.robot_description_kinematics]
+    if LaunchConfiguration('sliders').perform(context) == 'true':
+        nodos.append(Node(package='andesrobot_arm', executable='sliders_node', output='screen',
+                          parameters=real))
     nodos.append(Node(
         package='rviz2', executable='rviz2', output='screen',
         arguments=['-d', os.path.join(get_package_share_directory('andesrobot_arm'), 'rviz',
@@ -87,5 +94,7 @@ def generate_launch_description():
         DeclareLaunchArgument('camara', default_value='true',
                               description='la cámara de la pinza en el URDF (sus frames)'),
         DeclareLaunchArgument('rviz', default_value='true'),
+        DeclareLaunchArgument('sliders', default_value='false',
+                              description='ventana con un slider por articulación'),
         OpaqueFunction(function=launch_setup),
     ])

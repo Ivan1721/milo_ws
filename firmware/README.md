@@ -25,7 +25,7 @@ flowchart LR
 Del lado de ROS (en `ros2_ws/src/andesrobot_arm/`): `brazo_real_node.py` (el puente),
 `brazo_real.py` (conversiones y protocolo, con pruebas), `config/brazo_real.yaml` (pasos, micropasos,
 reducción, sentido, cero, servo), `launch/brazo_real.launch.py` (todo junto con MoveIt; `./robot.sh
-brazo`) y `arduino_falso.py` (un Arduino de mentira para probar sin hardware). Detalle en
+brazo`), `sliders_node.py` (una ventana con un slider por articulación) y `arduino_falso.py` (un Arduino de mentira para probar sin hardware). Detalle en
 `andesrobot_arm/docs/BRAZO.md`, sección «Brazo real (Arduino Mega)».
 
 ## La placa y los pines
@@ -303,6 +303,21 @@ Desde aquí no hay que desenchufar el USB ni volver a cargar el programa: el Ard
 cuenta y habría que repetir este paso.
 
 ### 10. Con ROS y MoveIt
+
+Primero **sin MoveIt**, con una ventana de sliders (uno por articulación, en grados, y la garra en
+mm). Es lo mismo que el paso 7 pero ya pasando por ROS, y sirve para comprobar que RViz y el brazo
+real se mueven igual:
+
+```bash
+./robot.sh brazo moveit:=false sliders:=true
+```
+
+**Tiene que pasar:** al **soltar** un slider, esa articulación va lento (0.1 rad/s ≈ 6°/s) al
+ángulo del slider, y la etiqueta «medido» y RViz la siguen. «PARAR» la detiene donde esté. Los
+sliders no revisan choques (MoveIt sí): pocos grados cada vez, sobre todo J2 y J3. Si una
+articulación gira al revés que en RViz, falta `invertir: true` (paso 7).
+
+Después, con MoveIt:
 
 ```bash
 ./robot.sh brazo

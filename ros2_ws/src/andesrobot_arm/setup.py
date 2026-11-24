@@ -38,5 +38,6 @@ setup(
         'bolsa_node = andesrobot_arm.bolsa_node:main',
         'brazo_real_node = andesrobot_arm.brazo_real_node:main',
         'arduino_falso = andesrobot_arm.arduino_falso:main',
+        'sliders_node = andesrobot_arm.sliders_node:main',
     ]},
 )

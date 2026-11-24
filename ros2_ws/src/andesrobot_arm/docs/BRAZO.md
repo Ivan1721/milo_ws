@@ -804,6 +804,7 @@ probar están en [`firmware/README.md`](../../../../firmware/README.md).
 | `andesrobot_arm/brazo_real_node.py` | el puente: cada 50 ms manda `G` con dónde tiene que estar el brazo 50 ms después y lee `E` para `/joint_states`; rechaza trayectorias que muevan el lift (el Arduino no lo mueve) y avisa si piden más velocidad que la del firmware |
 | `config/brazo_real.yaml` | pasos por vuelta, micropasos, reducción (38.4), sentido y cero de cada articulación, y los ángulos del servo (abierta/cerrada); los no medidos dicen SUPUESTO |
 | `launch/brazo_real.launch.py` | `robot_state_publisher` + `brazo_real_node` + `move_group` + `arm_moveit_node` (grupo `brazo_sin_lift`, velocidad al 15 %) + marcador y RViz; usa las mismas funciones de URDF y MoveIt que `arm_sim.launch.py` |
+| `andesrobot_arm/sliders_node.py` | una ventana con un slider por articulación (grados; mm para la garra y, en simulación, el lift) y botones Parar / Leer posición / Todo a cero / Abrir / Cerrar garra. Al **soltar** un slider manda esa meta como trayectoria de un punto a `/arm_controller`, lenta (`velocidad` 0.1 rad/s); sin chequeo de choques. Topes leídos de `/robot_description`; cuentas en `sliders.py` (`test/test_sliders.py`). `brazo_real.launch.py sliders:=true` |
 | `andesrobot_arm/arduino_falso.py` | `ros2 run andesrobot_arm arduino_falso`: un Arduino de mentira en `/tmp/arduino_falso` para probar todo lo anterior sin hardware |
 
 Fórmula: pasos = signo · (q − cero) · pasos_motor · micropasos · reducción / 2π; con 200 pasos, 1/8 y
@@ -817,7 +818,16 @@ Fórmula: pasos = signo · (q − cero) · pasos_motor · micropasos · reducci�
 ./robot.sh brazo                                   # Arduino en /dev/arduino_brazo (o ARDUINO=/dev/ttyUSB0)
 ros2 run andesrobot_arm arduino_falso              # sin hardware, en el contenedor
 ros2 launch andesrobot_arm brazo_real.launch.py puerto:=/tmp/arduino_falso
+./robot.sh brazo moveit:=false sliders:=true      # una articulación a la vez, sin MoveIt (calibrar)
+ros2 run andesrobot_arm sliders_node --ros-args -p use_sim_time:=true -p lift:=true   # en ./sim.sh brazo
 ```
+
+Los sliders (24-nov-2026) se probaron con el Arduino falso (una articulación, cambio de meta a
+mitad de camino: cancela y manda la nueva; garra en espejo; «Todo a cero»; Ctrl+C del launch
+cierra la ventana) y en Gazebo sin ventanas (joint_1 20°, joint_2 −15° y lift −50 mm llegan;
+garra). Si el brazo está quieto, al soltar un slider las demás articulaciones se mandan a donde
+**están** (lo medido), no a donde quedaron sus sliders: si MoveIt lo movió entretanto, no vuelve
+atrás. Con el brazo real todavía no.
 
 Probado el 23-nov-2026 con el Arduino falso y **con el Arduino real sin el brazo** (sin drivers ni
 motores): `firmware/prueba_exigente.py` 23 de 23 con el firmware v2 (latencia 4.3 ms, pasos

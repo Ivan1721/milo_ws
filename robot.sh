@@ -12,7 +12,7 @@
 #   ./robot.sh nav <mapa>    navegación autónoma (AMCL + Nav2) con un mapa ya guardado (SIN PROBAR)
 #   ./robot.sh ir <lugar>    (otra terminal) mandar a Milo a una ubicación (ver ./robot.sh ir --lista)
 #   ./robot.sh camara [alineada:=true]   solo la cámara de la pinza (no necesita lidar ni ruedas)
-#   ./robot.sh brazo [rviz:=false]       brazo real: Arduino Mega + MoveIt (ARDUINO=/dev/ttyUSB0 ...)
+#   ./robot.sh brazo [rviz:=false] [moveit:=false sliders:=true]   brazo real: Arduino Mega + MoveIt o sliders
 #   ./robot.sh imagen        reconstruir la imagen de Docker (después de cambiar algo en docker/)
 #
 # Puertos (por defecto /dev/rplidar y /dev/hoverboard, ver docker/udev/README.md). Sin udev:
