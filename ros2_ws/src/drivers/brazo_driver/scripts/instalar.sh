@@ -47,7 +47,7 @@ for destino in "$ESCRITORIO/brazo_milo.desktop" "$HOME/.local/share/applications
 [Desktop Entry]
 Type=Application
 Name=Brazo MILO (control Xbox)
-Comment=Driver del brazo: RT + joystick mueve, A cambia articulación, Y home, B parar, LB/RB garra
+Comment=Driver del brazo: RT + joystick izq. mueve, joystick der. garra, A cambia articulación, Y home, B parar
 Exec=$AQUI/brazo.sh
 Icon=input-gaming
 Terminal=false

@@ -16,17 +16,17 @@ arm_driver_node:
     btn_cambiar: 0         # A: siguiente articulación
     btn_parar: 1           # B: parada en seco
     btn_home: 4            # Y: la pose actual pasa a ser el home (todo en 0)
-    # Garra (servo, comando S del firmware), con RT apretado: LB abre y RB cierra un paso. Los
-    # ángulos son los SUPUESTOS de andesrobot_arm/config/brazo_real.yaml: medirlos (abrir y
-    # cerrar de a poco hasta el tope, sin que el servo zumbe) y anotarlos en los dos archivos.
-    btn_abrir: 6           # LB
-    btn_cerrar: 7          # RB
-    servo_abierta: 40      # [°]
-    servo_cerrada: 110     # [°]
-    paso_servo: 10         # [°] por pulsación
     # Hombre muerto: el brazo solo se mueve con el gatillo derecho RT apretado (eje 4; LT = 5).
     eje_deadman: 4
     umbral_deadman: 0.5    # 0 = suelto, 1 = a fondo
+    # Servo de la garra (pin 9 del Mega) con el joystick DERECHO vertical (eje 3; el 2 es el
+    # horizontal). Por velocidad: al soltar el joystick se queda donde está. También pide RT.
+    eje_servo: 3
+    invertir_eje_servo: true   # arriba = ángulo mayor
+    servo_vel: 90.0        # [°/s] con el joystick a fondo
+    servo_min: 0           # [°] provisional: medir con la garra (el firmware limita a 0..180)
+    servo_max: 180
+    servo_inicial: 90      # [°] desde dónde parte el primer movimiento (el servo arranca suelto)
     # Seta de emergencia física: la misma de la base (botón NC pin 1 - pin 7 del header).
     estop_gpio_chip: gpiochip0
     estop_gpio_line: 144   # < 0 desactiva la seta

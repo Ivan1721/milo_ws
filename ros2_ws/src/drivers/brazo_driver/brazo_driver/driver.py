@@ -8,13 +8,13 @@ ventana con el estado de las 6 articulaciones. Con el control de Xbox:
     empuja, más rápido (hasta ``vel_max`` pasos/s). Al soltarlo frena con la rampa.
   - Y (``btn_home``): con el brazo quieto, la pose actual pasa a ser el nuevo home (todo en 0).
   - B (``btn_parar``): parada en seco de todo (emergencia).
-  - LB / RB (``btn_abrir`` / ``btn_cerrar``): abre / cierra la garra ``paso_servo`` grados por
-    pulsación (con RT apretado, como el brazo). El servo salta al ángulo, sin rampa. La primera
-    pulsación, con el servo todavía suelto, lo lleva a ``servo_abierta`` (abierta del todo). Los
-    ángulos de abierta y cerrada son los mismos SUPUESTOS de config/brazo_real.yaml de
-    andesrobot_arm: medirlos y anotarlos en los dos.
   - Gatillo derecho RT (``eje_deadman``): HOMBRE MUERTO. El brazo solo se mueve mientras está
     apretado (más de ``umbral_deadman``); al soltarlo frena con la rampa.
+  - Joystick derecho, arriba/abajo (``eje_servo``): mueve el servo de la garra (pin 9 del Mega,
+    comando S del firmware). Es por velocidad: cuanto más se empuja, más rápido cambia el ángulo
+    (hasta ``servo_vel`` °/s) y al soltarlo el servo se queda donde está. También necesita RT
+    apretado y se bloquea con la seta. Límites: ``servo_min`` .. ``servo_max``. El servo queda
+    suelto al encender; el primer movimiento parte de ``servo_inicial``.
 
 Seta de emergencia física: la misma del driver de la hoverboard (botón NC entre el pin 1 y el
 pin 7 del header de la Jetson, gpiochip0 línea 144), leída con gpioget a 20 Hz: suelta = 1,
@@ -35,7 +35,9 @@ cuenta de pasos (y el home). Así el Arduino solo se reinicia la primera vez des
 enchufarlo; la ventana avisa si se reinició.
 
 Integrado en milo_ws (25-nov-2026) desde la entrega del equipo (brazo_milo.zip): se agregó la
-garra, el puerto sin HUPCL y el aviso de reinicio; lo demás quedó igual.
+el puerto sin HUPCL y el aviso de reinicio. La garra con el joystick derecho es del equipo
+(segunda entrega, brazo_milo_servo.zip, 25-nov-2026), que reemplazó a la de LB/RB que se había
+agregado aquí; lo demás quedó igual.
 
 Los números de botones y ejes son los del control conectado por Bluetooth con hid-generic
 (/dev/input/js0); si alguno no coincide, la ventana muestra el número de cada botón que se pulsa
@@ -132,14 +134,17 @@ class BrazoDriver(Node):
         p('btn_cambiar', 0)           # A
         p('btn_parar', 1)             # B
         p('btn_home', 4)              # Y
-        p('btn_abrir', 6)             # LB: abrir la garra un paso
-        p('btn_cerrar', 7)            # RB: cerrar la garra un paso
-        p('servo_abierta', 40)        # [°] garra abierta del todo (SUPUESTO, brazo_real.yaml)
-        p('servo_cerrada', 110)       # [°] garra cerrada del todo (SUPUESTO)
-        p('paso_servo', 10)           # [°] por pulsación
         # Hombre muerto: gatillo derecho RT (eje 4 = ABS_GAS; suelto -1, a fondo +1). LT es el 5.
         p('eje_deadman', 4)
         p('umbral_deadman', 0.5)      # 0 = suelto, 1 = a fondo
+        # Servo de la garra (pin 9 del Mega) con el joystick derecho vertical (eje 3; el 2 es el
+        # horizontal).
+        p('eje_servo', 3)
+        p('invertir_eje_servo', True)  # arriba = ángulo mayor
+        p('servo_vel', 90.0)          # [°/s] con el joystick a fondo
+        p('servo_min', 0)             # [°] (el firmware además limita a 0..180)
+        p('servo_max', 180)
+        p('servo_inicial', 90)        # [°] desde dónde parte si el servo estaba suelto
         # Seta física (como en hoverboard_bridge). estop_gpio_line < 0 la desactiva.
         p('estop_gpio_chip', 'gpiochip0')
         p('estop_gpio_line', 144)     # pin 7 del header = GPIO09 = PAC.06
@@ -152,10 +157,10 @@ class BrazoDriver(Node):
         g = lambda n: self.get_parameter(n).value  # noqa: E731
         self.cfg = {n: g(n) for n in (
             'port', 'joystick', 'vel_max', 'aceleracion', 'zona_muerta', 'adelanto', 'periodo',
-            'eje', 'invertir_eje', 'btn_cambiar', 'btn_parar', 'btn_home', 'btn_abrir',
-            'btn_cerrar', 'servo_abierta', 'servo_cerrada', 'paso_servo', 'pasos_por_grado',
+            'eje', 'invertir_eje', 'btn_cambiar', 'btn_parar', 'btn_home', 'pasos_por_grado',
             'nombres', 'eje_deadman', 'umbral_deadman', 'estop_gpio_chip', 'estop_gpio_line',
-            'estop_gpio_period', 'estop_gpio_fail', 'estop_gpio_debounce')}
+            'estop_gpio_period', 'estop_gpio_fail', 'estop_gpio_debounce', 'eje_servo',
+            'invertir_eje_servo', 'servo_vel', 'servo_min', 'servo_max', 'servo_inicial')}
 
         self.pub = self.create_publisher(JointState, '/arm/joint_steps', 10)
 
@@ -164,7 +169,6 @@ class BrazoDriver(Node):
         self.ser = None
         self.pos = [0] * N
         self.moviendo = False
-        self.servo = -1               # ángulo del servo según el Arduino (-1 = suelto, sin S aún)
         self.sel = 0
         self.v_est = [0.0] * N        # velocidad estimada [pasos/s] (sigue la rampa del firmware)
         self.activa = None            # articulación que se está moviendo con el joystick
@@ -175,6 +179,8 @@ class BrazoDriver(Node):
         self.seta = False             # seta presionada AHORA (la lee el hilo _leer_seta)
         self.seta_estado = 'leyendo...'
         self.bloqueado = False        # parada por la seta, hasta el rearme
+        self.servo = -1               # ángulo del servo según el Arduino (-1 = suelto)
+        self.servo_obj = None         # [°] ángulo pedido con el joystick derecho (float)
 
         if self.cfg['estop_gpio_line'] >= 0:
             threading.Thread(target=self._leer_seta, daemon=True).start()
@@ -228,8 +234,8 @@ class BrazoDriver(Node):
             self._msg('El Arduino se REINICIÓ: cuenta 0 pasos donde esté el brazo. Si no está en '
                       'su pose cero, llévalo con el control y pulsa Y.')
         else:
-            self._msg('Listo (el Arduino siguió con su cuenta). A: articulación · joystick: '
-                      'mover · Y: home · B: parar · LB/RB: garra')
+            self._msg('Listo (el Arduino siguió con su cuenta). A: articulación · joystick izq.: '
+                      'mover · der.: garra · Y: home · B: parar')
         self.get_logger().info(f'Conectado a {self.cfg["port"]} ({self.estado_conexion}, '
                                f'{"se reinició" if reinicio else "sin reiniciar"})')
         return ser
@@ -293,8 +299,14 @@ class BrazoDriver(Node):
         return self._deadman() > self.cfg['umbral_deadman']
 
     def _stick(self):
-        x = self.js.eje(self.cfg['eje'])
-        if self.cfg['invertir_eje']:
+        return self._eje_con_zona(self.cfg['eje'], self.cfg['invertir_eje'])
+
+    def _stick_servo(self):
+        return self._eje_con_zona(self.cfg['eje_servo'], self.cfg['invertir_eje_servo'])
+
+    def _eje_con_zona(self, numero, invertir):
+        x = self.js.eje(numero)
+        if invertir:
             x = -x
         zm = self.cfg['zona_muerta']
         if abs(x) < zm:
@@ -326,6 +338,7 @@ class BrazoDriver(Node):
                 self.ser = None
                 self.activa = None
                 self.v_est = [0.0] * N
+                self.servo_obj = None     # el Mega se reinicia al reconectar: servo suelto
             time.sleep(max(0.0, periodo - (time.monotonic() - t0)))
 
     def _leer_estado(self):
@@ -334,10 +347,13 @@ class BrazoDriver(Node):
         if len(partes) != N + 3 or partes[0] != 'E':
             raise ValueError(f'respuesta rara a E: {r!r}')
         pos = [int(v) for v in partes[1:N + 1]]
+        servo = int(partes[N + 2])
         with self.lock:
             self.pos = pos
             self.moviendo = partes[N + 1] == '1'
-            self.servo = int(partes[N + 2])
+            self.servo = servo
+        if servo < 0:
+            self.servo_obj = None     # suelto (por ejemplo, el Mega se reinició)
         return pos
 
     def _paso(self, dt):
@@ -346,6 +362,7 @@ class BrazoDriver(Node):
             pedidos, self.pedidos = self.pedidos, []
 
         stick = self._stick()
+        stick_servo = self._stick_servo()
         deadman = self._deadman_ok()
 
         # Seta: al presionarla, parada en seco y bloqueo hasta soltarla + soltar el gatillo.
@@ -365,6 +382,7 @@ class BrazoDriver(Node):
                 self._msg('Rearmado. Aprieta RT y mueve el joystick.')
         if self.bloqueado or not deadman:
             stick = 0.0               # sin hombre muerto (o con la seta) no se mueve nada
+            stick_servo = 0.0
 
         for b in pedidos:
             if b == self.cfg['btn_parar']:
@@ -388,8 +406,6 @@ class BrazoDriver(Node):
                         self.get_logger().info('Nuevo home (Z)')
                     else:
                         self._msg(f'No se pudo fijar el home: {r}')
-            elif b in (self.cfg['btn_abrir'], self.cfg['btn_cerrar']):
-                self._garra(abrir=b == self.cfg['btn_abrir'], deadman=deadman)
 
         a = self.cfg['aceleracion']
         sel = self.sel
@@ -417,33 +433,32 @@ class BrazoDriver(Node):
             self.activa = None
             self.v_est[j] = 0.0
 
+        self._mover_servo(stick_servo, dt)
+
         msg = JointState()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.name = list(self.cfg['nombres'])
         msg.position = [float(x) for x in pos]
         self.pub.publish(msg)
 
-    def _garra(self, abrir, deadman):
-        """LB / RB: un paso del servo hacia abierta / cerrada (con RT y sin la seta)."""
-        if self.bloqueado or self.seta:
-            self._msg('Garra: no se mueve con la seta presionada.')
+    def _mover_servo(self, stick, dt):
+        """Joystick derecho: cambia el ángulo del servo a stick x servo_vel °/s (comando S).
+
+        Solo se manda un S cuando cambia el ángulo entero, así no se llena el puerto.
+        """
+        if stick == 0.0:
             return
-        if not deadman:
-            self._msg('Garra: aprieta RT (hombre muerto) y vuelve a pulsar LB / RB.')
+        lo, hi = self.cfg['servo_min'], self.cfg['servo_max']
+        if self.servo_obj is None:    # suelto: parte del ángulo inicial
+            self.servo_obj = float(self.servo if self.servo >= 0 else self.cfg['servo_inicial'])
+        self.servo_obj = min(hi, max(lo, self.servo_obj + stick * self.cfg['servo_vel'] * dt))
+        angulo = int(round(self.servo_obj))
+        if angulo == self.servo:
             return
-        a, c = self.cfg['servo_abierta'], self.cfg['servo_cerrada']
-        if self.servo < 0:
-            # Primer S: el servo se engancha y salta al ángulo; abierta es lo más seguro.
-            angulo = a
-        else:
-            hacia = a if abrir else c
-            paso = self.cfg['paso_servo']
-            angulo = self.servo + max(-paso, min(paso, hacia - self.servo))
-            # Sin pasarse de los dos extremos medidos (abierta y cerrada).
-            angulo = max(min(a, c), min(max(a, c), angulo))
-        r = self._cmd(f'S {int(angulo)}')
+        r = self._cmd(f'S {angulo}')
         if r.startswith('OK S'):
-            self._msg(f'Garra: servo a {int(angulo)}° (abierta {a}°, cerrada {c}°)')
+            with self.lock:
+                self.servo = int(r.split()[2])
         else:
             self._msg(f'El Arduino rechazó el S: {r}')
 
@@ -485,20 +500,29 @@ class Ventana:
                 w.grid(row=j + 1, column=c, padx=4, pady=3, sticky='we')
             self.filas.append((nombre, pasos, grados, barra))
 
+        # Servo de la garra (joystick derecho).
+        tk.Label(self.root, text='Garra', font=grande, width=4, bg='#2b2b2b', fg='#cccccc').grid(
+            row=N + 1, column=0, padx=4, pady=(8, 3), sticky='we')
+        self.lbl_servo = tk.Label(self.root, font=grande, width=21, anchor='e', bg='#2b2b2b',
+                                  fg='#cccccc')
+        self.lbl_servo.grid(row=N + 1, column=1, columnspan=2, padx=4, pady=(8, 3), sticky='we')
+        self.barra_servo = tk.Canvas(self.root, width=220, height=20, highlightthickness=0,
+                                     bg='#2b2b2b')
+        self.barra_servo.grid(row=N + 1, column=3, padx=4, pady=(8, 3), sticky='we')
+
         self.lbl_msg = tk.Label(self.root, font=fuente, bg='#1e1e1e', fg='#ffd166', anchor='w',
                                 wraplength=640, justify='left')
-        self.lbl_msg.grid(row=N + 1, column=0, columnspan=4, sticky='we', pady=(10, 2))
+        self.lbl_msg.grid(row=N + 2, column=0, columnspan=4, sticky='we', pady=(10, 2))
         self.lbl_seguridad = tk.Label(self.root, font=('DejaVu Sans', 14, 'bold'), anchor='w',
                                       padx=8, pady=4)
-        self.lbl_seguridad.grid(row=N + 4, column=0, columnspan=4, sticky='we', pady=(8, 0))
-        ayuda = ('Mantén RT (hombre muerto) + joystick izq. ↑↓: mover   ·   A: cambiar '
-                 'articulación   ·   Y: fijar HOME (todo en 0)   ·   B: parar   ·   '
-                 'LB / RB: abrir / cerrar garra')
+        self.lbl_seguridad.grid(row=N + 5, column=0, columnspan=4, sticky='we', pady=(8, 0))
+        ayuda = ('Mantén RT (hombre muerto) + joystick izq. ↑↓: mover · joystick der. ↑↓: garra'
+                 '\nA: cambiar articulación   ·   Y: fijar HOME (todo en 0)   ·   B: parar')
         tk.Label(self.root, text=ayuda, font=('DejaVu Sans', 11), bg='#1e1e1e', fg='#888888',
-                 anchor='w').grid(row=N + 2, column=0, columnspan=4, sticky='we')
+                 anchor='w', justify='left').grid(row=N + 3, column=0, columnspan=4, sticky='we')
         self.lbl_js = tk.Label(self.root, font=('DejaVu Sans', 10), bg='#1e1e1e', fg='#666666',
                                anchor='w')
-        self.lbl_js.grid(row=N + 3, column=0, columnspan=4, sticky='we')
+        self.lbl_js.grid(row=N + 4, column=0, columnspan=4, sticky='we')
         self.root.protocol('WM_DELETE_WINDOW', self.root.quit)
         self._refrescar()
 
@@ -509,6 +533,7 @@ class Ventana:
             return
         with n.lock:
             pos, sel, msg, ub = list(n.pos), n.sel, n.mensaje, n.ultimo_boton
+            servo = n.servo
         stick = n._stick()
         dm = n._deadman()
         dm_ok = dm > n.cfg['umbral_deadman']
@@ -522,12 +547,21 @@ class Ventana:
         else:
             self.lbl_seguridad.config(text=f'○ Aprieta RT para mover   ·   seta: {n.seta_estado}',
                                       bg='#3a3a3a', fg='#dddddd')
+        stick_servo = n._stick_servo()
         if not dm_ok or n.bloqueado:
             stick = 0.0
+            stick_servo = 0.0
+        self.lbl_servo.config(text=f'{servo:d}°' if servo >= 0 else 'suelto')
+        b = self.barra_servo
+        b.delete('all')
+        if servo >= 0:            # ángulo actual dentro de servo_min..servo_max
+            lo, hi = n.cfg['servo_min'], n.cfg['servo_max']
+            x = 5 + 210 * (servo - lo) / max(1, hi - lo)
+            b.create_rectangle(5, 6, x, 14, fill='#2d6cdf', width=0)
+        if stick_servo != 0.0:
+            b.create_rectangle(110, 15, 110 + stick_servo * 105, 19, fill='#06d6a0', width=0)
         control = n.js.nombre if n.js.conectado else 'NO conectado'
-        garra = f'{n.servo}°' if n.servo >= 0 else 'suelta'
-        self.lbl_conexion.config(text=f'Arduino: {n.estado_conexion}   ·   Control: {control}'
-                                      f'   ·   Garra: {garra}')
+        self.lbl_conexion.config(text=f'Arduino: {n.estado_conexion}   ·   Control: {control}')
         for j, (nombre, pasos, grados, barra) in enumerate(self.filas):
             activa = j == sel
             fondo = '#2d6cdf' if activa else '#2b2b2b'
@@ -542,7 +576,9 @@ class Ventana:
             barra.create_line(110, 0, 110, 20, fill='#555555')
         self.lbl_msg.config(text=msg)
         self.lbl_js.config(text=f'último botón pulsado: {ub if ub is not None else "-"}   '
-                                f'·   eje {n.cfg["eje"]} = {n._stick():+.2f}   ·   RT = {dm:.2f}')
+                                f'·   eje {n.cfg["eje"]} = {n._stick():+.2f}   '
+                                f'·   eje {n.cfg["eje_servo"]} = {n._stick_servo():+.2f}   '
+                                f'·   RT = {dm:.2f}')
         self.root.after(50, self._refrescar)
 
 

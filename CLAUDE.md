@@ -372,8 +372,9 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   pinMode; v2 would reverse every joint); `firmware/brazo_mega/brazo_mega.hex` (regenerate with
   arduino-cli after editing the .ino) + `firmware/cargar_firmware.sh` (avrdude, refuses the
   hoverboard port). Their driver is `ros2_ws/src/drivers/brazo_driver` (`arm_driver_node`, Tk window,
-  joint jog, RT dead-man, A/Y(Z)/B; integrated 2026-11-25 adding LB/RB gripper steps, port opened
-  without HUPCL, reset notice; pyserial is NOT in the image, test with a pip --target dir;
+  joint jog, RT dead-man, A/Y(Z)/B; integrated 2026-11-25 with port opened
+  without HUPCL and reset notice; gripper = team's right-stick velocity control (2nd zip,
+  servo_min/max 0..180 provisional), which replaced our LB/RB steps; pyserial is NOT in the image, test with a pip --target dir;
   `scripts/instalar.sh`/`brazo.sh` build natively in ~/.cache/brazo_milo, never in ros2_ws). E-stop =
   base's NC mushroom between Jetson header pin 1 (3.3 V) and pin 7 (gpiochip0 line 144), read with
   `gpioget` by their driver and by `brazo_real_node` (`seta_linea:=144`, default -1; logic in

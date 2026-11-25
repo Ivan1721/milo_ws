@@ -521,13 +521,21 @@ es del contenedor y una compilación nativa ahí lo rompe.
 | **A** | siguiente articulación (J1 → … → J6 → J1) |
 | **Y** | con el brazo quieto: la pose actual pasa a ser el cero (`Z`) |
 | **B** | parada en seco |
-| **LB / RB** | abre / cierra la garra 10° por pulsación (agregado al integrarlo; la primera pulsación la abre del todo) |
+| **Joystick derecho ↑↓** | abre / cierra la garra (servo, pin 9). Por velocidad: más empujado = más rápido (hasta `servo_vel` 90°/s); al soltarlo se queda en ese ángulo. También pide RT y se bloquea con la seta |
 
-Lo que se cambió al traerlo (25-nov-2026): la garra (LB/RB, con los ángulos supuestos de
-`brazo_real.yaml`, `servo_abierta`/`servo_cerrada`; hay que medirlos), abrir el puerto **sin
-HUPCL** como `brazo_real_node` (ver la sección siguiente: así cerrar el driver y abrirlo de nuevo,
-o pasar del driver a `brazo_real_node`, no reinicia el Arduino ni pierde la cuenta), y el aviso en
-la ventana cuando el Arduino sí se reinició. Probado con el Arduino falso, no con el brazo.
+La garra es del equipo (segunda entrega, `brazo_milo_servo.zip`, 25-nov-2026). El servo arranca
+suelto y el primer movimiento parte de `servo_inicial` (90°); va entre `servo_min` y `servo_max`
+de `config/brazo_driver.yaml`, hoy 0..180, **provisionales**: medir dónde la garra queda abierta y
+cerrada del todo (sin que el servo zumbe contra el tope), anotarlo ahí y en `garra:` de
+`brazo_real.yaml`. La ventana muestra el ángulo con una barra.
+
+Lo que se cambió al traerlo (25-nov-2026): abrir el puerto **sin HUPCL** como `brazo_real_node`
+(ver la sección siguiente: así cerrar el driver y abrirlo de nuevo, o pasar del driver a
+`brazo_real_node`, no reinicia el Arduino ni pierde la cuenta), el aviso en la ventana cuando el
+Arduino sí se reinició, y compilar en `~/.cache/brazo_milo` (`scripts/`). Una primera versión de la
+garra con LB/RB que se había agregado aquí se reemplazó por la del equipo. La garra se probó con
+el Arduino falso (1 s a fondo arriba desde 90° llega a 180°, 3 s a medias abajo a 45°, tope en
+0°), no con el brazo.
 
 **Pasar del control de Xbox a MoveIt:** cerrar el driver (el puerto es de un programa a la vez) y
 abrir `brazo_real_node`. El Arduino sigue con su cuenta, pero `brazo_real_node` supone que 0 pasos
