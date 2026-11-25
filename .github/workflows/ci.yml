@@ -4,7 +4,8 @@
 #            documentos. Las pruebas de cinemática (test_kinematics.py) y la prueba de humo de
 #            Gazebo necesitan ROS y la imagen de Docker: se siguen corriendo a mano dentro del
 #            contenedor (ver CLAUDE.md, sección Commands).
-#   estilo   flake8 a 99 columnas en el brazo (andesrobot_arm), su descripción y la config de MoveIt.
+#   estilo   flake8 a 99 columnas en el brazo (andesrobot_arm), su descripción, la config de MoveIt
+#            y el driver del control de Xbox (drivers/brazo_driver).
 #   docs     scripts/revisar_docs.py: enlaces y anclas rotos, figuras en orden, \operatorname
 #            (GitHub no lo muestra) y que un «N de N pruebas» del informe coincida con el código.
 #
@@ -46,7 +47,7 @@ jobs:
           python -m pytest -q test/test_torques.py test/test_medidas.py test/test_revisar_docs.py \
             test/test_moveit_opciones.py test/test_manija.py test/test_agarre.py \
             test/test_bolsa.py test/test_grupos.py test/test_brazo_real.py \
-            test/test_sliders.py
+            test/test_sliders.py test/test_seta.py
 
   estilo:
     runs-on: ubuntu-24.04   # fijo: ubuntu-latest pasa a Ubuntu 26 desde oct-2026
@@ -63,7 +64,7 @@ jobs:
         run: |
           python -m flake8 --max-line-length=99 \
             ros2_ws/src/andesrobot_arm ros2_ws/src/andesrobot_description \
-            ros2_ws/src/andesrobot_moveit_config
+            ros2_ws/src/andesrobot_moveit_config ros2_ws/src/drivers/brazo_driver
 
   docs:
     runs-on: ubuntu-24.04   # fijo: ubuntu-latest pasa a Ubuntu 26 desde oct-2026

@@ -1,14 +1,22 @@
-// brazo_mega.ino — programa del Arduino Mega que mueve el brazo de Milo (versión 2: con rampa de
-// aceleración).
+// brazo_mega.ino — programa del Arduino Mega que mueve el brazo de Milo (versión 3: rampa de
+// aceleración + cableado de POSITIVO COMÚN en los TB6600).
 //
-// En palabras simples: el PC (ROS 2 + MoveIt) decide a qué posición va cada articulación y se la
+// En palabras simples: el PC (ROS 2 + MoveIt, o el driver del control de Xbox) decide a qué posición va cada articulación y se la
 // manda por el cable USB; este programa genera los pulsos para los 6 drivers TB6600 de los motores
 // paso a paso y mueve el servo de la garra. El Arduino NO sabe de ángulos ni de radianes: solo
 // cuenta PASOS. La conversión (pasos por vuelta del motor x micropasos del driver x reducción
 // 38.4:1) la hace el PC, con los números de ros2_ws/src/andesrobot_arm/config/brazo_real.yaml.
 //
-// Cómo se mueve un motor paso a paso con un TB6600: el pin DIR dice el sentido (HIGH = positivo)
-// y cada pulso en el pin STEP (PUL) avanza un paso (un micropaso, según los interruptores del
+// Cableado de los TB6600 (v3, del equipo, prueba del brazo armado en Chile, nov-2026): cada
+// señal del driver entra a un optoacoplador con dos bornes (PUL+/PUL-, DIR+/DIR-). Hay dos formas de cablearlo:
+//   - POSITIVO COMÚN (el del brazo armado): PUL+ y DIR+ de los 6 drivers juntos a +5 V del
+//     Arduino, y los pines del Arduino a PUL- y DIR-. El opto se enciende con el pin en LOW: las
+//     señales son ACTIVAS EN BAJO (STEP en reposo = HIGH, cada pulso es un LOW de PULSO_US).
+//   - CÁTODO COMÚN (el de la v2): PUL- y DIR- a GND, y los pines a PUL+ / DIR+; activas en alto.
+// Se elige con POSITIVO_COMUN (abajo). En los dos, "sentido positivo" = opto de DIR encendido,
+// así que el signo de los pasos (y config/brazo_real.yaml) no cambia al pasar de uno al otro.
+//
+// Cómo se mueve un motor paso a paso con un TB6600: el pin DIR dice el sentido y cada pulso en el pin STEP (PUL) avanza un paso (un micropaso, según los interruptores del
 // driver). Más pulsos por segundo = más rápido. Las 6 articulaciones se mueven a la vez: en cada
 // vuelta de loop() se revisa si a cada una ya le toca su próximo pulso (sin delay largos).
 //
@@ -28,7 +36,7 @@
 //
 // Comandos (una línea de texto terminada en "\n", 115200 baudios; el Arduino contesta otra línea):
 //
-//   P                      PONG brazo_mega v2                 ¿estás ahí?
+//   P                      PONG brazo_mega v3                 ¿estás ahí?
 //   E                      E p1 p2 p3 p4 p5 p6 mov servo       estado: posición de cada articulación
 //                                                             [pasos], mov = 1 si alguna se mueve,
 //                                                             servo = ángulo o -1 si está suelto
@@ -59,17 +67,23 @@
 //   - El servo se engancha recién con el primer S; se alimenta con una fuente de 5-6 V aparte
 //     (GND común), no del pin 5V del Arduino.
 //
-// Pines: los de la imagen del cableado (conversación del 23-nov-2026, ver firmware/README.md).
+// Pines: los de la imagen del cableado (conversación del 23-nov-2026, ver firmware/README.md),
+// los mismos que usó el equipo en la prueba del 24-nov.
 // Para cargarlo y probarlo: firmware/README.md.
 
 #include <Servo.h>
 
 const int N = 6;                                     // articulaciones J1..J6
 //                              J1  J2  J3  J4  J5  J6
-const uint8_t PIN_STEP[N] = {45, 47, 49, 51, 53, 43};  // PUL / STEP de cada TB6600
-const uint8_t PIN_DIR[N]  = {44, 46, 48, 50, 52, 42};  // DIR de cada TB6600
+const uint8_t PIN_STEP[N] = {45, 47, 49, 51, 53, 43};  // a PUL- (positivo común) o PUL+
+const uint8_t PIN_DIR[N]  = {44, 46, 48, 50, 52, 42};  // a DIR- (positivo común) o DIR+
 const int PIN_SERVO = 9;                             // señal del servo de la garra
 const int PIN_LED = LED_BUILTIN;                     // pin 13: encendido mientras algo se mueve
+
+// true = positivo común (señales activas en bajo, el brazo armado); false = cátodo común (v2).
+const bool POSITIVO_COMUN = true;
+const bool OPTO_ON = !POSITIVO_COMUN;   // nivel del pin que enciende el opto del TB6600
+const bool OPTO_OFF = POSITIVO_COMUN;   // nivel de reposo
 
 const long BAUDIOS = 115200;
 const unsigned int PULSO_US = 5;      // ancho del pulso STEP (el TB6600 pide al menos 2.5 us)
@@ -152,10 +166,12 @@ void parar() {
 
 void setup() {
   for (int j = 0; j < N; j++) {
+    // Primero el nivel de reposo y DESPUÉS salida: con positivo común, un pin que arranca en
+    // LOW es un paso falso (y un opto de DIR encendido) en el instante de encender.
+    digitalWrite(PIN_STEP[j], OPTO_OFF ? HIGH : LOW);
+    digitalWrite(PIN_DIR[j], OPTO_OFF ? HIGH : LOW);
     pinMode(PIN_STEP[j], OUTPUT);
     pinMode(PIN_DIR[j], OUTPUT);
-    digitalWrite(PIN_STEP[j], LOW);
-    digitalWrite(PIN_DIR[j], LOW);
     regStep[j] = portOutputRegister(digitalPinToPort(PIN_STEP[j]));
     regDir[j] = portOutputRegister(digitalPinToPort(PIN_DIR[j]));
     mascaraStep[j] = digitalPinToBitMask(PIN_STEP[j]);
@@ -173,7 +189,7 @@ void setup() {
   pinMode(PIN_LED, OUTPUT);
   Serial.begin(BAUDIOS);
   // Aviso de que arrancó (el Arduino se reinicia la primera vez que el PC abre el puerto).
-  Serial.println(F("LISTO brazo_mega v2"));
+  Serial.println(F("LISTO brazo_mega v3"));
 }
 
 // Lee el siguiente número entero de la línea a partir de *p (salta espacios). Devuelve false si
@@ -194,7 +210,7 @@ void atender(char *texto) {
   char *p = texto + 1;
   long a, b;
   if (comando == 'P') {
-    Serial.println(F("PONG brazo_mega v2"));
+    Serial.println(F("PONG brazo_mega v3"));
   } else if (comando == 'E') {
     Serial.print('E');
     for (int j = 0; j < N; j++) {
@@ -380,13 +396,14 @@ void pulsos(unsigned long ahora) {
     if (ahora - ultimo[j] >= 2 * iv) ultimo[j] = ahora - iv;
     int s = dirMov[j];
     if (s != sentidoPin[j]) {
-      escribir(regDir[j], mascaraDir[j], s > 0);
+      // Sentido positivo = opto de DIR encendido (LOW con positivo común, HIGH con cátodo común).
+      escribir(regDir[j], mascaraDir[j], s > 0 ? OPTO_ON : OPTO_OFF);
       sentidoPin[j] = s;
       delayMicroseconds(DIR_US);
     }
-    escribir(regStep[j], mascaraStep[j], true);
+    escribir(regStep[j], mascaraStep[j], OPTO_ON);      // pulso: opto encendido PULSO_US
     delayMicroseconds(PULSO_US);
-    escribir(regStep[j], mascaraStep[j], false);
+    escribir(regStep[j], mascaraStep[j], OPTO_OFF);
     pos[j] += s;
     ultimo[j] += iv;
   }

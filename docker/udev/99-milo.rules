@@ -15,9 +15,11 @@ SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ATTRS{seria
 # Adaptador USB-TTL del hoverboard (completar VID/PID/serial con ./robot.sh puertos)
 SUBSYSTEM=="tty", ATTRS{idVendor}=="CAMBIAR_VID", ATTRS{idProduct}=="CAMBIAR_PID", ATTRS{serial}=="CAMBIAR_SERIAL_HOVER", SYMLINK+="hoverboard", MODE="0666"
 # Arduino Mega del brazo (drivers de los motores y servo de la garra). Es un clon con chip USB
-# CH340 (1a86:7523), que NO tiene número de serie: si otro adaptador del robot también es CH340
-# (por ejemplo el del hoverboard), las dos reglas no se distinguen y hay que agregar la condición
-# KERNELS=="X-Y" con el puerto USB físico donde va conectado cada uno (sale en
-# "udevadm info -a -n /dev/ttyUSBx", la primera línea KERNELS=="3-2" o parecida). Un Mega original
-# trae otro chip (2341:0042) y aparece como /dev/ttyACM0 en vez de ttyUSB.
-SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", SYMLINK+="arduino_brazo", MODE="0666"
+# CH340 (1a86:7523), que NO tiene número de serie. El Mega de la hoverboard TAMBIÉN es un CH340
+# (1a86:7523): se distinguen por el nombre que reporta el chip (ATTRS{product}), como hizo el
+# equipo en la prueba del brazo (nov-2026, /dev/serial/by-id/): el del brazo dice "USB2.0-Serial"
+# y el de la hoverboard "USB Serial". Sin esta condición, /dev/arduino_brazo podía quedar
+# apuntando a la hoverboard. Verlo con: udevadm info -a -n /dev/ttyUSBx | grep product. Si un día
+# los dos dicen lo mismo, agregar KERNELS=="X-Y" (el puerto USB físico, de la misma salida). Un
+# Mega original trae otro chip (2341:0042) y aparece como /dev/ttyACM0 en vez de ttyUSB.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", ATTRS{product}=="USB2.0-Serial", SYMLINK+="arduino_brazo", MODE="0666"

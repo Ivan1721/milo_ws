@@ -804,7 +804,9 @@ probar están en [`firmware/README.md`](../../../../firmware/README.md).
 | `andesrobot_arm/brazo_real_node.py` | el puente: cada 50 ms manda `G` con dónde tiene que estar el brazo 50 ms después y lee `E` para `/joint_states`; rechaza trayectorias que muevan el lift (el Arduino no lo mueve) y avisa si piden más velocidad que la del firmware |
 | `config/brazo_real.yaml` | pasos por vuelta, micropasos, reducción (38.4), sentido y cero de cada articulación, y los ángulos del servo (abierta/cerrada); los no medidos dicen SUPUESTO |
 | `launch/brazo_real.launch.py` | `robot_state_publisher` + `brazo_real_node` + `move_group` + `arm_moveit_node` (grupo `brazo_sin_lift`, velocidad al 15 %) + marcador y RViz; usa las mismas funciones de URDF y MoveIt que `arm_sim.launch.py` |
+| `andesrobot_arm/seta.py` | la seta de emergencia por GPIO de la Jetson (línea 144, pin 7 del header): `gpioget` cada 50 ms, 3 lecturas en 0 para darla por presionada, una en 1 para soltarla, presionada si no se puede leer 1 s (y al arrancar, hasta leer un 1). `brazo_real_node` con `seta_linea:=144` manda `X`, corta la trayectoria, rechaza las nuevas (brazo y garra) y publica `/arm/seta`; probado en `test/test_seta.py` y con un `gpioget` falso |
 | `andesrobot_arm/sliders_node.py` | una ventana con un slider por articulación (grados; mm para la garra y, en simulación, el lift) y botones Parar / Leer posición / Todo a cero / Abrir / Cerrar garra. Al **soltar** un slider manda esa meta como trayectoria de un punto a `/arm_controller`, lenta (`velocidad` 0.1 rad/s); sin chequeo de choques. Topes leídos de `/robot_description`; cuentas en `sliders.py` (`test/test_sliders.py`). `brazo_real.launch.py sliders:=true` |
+| `ros2_ws/src/drivers/brazo_driver/` | el driver del **control de Xbox** del equipo (nativo en la Jetson, sin MoveIt: una articulación a la vez, RT hombre muerto, la misma seta), con la garra en LB/RB y el puerto sin HUPCL agregados al integrarlo; ver `firmware/README.md` |
 | `andesrobot_arm/arduino_falso.py` | `ros2 run andesrobot_arm arduino_falso`: un Arduino de mentira en `/tmp/arduino_falso` para probar todo lo anterior sin hardware |
 
 Fórmula: pasos = signo · (q − cero) · pasos_motor · micropasos · reducción / 2π; con 200 pasos, 1/8 y
@@ -854,6 +856,7 @@ propios del brazo llevan `/arm/`:
 | `/objeto/{punto,pose_previa,marcadores,distancia,punto_tcp,pose,medidas}` | `/arm/objeto/...` | ver `objeto_node` | `objeto_node` → `agarre_node`, RViz |
 | `/manija/{agarre,pose_previa,marcadores,distancia,agarre_tcp}` | `/arm/manija/...` | ver `manija_node` | `manija_node` → RViz, scripts |
 | `/bolsa/asa` | `/arm/bolsa/asa` | PoseStamped | `bolsa_node` (borrador) |
+| — | `/arm/seta` | Bool | `brazo_real_node` (con `seta_linea:=144`) → quien quiera saber si la seta está presionada (true) |
 
 No cambian: los de la cámara (`/gripper_camera/...`, mismos nombres que el driver real), los de
 los controladores (`/arm_controller/...`, `/gripper_controller/...`, nombres de ros2_control),

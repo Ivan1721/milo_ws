@@ -13,11 +13,11 @@ cabezal doble de los pines 22-53 en el borde derecho, con los GND al final), per
 por lo impreso en la placa (la serigrafía) al conectar. Los números de pin son los de
 brazo_mega.ino (PIN_STEP, PIN_DIR, PIN_SERVO): si se cambian ahí, cambiarlos también aquí (PINES).
 
-El cableado de las señales del TB6600 es el de "cátodo común" (PUL- y DIR- a GND del Arduino,
-PUL+ y DIR+ a los pines): con él un HIGH del pin es un pulso, como supone el firmware. Si los
-drivers ya están cableados al revés (ánodo común: PUL+ y DIR+ a 5 V, PUL- y DIR- a los pines)
-también funciona, pero cada articulación gira al revés (se corrige con invertir: true en
-ros2_ws/src/andesrobot_arm/config/brazo_real.yaml).
+El cableado de las señales del TB6600 es el de "positivo común", el que usó el equipo al armar el
+brazo (nov-2026): PUL+ y DIR+ de los 6 drivers al pin 5V del Arduino, PUL- y DIR- a los pines.
+Con él un LOW del pin es un pulso, como supone el firmware v3 (POSITIVO_COMUN = true en
+brazo_mega.ino). El cableado de "cátodo común" (PUL- y DIR- a GND, PUL+ y DIR+ a los pines) también
+sirve, pero entonces hay que poner POSITIVO_COMUN = false y volver a cargar el firmware.
 
 Solo necesita matplotlib (no ROS):
   python3 firmware/fig_conexiones.py            # escribe en firmware/img/
@@ -78,7 +78,7 @@ def figura_general():
     ax.set_ylim(-1.6, 17.2)
     ax.set_aspect('equal')
     ax.axis('off')
-    ax.text(0, 16.9, 'Conexiones del Arduino Mega del brazo (firmware/brazo_mega v2)',
+    ax.text(0, 16.9, 'Conexiones del Arduino Mega del brazo (firmware/brazo_mega v3)',
             fontsize=14, fontweight='bold', va='top')
     ax.text(0, 16.15, 'Esquema, no a escala: al conectar, guiarse por el número impreso junto '
             'a cada pin de la placa.', fontsize=9.5, color=MUTED, va='top')
@@ -90,7 +90,7 @@ def figura_general():
             fontweight='bold', ha='center', zorder=6)
     ax.text(bx0 + 4.6, by0 + 3.35, 'clon con chip USB CH340', color='#d8eef5', fontsize=9.5,
             ha='center', zorder=6)
-    ax.text(bx0 + 4.6, by0 + 2.75, 'ATmega2560 · 5 V · firmware brazo_mega v2',
+    ax.text(bx0 + 4.6, by0 + 2.75, 'ATmega2560 · 5 V · firmware brazo_mega v3',
             color='#d8eef5', fontsize=8.5, ha='center', zorder=6)
     ax.add_patch(Rectangle((bx0 + 3.6, by0 + 0.7), 2.0, 1.4, fc='#222', ec='#000', zorder=5))
     ax.text(bx0 + 4.6, by0 + 1.4, 'ATmega\n2560', color='#ccc', fontsize=7, ha='center',
@@ -143,6 +143,8 @@ def figura_general():
                 pin(ax, x, y, None, COLOR_J[j])
             elif n == 'GND':
                 pin(ax, x, y, None, NEGRO)
+            elif n == '5V':
+                pin(ax, x, y, None, ROJO)
             else:
                 pin(ax, x, y, None, None, resaltado=False)
         if a in ('5V', 'GND') or int(a) >= 42:
@@ -154,7 +156,7 @@ def figura_general():
 
     # --- Drivers TB6600 y motores ---
     dx0, dw, dh = 17.3, 4.3, 1.75
-    x_gnd_bus = 15.9                                 # bus de GND (PUL- y DIR-)
+    x_5v_bus = 15.9                                  # bus de +5 V (PUL+ y DIR+)
     x_24 = 22.6                                      # bus de +24 V
     orden = [1, 2, 3, 4, 5, 6]
     ytop = 13.2
@@ -165,7 +167,7 @@ def figura_general():
                 color=COLOR_J[j], va='top')
         step, dirp = PINES[j]
         yp, yd, yg = y0 + 1.0, y0 + 0.62, y0 + 0.24
-        for yy, t in ((yp, 'PUL+'), (yd, 'DIR+'), (yg, 'PUL−  DIR−')):
+        for yy, t in ((yp, 'PUL−'), (yd, 'DIR−'), (yg, 'PUL+  DIR+')):
             ax.text(dx0 + 0.15, yy, t, fontsize=7.4, va='center', color=INK)
         ax.text(dx0 + dw - 0.12, y0 + 0.24, 'ENA: sin conectar', fontsize=6.8, ha='right',
                 va='center', color=MUTED)
@@ -189,8 +191,8 @@ def figura_general():
                 color=COLOR_J[j], fontweight='bold')
         ax.text(dx0 - 0.1, yd - 0.33, f'pin {dirp}', fontsize=7, ha='right',
                 color=COLOR_J[j], fontweight='bold')
-        # PUL- y DIR- al bus de GND
-        cable(ax, [(x_gnd_bus, yg), (dx0, yg)], NEGRO, lw=1.2)
+        # PUL+ y DIR+ al bus de +5 V
+        cable(ax, [(x_5v_bus, yg), (dx0, yg)], ROJO, lw=1.2)
         # 24 V
         cable(ax, [(dx0 + dw, y0 + 1.0), (x_24, y0 + 1.0)], ROJO, lw=1.4)
         cable(ax, [(dx0 + dw, y0 + 0.85), (x_24 + 0.35, y0 + 0.85)], NEGRO, lw=1.4)
@@ -203,11 +205,12 @@ def figura_general():
                 va='center', color=COLOR_J[j])
         ax.text(cm[0] + 0.95, cm[1] - 0.25, MOTOR[j], fontsize=7.4, va='center', color=MUTED)
     ybajo = ytop - 5 * 2.25
-    # Bus de GND de las señales: baja hasta el GND del cabezal doble
-    cable(ax, [(x_gnd_bus, ytop + 0.24), (x_gnd_bus, ybajo - 0.9), (xb, ybajo - 0.9),
-               (xb, ypin['GND'])], NEGRO, lw=1.6)
-    ax.text(x_gnd_bus + 0.12, ybajo - 0.75, 'GND común (PUL− y DIR− de los 6)', fontsize=7.4,
-            va='bottom', color=NEGRO)
+    # Bus de +5 V de las señales: sube hasta el 5V del cabezal doble (positivo común)
+    yarriba = max(ytop + 0.24, ypin['5V']) + 0.45
+    cable(ax, [(x_5v_bus, ybajo + 0.24), (x_5v_bus, yarriba), (xb, yarriba), (xb, ypin['5V'])],
+          ROJO, lw=1.6)
+    ax.text(x_5v_bus + 0.12, ybajo - 0.15, '+5 V común (PUL+ y DIR+ de los 6)', fontsize=7.4,
+            va='top', color=ROJO)
     # Fuente de 24 V
     caja(ax, 21.9, 15.0, 2.8, 1.0, '#fdecea', ROJO)
     ax.text(23.3, 15.75, 'Fuente 24 V', fontsize=9, fontweight='bold', ha='center',
@@ -242,11 +245,12 @@ def figura_general():
             color=NEGRO, va='top')
 
     # --- Notas ---
-    notas = ('Reglas: (1) todas las GND unidas (Arduino, fuente del servo y señales PUL−/DIR−); '
-             '(2) los motores NO se alimentan del Arduino;\n(3) ENA sin conectar: los drivers '
-             'quedan siempre habilitados y sostienen J2/J3; (4) conectar y desconectar todo con '
-             'la fuente de 24 V APAGADA.\nLínea continua = STEP (PUL+), punteada = DIR (DIR+). '
-             'Pines sin verificar contra el cableado real (sobre todo J6: 43/42).')
+    notas = ('Reglas: (1) positivo común: PUL+ y DIR+ de los 6 al 5V del Arduino, los pines a '
+             'PUL− y DIR− (firmware v3, POSITIVO_COMUN = true); (2) los motores NO se alimentan '
+             'del Arduino;\n(3) ENA sin conectar: los drivers quedan siempre habilitados y '
+             'sostienen J2/J3; (4) la GND de la fuente del servo unida a una GND del Arduino;\n'
+             '(5) conectar y desconectar todo con la fuente de 24 V APAGADA. Línea continua = '
+             'STEP (a PUL−), punteada = DIR (a DIR−). Pines: los que usó el equipo en la prueba.')
     ax.text(0, -0.2, notas, fontsize=8.4, va='top', color=INK, linespacing=1.5)
     return fig
 
@@ -310,23 +314,23 @@ def figura_detalle():
     ax.text(2.1, 12.15, 'Arduino Mega', color='white', fontsize=10.5, fontweight='bold',
             ha='center', va='top')
     xa = 3.9
-    pines_a = [(yb['PUL+'], f'pin {step}  (STEP J1)', c), (yb['PUL−'], 'GND', NEGRO),
-               (yb['DIR+'], f'pin {dirp}  (DIR J1)', c), (yb['DIR−'], 'GND', NEGRO),
+    pines_a = [(yb['PUL+'], '5V', ROJO), (yb['PUL−'], f'pin {step}  (STEP J1)', c),
+               (yb['DIR+'], '5V', ROJO), (yb['DIR−'], f'pin {dirp}  (DIR J1)', c),
                (6.6, 'GND', NEGRO), (5.8, f'pin {PIN_SERVO}  (servo)', NARANJA)]
     for y, t, col in pines_a:
         pin(ax, xa, y, None, col)
         ax.text(xa - 0.3, y, t, color='white', fontsize=8, ha='right', va='center',
                 fontweight='bold', zorder=6)
-    cable(ax, [(xa, yb['PUL+']), (xl, yb['PUL+'])], c)
-    cable(ax, [(xa, yb['PUL−']), (xl, yb['PUL−'])], NEGRO)
-    cable(ax, [(xa, yb['DIR+']), (xl, yb['DIR+'])], c, ls=(0, (4, 2)))
-    cable(ax, [(xa, yb['DIR−']), (xl, yb['DIR−'])], NEGRO)
+    cable(ax, [(xa, yb['PUL+']), (xl, yb['PUL+'])], ROJO)
+    cable(ax, [(xa, yb['PUL−']), (xl, yb['PUL−'])], c)
+    cable(ax, [(xa, yb['DIR+']), (xl, yb['DIR+'])], ROJO)
+    cable(ax, [(xa, yb['DIR−']), (xl, yb['DIR−'])], c, ls=(0, (4, 2)))
     ax.text(tx0 + 0.2, ty0 + 0.3, 'ENA+ y ENA−: sin conectar', fontsize=7.6, va='center',
             color=MUTED)
-    ax.text(0, 13.95, 'Cátodo común: PUL− y DIR− a GND, PUL+ y DIR+ a los pines '
-            '(un HIGH del pin = un pulso).\nEl Mega tiene varios pines GND, todos unidos '
-            'por dentro: sirve cualquiera.', fontsize=8.2, color=INK, va='top',
-            linespacing=1.45)
+    ax.text(0, 13.95, 'Positivo común (como lo cableó el equipo): PUL+ y DIR+ al 5V del '
+            'Arduino, PUL− y DIR− a los pines (un LOW del pin = un pulso;\nfirmware v3). Los dos '
+            '"5V" del dibujo son el mismo pin: se unen los cables de los 6 drivers.',
+            fontsize=8.2, color=INK, va='top', linespacing=1.45)
 
     # Potencia: fuente de 24 V y motor
     caja(ax, 23.0, 11.8, 3.4, 1.4, '#fdecea', ROJO)

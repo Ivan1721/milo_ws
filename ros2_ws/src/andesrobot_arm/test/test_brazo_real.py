@@ -80,7 +80,7 @@ def test_arduino_falso_g_llegan_juntas():
     ~al segundo, y a los 0.4 s van por ~40 % del camino."""
     r = Reloj()
     a = ArduinoFalso(reloj=r)
-    assert a.responder('P') == 'PONG brazo_mega v2'
+    assert a.responder('P') == 'PONG brazo_mega v3'
     assert a.responder('G 1000 100 -50 0 0 0 0') == 'OK G'
     r.t = 0.4
     pos, mov, _ = leer_estado(a.responder('E'))
@@ -191,7 +191,7 @@ def test_enlace_con_puerto_virtual():
     hilo.start()
     try:
         assert enlace.esperar_listo(2.0) == 'LISTO brazo_mega v1'
-        assert enlace.preguntar('P', 1.0) == 'PONG brazo_mega v2'
+        assert enlace.preguntar('P', 1.0) == 'PONG brazo_mega v3'
         assert enlace.preguntar('M 3 10', 1.0) == 'OK M 3 10'
         assert leer_estado(enlace.preguntar('E', 1.0))[0] is not None
     finally:
@@ -238,7 +238,7 @@ def test_conectar_distingue_reinicio():
         hilo.start()
         try:
             respuesta, reinicio = enlace.conectar(espera=2.0)
-            assert respuesta == 'PONG brazo_mega v2'
+            assert respuesta == 'PONG brazo_mega v3'
             assert reinicio == reinicio_esperado
         finally:
             vivo[0] = False

@@ -96,8 +96,8 @@ There are no ament_lint tests; keep Python within 99 columns (flake8) to match t
 
 CI (`.github/workflows/ci.yml`, GitHub Actions on every push to `brazo`/`main` and every PR) runs
 three jobs without ROS or Docker: `pytest` of `andesrobot_safety` plus the arm tests that need no
-ROS (`test_torques.py`, `test_medidas.py`, `test_revisar_docs.py`, `test_moveit_opciones.py`, `test_manija.py`, `test_agarre.py`, `test_bolsa.py`, `test_grupos.py`, `test_brazo_real.py`, `test_sliders.py`), `flake8 --max-line-length=99`
-on `andesrobot_arm`, `andesrobot_description` and `andesrobot_moveit_config`, and
+ROS (`test_torques.py`, `test_medidas.py`, `test_revisar_docs.py`, `test_moveit_opciones.py`, `test_manija.py`, `test_agarre.py`, `test_bolsa.py`, `test_grupos.py`, `test_brazo_real.py`, `test_sliders.py`, `test_seta.py`), `flake8 --max-line-length=99`
+on `andesrobot_arm`, `andesrobot_description`, `andesrobot_moveit_config` and `drivers/brazo_driver`, and
 `scripts/revisar_docs.py` (broken links/anchors across every `.md`, informe figures and sections in
 order, `\operatorname` forbidden because GitHub rejects it, and every "**N de N** en `X`" test count
 in the docs must match the tests in the code). `test_kinematics.py` (needs ROS) and the Gazebo smoke
@@ -365,7 +365,22 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   `config/brazo_real.yaml` (SUPUESTO values), `launch/brazo_real.launch.py` (imports arm_sim.launch.py's
   `robot_description_urdf`/`moveit_config`; `arm_moveit_node` group `brazo_sin_lift` = new SRDF chain
   `lift_carriage_link_1 -> gripper_tcp`, kinematics/OMPL entries added; scaling 0.15), `./robot.sh brazo`,
-  `ros2 run andesrobot_arm arduino_falso` (pty at `/tmp/arduino_falso`). `sliders_node` (2026-11-24; Tk window, one slider per joint + gripper, sends a one-point trajectory on slider RELEASE at `velocidad` 0.1 rad/s, no collision check; limits from `/robot_description` top-level `<joint>`s only, since `<ros2_control>` repeats joint names; when idle, untouched joints are sent to their MEASURED position so a MoveIt move isn't undone; SIGINT handled because Tk swallows KeyboardInterrupt; `brazo_real.launch.py sliders:=true`, sim: `-p use_sim_time:=true -p lift:=true`; math in `sliders.py`, `test/test_sliders.py`), tested with `arduino_falso` and headless Gazebo, not on the real arm. Tested on the real board WITHOUT the arm
+  `ros2 run andesrobot_arm arduino_falso` (pty at `/tmp/arduino_falso`). `sliders_node` (2026-11-24; Tk window, one slider per joint + gripper, sends a one-point trajectory on slider RELEASE at `velocidad` 0.1 rad/s, no collision check; limits from `/robot_description` top-level `<joint>`s only, since `<ros2_control>` repeats joint names; when idle, untouched joints are sent to their MEASURED position so a MoveIt move isn't undone; SIGINT handled because Tk swallows KeyboardInterrupt; `brazo_real.launch.py sliders:=true`, sim: `-p use_sim_time:=true -p lift:=true`; math in `sliders.py`, `test/test_sliders.py`), tested with `arduino_falso` and headless Gazebo, not on the real arm.
+  Nov-2026 the team moved the ASSEMBLED arm in Chile with an Xbox pad from the Jetson (native ROS,
+  no Docker): TB6600s are wired COMMON-POSITIVE (PUL+/DIR+ to Arduino 5V, pins to PUL-/DIR-), so
+  firmware is now v3 (`POSITIVO_COMUN = true`: active-low STEP/DIR, idle level written before
+  pinMode; v2 would reverse every joint); `firmware/brazo_mega/brazo_mega.hex` (regenerate with
+  arduino-cli after editing the .ino) + `firmware/cargar_firmware.sh` (avrdude, refuses the
+  hoverboard port). Their driver is `ros2_ws/src/drivers/brazo_driver` (`arm_driver_node`, Tk window,
+  joint jog, RT dead-man, A/Y(Z)/B; integrated 2026-11-25 adding LB/RB gripper steps, port opened
+  without HUPCL, reset notice; pyserial is NOT in the image, test with a pip --target dir;
+  `scripts/instalar.sh`/`brazo.sh` build natively in ~/.cache/brazo_milo, never in ros2_ws). E-stop =
+  base's NC mushroom between Jetson header pin 1 (3.3 V) and pin 7 (gpiochip0 line 144), read with
+  `gpioget` by their driver and by `brazo_real_node` (`seta_linea:=144`, default -1; logic in
+  `seta.py`, `test/test_seta.py`; pressed until the first '1', 3 zeros to press, 1 s unreadable =
+  pressed; sends X, aborts/rejects goals, publishes `/arm/seta`). Proposed later: a 2nd NC contact
+  to Arduino pin 2 + GND (INPUT_PULLUP), not implemented. Both Megas are CH340 1a86:7523: the
+  arm's reports product `USB2.0-Serial`, the hoverboard's `USB Serial` (udev rule matches it). Tested on the real board WITHOUT the arm
   (no drivers/motors): `firmware/prueba_exigente.py` (moves all joints thousands of steps: never run
   it with the arm attached), MoveIt via the real board within 1.7 mm by step count, node killed
   mid-trajectory -> watchdog stops, counts kept. `Enlace` opens the port WITHOUT HUPCL: with it, closing the

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pruebas exigentes del Arduino del brazo (firmware/brazo_mega v2), SIN el brazo conectado.
+"""Pruebas exigentes del Arduino del brazo (firmware/brazo_mega v2 o v3), SIN el brazo conectado.
 
 Para correrlas solo con el Arduino: sin drivers ni motores, los pulsos no mueven nada. CON el
 brazo conectado NO: estas pruebas mueven las 6 articulaciones miles de pasos a toda velocidad.
@@ -405,8 +405,8 @@ def main():
     e = Enlace(a.puerto)
     r, reinicio = e.conectar()
     print(f'{a.puerto}: {r} (reinicio: {reinicio})', flush=True)
-    if not (r or '').startswith('PONG brazo_mega v2'):
-        sys.exit(f'No contesta brazo_mega v2 ({r!r}): cargar firmware/brazo_mega')
+    if not (r or '').startswith('PONG brazo_mega v'):
+        sys.exit(f'No contesta brazo_mega ({r!r}): cargar firmware/brazo_mega')
     try:
         for n, prueba in PRUEBAS.items():
             if a.solo and n not in a.solo:

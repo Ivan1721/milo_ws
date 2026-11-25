@@ -21,6 +21,7 @@ Uso:
   ros2 launch andesrobot_arm brazo_real.launch.py                       # /dev/arduino_brazo
   ros2 launch andesrobot_arm brazo_real.launch.py puerto:=/dev/ttyUSB0 rviz:=false
   ros2 launch andesrobot_arm brazo_real.launch.py moveit:=false sliders:=true   # calibrar
+  ros2 launch andesrobot_arm brazo_real.launch.py seta_linea:=144   # en la Jetson, con la seta
   (sin hardware: ros2 run andesrobot_arm arduino_falso, y puerto:=/tmp/arduino_falso)
 """
 import importlib.util
@@ -53,7 +54,8 @@ def launch_setup(context):
         Node(package='robot_state_publisher', executable='robot_state_publisher',
              output='screen', parameters=[{'robot_description': urdf, 'use_sim_time': False}]),
         Node(package='andesrobot_arm', executable='brazo_real_node', output='screen',
-             parameters=[{'puerto': LaunchConfiguration('puerto').perform(context)}]),
+             parameters=[{'puerto': LaunchConfiguration('puerto').perform(context),
+                          'seta_linea': int(LaunchConfiguration('seta_linea').perform(context))}]),
         Node(package='andesrobot_arm', executable='arm_marker_node', output='screen',
              parameters=real),
     ]
@@ -94,6 +96,10 @@ def generate_launch_description():
         DeclareLaunchArgument('camara', default_value='true',
                               description='la cámara de la pinza en el URDF (sus frames)'),
         DeclareLaunchArgument('rviz', default_value='true'),
+        # La seta de emergencia por GPIO de la Jetson (pin 7 del header = línea 144, la misma de
+        # la base y del driver de Xbox). -1 = sin seta (PC de desarrollo, Docker).
+        DeclareLaunchArgument('seta_linea', default_value='-1',
+                              description='línea GPIO de la seta (144 en la Jetson; -1 = sin)'),
         DeclareLaunchArgument('sliders', default_value='false',
                               description='ventana con un slider por articulación'),
         OpaqueFunction(function=launch_setup),

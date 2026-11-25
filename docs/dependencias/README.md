@@ -417,7 +417,7 @@ usuario que la construyó, así que el usuario del otro computador debería tene
 | `numpy >= 2` o `setuptools >= 80` | se rompen ROS y colcon | no instalar nada con `pip` a mano en el contenedor; mantener el orden del Dockerfile |
 | Controlador NVIDIA antiguo | PyTorch con CUDA 13 puede no ver la GPU, y YOLO corre con CPU | comprobar `torch.cuda.is_available()` en cada PC. Funciona con el 580.178.04; no se han probado otros |
 | Gazebo Classic sin soporte desde enero de 2025 | no recibe arreglos | funciona; migrar a Harmonic solo cuando haga falta |
-| Computador que no sea amd64, como una Jetson | la imagen actual no corre | hay que partir de `ros:humble-ros-base` |
+| Computador que no sea amd64, como una Jetson | la imagen actual no corre | hay que partir de `ros:humble-ros-base`. El driver del control de Xbox (`drivers/brazo_driver`) ya corre nativo en la Jetson con ROS 2 Humble, `python3-serial`, `python3-tk` y `gpiod` (`gpioget`, para la seta); lo instala su `scripts/instalar.sh` |
 | USB 2.0 con la cámara | 1280×800 baja a 7 fps según la ficha | usar 640×400; el puerto y el cable importan en el robot |
 | Voltaje de la IMU: el Mega trabaja a 5 V y el MPU-9250 a 3.3 V | se puede dañar la IMU | usar un adaptador de nivel en SDA y SCL, salvo que el módulo ya lo traiga; revisar el módulo antes de conectarlo |
 | Cable I²C largo, de la pinza al Arduino | I²C está pensado para distancias cortas: los motores pueden meter ruido y bloquear las lecturas | cable lejos de los de motor, velocidad baja y tiempo límite en `Wire` (`setWireTimeout`); probarlo con los motores en marcha |

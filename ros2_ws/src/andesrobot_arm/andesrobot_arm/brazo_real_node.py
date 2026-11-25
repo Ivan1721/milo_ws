@@ -17,6 +17,12 @@ mueve cada motor a la velocidad justa para llegar en ese tiempo. Al final espera
 diga que llegó. Si se cancela la acción, manda X (parar). Si el nodo se cae, el Arduino se detiene
 solo (perro guardián del firmware).
 
+Seta de emergencia (desde el 25-nov-2026, como el driver de Xbox del equipo): con `seta_linea`
+>= 0 lee la seta por GPIO de la Jetson (andesrobot_arm/seta.py). Al presionarla manda X (parada
+en seco), corta la trayectoria en curso y rechaza las nuevas (brazo y garra) hasta que se suelte.
+Publica su estado en /arm/seta (std_msgs/Bool, true = presionada). Con -1 (por defecto: en el PC
+de desarrollo y en Docker no hay ese pin) está desactivada y lo avisa al arrancar.
+
 El lift (vertical_lift_joint): el Arduino del brazo no lo mueve. Se publica fijo en `lift_fijo` y
 se rechaza una trayectoria que lo mueva más de `tolerancia_lift` (si no, el brazo llegaría a otra
 parte que la planificada).
@@ -30,6 +36,9 @@ Parámetros:
   espera_final    [s] cuánto esperar después del último punto a que el Arduino llegue (5.0)
   tiempo_garra    [s] que se espera después de mover el servo (1.0)
   vel_max_pasos   [pasos/s] la VEL_MAX del firmware (2000): avisa si una trayectoria pide más
+  seta_linea      línea GPIO de la seta (144 en la Jetson, pin 7 del header; -1 = sin seta)
+  seta_chip       (gpiochip0), seta_periodo [s] (0.05), seta_fallo [s] (1.0: sin poder leer el
+                  pin tanto tiempo -> presionada), seta_antirrebote (3 lecturas en 0)
 
 Uso: ros2 launch andesrobot_arm brazo_real.launch.py   (o ./robot.sh brazo)
      ros2 run andesrobot_arm brazo_real_node --ros-args -p puerto:=/dev/ttyUSB0
@@ -47,10 +56,12 @@ from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallb
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from sensor_msgs.msg import JointState
+from std_msgs.msg import Bool
 
 from andesrobot_arm.brazo_real import (
     ARTICULACIONES, DEDO_ABIERTA, DEDOS, LIFT, Enlace, cmd_ir, dedo_a_servo, interpolar,
     leer_config, leer_estado, servo_a_dedo)
+from andesrobot_arm.seta import Seta
 
 Resultado = FollowJointTrajectory.Result
 
@@ -68,6 +79,11 @@ class BrazoReal(Node):
         self.declare_parameter('espera_final', 5.0)
         self.declare_parameter('tiempo_garra', 1.0)
         self.declare_parameter('vel_max_pasos', 2000.0)
+        self.declare_parameter('seta_linea', -1)
+        self.declare_parameter('seta_chip', 'gpiochip0')
+        self.declare_parameter('seta_periodo', 0.05)
+        self.declare_parameter('seta_fallo', 1.0)
+        self.declare_parameter('seta_antirrebote', 3)
         p = lambda n: self.get_parameter(n).value  # noqa: E731
         self.periodo = 1.0 / p('frecuencia')
         self.lift = p('lift_fijo')
@@ -118,10 +134,40 @@ class BrazoReal(Node):
         ActionServer(self, FollowJointTrajectory, '/gripper_controller/follow_joint_trajectory',
                      execute_callback=self.ejecutar_garra,
                      cancel_callback=lambda _: CancelResponse.ACCEPT, callback_group=grupo)
+        # Seta de emergencia (ver arriba).
+        self.pub_seta = self.create_publisher(Bool, '/arm/seta', 10)
+        self.seta = None
+        if p('seta_linea') >= 0:
+            self.seta = Seta(p('seta_chip'), p('seta_linea'), p('seta_periodo'), p('seta_fallo'),
+                             p('seta_antirrebote'), al_cambiar=self.al_cambiar_seta)
+            self.seta.start()
+        else:
+            self.get_logger().warn('Seta de emergencia DESACTIVADA (seta_linea < 0). En la '
+                                   'Jetson: seta_linea:=144.')
         self.get_logger().info(
             'Listo: /arm_controller y /gripper_controller (follow_joint_trajectory) ofrecidos; '
             f'lift fijo en {self.lift} m. El Arduino cuenta 0 en la pose "cero" de '
             'brazo_real.yaml: encenderlo con el brazo ahí.')
+
+    # --- seta ---
+    def seta_presionada(self):
+        return self.seta is not None and self.seta.presionada
+
+    def al_cambiar_seta(self, presionada, estado, error):
+        """Desde el hilo de la seta: al presionarla, parada en seco enseguida (sin esperar al
+        lazo de la trayectoria, que también la ve y la aborta)."""
+        if presionada:
+            try:
+                self.preguntar('X')
+            except OSError:
+                pass
+            self.get_logger().error(f'SETA {estado}: brazo detenido (X). Trayectorias rechazadas '
+                                    'hasta soltarla.' + (f' ({error})' if error else ''))
+        else:
+            self.get_logger().info('Seta suelta: se aceptan trayectorias de nuevo.')
+        msg = Bool()
+        msg.data = presionada
+        self.pub_seta.publish(msg)
 
     # --- puerto serie ---
     def preguntar(self, comando, espera=0.3):
@@ -146,6 +192,9 @@ class BrazoReal(Node):
 
     # --- brazo ---
     def aceptar_brazo(self, goal):
+        if self.seta_presionada():
+            self.get_logger().error('Trayectoria rechazada: seta de emergencia presionada')
+            return GoalResponse.REJECT
         nombres = list(goal.trajectory.joint_names)
         desconocidas = set(nombres) - set(ARTICULACIONES) - {LIFT}
         if desconocidas or not goal.trajectory.points:
@@ -201,6 +250,13 @@ class BrazoReal(Node):
         inicio = time.monotonic()
         self.get_logger().info(f'Trayectoria de {len(tr.points)} puntos, {tiempos[-1]:.1f} s')
         while True:
+            if self.seta_presionada():
+                self.preguntar('X')
+                goal_handle.abort()
+                resultado.error_code = Resultado.PATH_TOLERANCE_VIOLATED
+                resultado.error_string = 'seta de emergencia presionada: brazo detenido'
+                self.get_logger().error(resultado.error_string)
+                return resultado
             if goal_handle.is_cancel_requested:
                 self.preguntar('X')
                 goal_handle.canceled()
@@ -248,6 +304,12 @@ class BrazoReal(Node):
             goal_handle.abort()
             resultado.error_code = Resultado.INVALID_JOINTS
             return resultado
+        if self.seta_presionada():
+            goal_handle.abort()
+            resultado.error_code = Resultado.INVALID_GOAL
+            resultado.error_string = 'seta de emergencia presionada'
+            self.get_logger().error('Garra: ' + resultado.error_string)
+            return resultado
         ultimo = tr.points[-1].positions
         q = (ultimo[nombres.index(DEDOS[0])] if DEDOS[0] in nombres
              else -ultimo[nombres.index(DEDOS[1])])
@@ -265,6 +327,8 @@ class BrazoReal(Node):
         return resultado
 
     def cerrar(self):
+        if self.seta is not None:
+            self.seta.parar()
         try:
             self.preguntar('X')
         finally:

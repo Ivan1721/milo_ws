@@ -1,0 +1,35 @@
+# Parámetros del driver del brazo (ros2 launch brazo_driver brazo.launch.py).
+arm_driver_node:
+  ros__parameters:
+    # Por id: el CH340 del Mega del BRAZO. (El de la hoverboard es usb-1a86_USB_Serial: no confundir.)
+    port: /dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0
+    joystick: /dev/input/js0
+    vel_max: 2000.0        # [pasos/s] joystick a fondo (tope del firmware 2000 ≈ 11.7 °/s)
+    aceleracion: 4000.0    # [pasos/s²] bajarla si los motores pierden pasos al arrancar
+    zona_muerta: 0.15
+    adelanto: 0.2          # [s]
+    periodo: 0.05          # [s]
+    # Control Xbox por Bluetooth (hid-generic, /dev/input/js0). Si un botón no coincide, la
+    # ventana muestra el número del último botón pulsado.
+    eje: 1                 # joystick izquierdo, vertical
+    invertir_eje: true     # arriba = sentido positivo
+    btn_cambiar: 0         # A: siguiente articulación
+    btn_parar: 1           # B: parada en seco
+    btn_home: 4            # Y: la pose actual pasa a ser el home (todo en 0)
+    # Garra (servo, comando S del firmware), con RT apretado: LB abre y RB cierra un paso. Los
+    # ángulos son los SUPUESTOS de andesrobot_arm/config/brazo_real.yaml: medirlos (abrir y
+    # cerrar de a poco hasta el tope, sin que el servo zumbe) y anotarlos en los dos archivos.
+    btn_abrir: 6           # LB
+    btn_cerrar: 7          # RB
+    servo_abierta: 40      # [°]
+    servo_cerrada: 110     # [°]
+    paso_servo: 10         # [°] por pulsación
+    # Hombre muerto: el brazo solo se mueve con el gatillo derecho RT apretado (eje 4; LT = 5).
+    eje_deadman: 4
+    umbral_deadman: 0.5    # 0 = suelto, 1 = a fondo
+    # Seta de emergencia física: la misma de la base (botón NC pin 1 - pin 7 del header).
+    estop_gpio_chip: gpiochip0
+    estop_gpio_line: 144   # < 0 desactiva la seta
+    estop_gpio_period: 0.05
+    estop_gpio_fail: 1.0   # [s] sin poder leer el pin -> se toma como presionada
+    estop_gpio_debounce: 3

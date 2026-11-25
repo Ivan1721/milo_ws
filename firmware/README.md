@@ -16,7 +16,9 @@ flowchart LR
 
 | Archivo | Qué es |
 |---|---|
-| `brazo_mega/brazo_mega.ino` | el programa del Arduino (v2): protocolo de comandos, movimiento de las 6 articulaciones a la vez con rampa de aceleración, perro guardián, servo |
+| `brazo_mega/brazo_mega.ino` | el programa del Arduino (v3: la v2 más el cableado de positivo común del brazo armado): protocolo de comandos, movimiento de las 6 articulaciones a la vez con rampa de aceleración, perro guardián, servo |
+| `brazo_mega/brazo_mega.hex` | el mismo programa ya compilado, para cargarlo sin el IDE ni `arduino-cli` (en la Jetson); regenerarlo si se cambia el `.ino` (ver `cargar_firmware.sh`) |
+| `cargar_firmware.sh` | carga el `.hex` con `avrdude` al Mega del brazo (y se niega si el puerto es el de la hoverboard); del equipo |
 | `probar_arduino.py` | prueba desde el PC sin ROS: comunicación, una articulación por vez (en grados o pasos) y el servo |
 | `prueba_exigente.py` | 12 pruebas duras (23 comprobaciones) **solo con el Arduino, sin el brazo** (mueven las 6 articulaciones miles de pasos): protocolo, latencia, exactitud de pasos y tiempos, carga, perro guardián, seguimiento de 30 s tipo ROS, ráfagas, X/Z/servo |
 | `fig_conexiones.py` | dibuja los diagramas de conexión de `img/` (solo matplotlib): `python3 firmware/fig_conexiones.py` |
@@ -25,19 +27,24 @@ flowchart LR
 Del lado de ROS (en `ros2_ws/src/andesrobot_arm/`): `brazo_real_node.py` (el puente),
 `brazo_real.py` (conversiones y protocolo, con pruebas), `config/brazo_real.yaml` (pasos, micropasos,
 reducción, sentido, cero, servo), `launch/brazo_real.launch.py` (todo junto con MoveIt; `./robot.sh
-brazo`), `sliders_node.py` (una ventana con un slider por articulación) y `arduino_falso.py` (un Arduino de mentira para probar sin hardware). Detalle en
-`andesrobot_arm/docs/BRAZO.md`, sección «Brazo real (Arduino Mega)».
+brazo`), `seta.py` (la seta de emergencia), `sliders_node.py` (una ventana con un slider por articulación) y `arduino_falso.py` (un Arduino de mentira para probar sin hardware). Detalle en
+`andesrobot_arm/docs/BRAZO.md`, sección «Brazo real (Arduino Mega)». El driver del **control de
+Xbox** con el que el equipo movió el brazo armado está en `ros2_ws/src/drivers/brazo_driver/`
+([más abajo](#control-de-xbox-el-driver-del-equipo)).
 
 ## La placa y los pines
 
 - **Arduino Mega 2560 clon**, con chip USB **CH340** (`1a86:7523`): aparece como `/dev/ttyUSB0`
   (un Mega original aparece como `/dev/ttyACM0`). Con la regla de `docker/udev/99-milo.rules`
-  instalada queda también como `/dev/arduino_brazo`.
+  instalada queda también como `/dev/arduino_brazo`. El Mega de la **hoverboard también es un
+  CH340**: se distinguen por el nombre que reporta el chip, `USB2.0-Serial` el del brazo y `USB
+  Serial` el de la hoverboard (por eso la regla lo pide; sin regla, usar
+  `/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0`, que es lo que usa el equipo).
 - **En Ubuntu,** el programa `brltty` se apodera de los CH340 y el puerto desaparece un segundo
   después de conectarlo. Si no se usa una pantalla braille: `sudo apt remove brltty` y volver a
   conectar el Arduino (ver `docker/udev/README.md`).
-- **Pines** (de la imagen del cableado que se le pasó a Copilot el 23-nov-2026; la imagen no está
-  en el repo, confirmar contra el cableado real, sobre todo J6):
+- **Pines** (de la imagen del cableado del 23-nov-2026; son los mismos del firmware con el que el
+  equipo movió el brazo armado, en nov-2026):
 
   | Articulación | PUL / STEP | DIR |
   |---|---|---|
@@ -52,35 +59,40 @@ brazo`), `sliders_node.py` (una ventana con un slider por articulación) y `ardu
   ENA de los TB6600 sin conectar (siempre habilitados: si se deshabilitan, J2 y J3 caen por el
   peso). El pin 53 es también SS del SPI, sin conflicto mientras no se use SPI.
 - **El servo de la garra no se alimenta desde el Arduino:** va a una fuente de 5-6 V aparte, con la
-  GND unida a la del Arduino; del pin 9 solo sale la señal. Lo mismo la GND de los drivers.
+  GND unida a la del Arduino; del pin 9 solo sale la señal.
+- **Pines libres** para lo que venga (la seta, finales de carrera): 2-8, 10-12 y 22-41. El 2 y el 3
+  además pueden avisar al instante por interrupción (INT4/INT5); 0-1 son el USB y 13 el LED.
 
 ### Diagramas de conexión
 
 Todo el sistema: el Arduino, los 6 drivers con sus motores, el servo y las dos fuentes. Cada
-articulación tiene un color; la línea continua es STEP (al borne PUL+ del driver) y la punteada es
-DIR (al borne DIR+).
+articulación tiene un color; la línea continua es STEP (al borne PUL− del driver) y la punteada es
+DIR (al borne DIR−); PUL+ y DIR+ de los 6 van juntos al 5V del Arduino (en rojo).
 
 ![Diagrama de conexiones: Arduino Mega 2560 con los pines 42 a 53 del cabezal doble cableados a seis drivers TB6600 (J1 pines 45 y 44, J2 47 y 46, J3 49 y 48, J4 51 y 50, J5 53 y 52, J6 43 y 42), cada driver a su motor y a una fuente de 24 V; el pin 9 al servo de la garra, que tiene su propia fuente de 5-6 V; todas las GND unidas](img/conexiones_mega.png)
 
 Un driver en detalle (J1; los otros iguales con sus pines) y el servo:
 
-![Detalle del cableado de un TB6600: pin 45 del Arduino a PUL+, pin 44 a DIR+, GND del Arduino a PUL− y DIR−, ENA sin conectar; VCC y GND a la fuente de 24 V; A+, A−, B+, B− a las dos bobinas del motor. Servo: señal al pin 9, + y − a una fuente de 5-6 V cuya GND se une a la del Arduino](img/conexion_tb6600.png)
+![Detalle del cableado de un TB6600: 5V del Arduino a PUL+ y DIR+, pin 45 a PUL−, pin 44 a DIR−, ENA sin conectar; VCC y GND a la fuente de 24 V; A+, A−, B+, B− a las dos bobinas del motor. Servo: señal al pin 9, + y − a una fuente de 5-6 V cuya GND se une a la del Arduino](img/conexion_tb6600.png)
 
 Es un **esquema**, no un plano: al conectar, guiarse por el número impreso junto a cada pin de la
-placa. Las señales van en **cátodo común** (PUL− y DIR− a GND, PUL+ y DIR+ a los pines), que es lo
-que supone el firmware (un HIGH = un pulso). Si los drivers ya vinieran cableados en ánodo común
-(PUL+ y DIR+ a 5 V, PUL− y DIR− a los pines) también se mueven, pero cada articulación gira al
-revés: se corrige con `invertir: true` en `brazo_real.yaml`. Si se cambia un pin en
+placa. Las señales van en **positivo común**, como las cableó el equipo: PUL+ y DIR+ al 5V del
+Arduino, PUL− y DIR− a los pines. El optoacoplador de entrada del TB6600 se enciende cuando el pin
+está en LOW, así que el firmware v3 manda las señales al revés que la v2: STEP en reposo en HIGH y
+cada pulso un LOW (`POSITIVO_COMUN = true` en `brazo_mega.ino`). Con la v2 en este cableado cada
+articulación giraría al revés y, al encender, cada pin en LOW sería un paso falso. Si algún día se
+cablea en cátodo común (PUL− y DIR− a GND, PUL+ y DIR+ a los pines), poner `POSITIVO_COMUN = false`
+y volver a cargar el programa. Si se cambia un pin en
 `brazo_mega.ino`, cambiarlo también en `PINES` de `fig_conexiones.py` y volver a dibujar.
 
-## Protocolo (v2)
+## Protocolo (v2 y v3, el mismo)
 
 Una línea de texto por comando, terminada en `\n`, a 115200 baudios; el Arduino contesta otra
 línea. Se puede usar a mano desde el Monitor Serie del Arduino IDE (con "Nueva línea").
 
 | Comando | Respuesta | Qué hace |
 |---|---|---|
-| `P` | `PONG brazo_mega v2` | ¿estás ahí? |
+| `P` | `PONG brazo_mega v3` | ¿estás ahí? |
 | `E` | `E p1 p2 p3 p4 p5 p6 mov servo` | posición de cada articulación [pasos], `mov` 1 si algo se mueve, ángulo del servo (−1 suelto) |
 | `G ms p1 .. p6` | `OK G` | ir a esas posiciones, todas llegando en `ms` milisegundos (lo usa ROS ~20 veces por segundo) |
 | `M j pasos` | `OK M j destino` | mover solo la articulación `j` (1..6) esa cantidad de pasos, lento: para probar |
@@ -118,6 +130,20 @@ Cuántos pasos es un grado: `pasos_motor × micropasos × reduccion / 360` = 200
 la placa de los motores y los interruptores de cada TB6600).
 
 ## Cargar el programa
+
+**Con `firmware/cargar_firmware.sh`** (del equipo; sirve en la Jetson, sin el IDE: solo necesita
+`avrdude`, y lo instala si falta): carga `brazo_mega/brazo_mega.hex` en el Mega del brazo, se niega
+si el puerto es el de la hoverboard, y al final pregunta `P` para comprobar. Cerrar antes el driver
+de Xbox o `brazo_real_node`.
+
+```bash
+firmware/cargar_firmware.sh                 # al Mega del brazo, por su nombre en /dev/serial/by-id
+firmware/cargar_firmware.sh /dev/ttyUSB0    # a otro puerto
+```
+
+El `.hex` hay que regenerarlo cuando se cambia el `.ino` (con `arduino-cli`, abajo:
+`arduino-cli compile --fqbn arduino:avr:mega --output-dir /tmp/brazo_mega firmware/brazo_mega` y
+copiar `/tmp/brazo_mega/brazo_mega.ino.hex` encima de `firmware/brazo_mega/brazo_mega.hex`).
 
 **Con el Arduino IDE**: abrir `firmware/brazo_mega/brazo_mega.ino`, elegir Herramientas → Placa →
 "Arduino Mega or Mega 2560", Procesador "ATmega2560", el puerto `/dev/ttyUSB0`, y Subir.
@@ -183,8 +209,9 @@ no llevan datos) y revisar el paso 1.
 
 ### 3. Cargar el programa (solo si no lo tiene)
 
-El Arduino del brazo ya tiene `brazo_mega` v2 (23-nov-2026). Para saberlo basta el paso 4: si
-contesta `PONG brazo_mega v2`, saltarse este paso. Si no, o si se cambió el `.ino`: ver «Cargar el
+El Arduino del brazo tiene `brazo_mega` v3 (la cargó el equipo para la prueba con el control de
+Xbox, nov-2026). Para saberlo basta el paso 4: si contesta `PONG brazo_mega v3`, saltarse este
+paso; si contesta `v2`, cargar la v3 (con el cableado de positivo común la v2 gira al revés). Si no, o si se cambió el `.ino`: ver «Cargar el
 programa» más abajo. **Al cargar el programa el Arduino se reinicia y cuenta 0 donde esté el brazo.**
 
 ### 4. Probar la comunicación (no mueve nada)
@@ -197,7 +224,7 @@ python3 firmware/probar_arduino.py
 
 ```
 Puerto: /dev/arduino_brazo
-  -> P              <- PONG brazo_mega v2   (se reinició: cuenta desde 0)
+  -> P              <- PONG brazo_mega v3   (se reinició: cuenta desde 0)
   -> E              <- E 0 0 0 0 0 0 0 -1
   -> Q              <- ERR comando desconocido: Q
 Todo OK
@@ -217,8 +244,8 @@ Desenchufar el USB y la fuente de 24 V. Después, siguiendo los [diagramas](#dia
    el driver) y SW4-SW6 en la corriente nominal de su motor (dice la placa del motor; si no se
    sabe, empezar por la más baja que mueva el brazo). Los 6 drivers con el mismo micropaso, o
    cambiar `micropasos` en `brazo_real.yaml` para el que sea distinto.
-2. **Señales:** PUL+ y DIR+ de cada driver a sus pines (tabla de arriba); PUL− y DIR− de los 6 a
-   una GND del Arduino; ENA+ y ENA− sin conectar.
+2. **Señales (positivo común):** PUL− y DIR− de cada driver a sus pines (tabla de arriba); PUL+
+   y DIR+ de los 6 juntos al pin 5V del Arduino; ENA+ y ENA− sin conectar.
 3. **Motores:** A+ A− a una bobina y B+ B− a la otra (los dos cables de una bobina tienen
    continuidad con el multímetro).
 4. **Fuente de 24 V:** a VCC y GND de cada driver (rojo a VCC).
@@ -341,6 +368,8 @@ los 24 V y después desenchufar el USB.
 
 ### Para parar en una emergencia
 
+- **La seta de emergencia** (si está conectada y la lee el programa que mueve el brazo: ver
+  [abajo](#seta-de-emergencia)): parada en seco y el brazo queda bloqueado hasta soltarla.
 - **Cortar la fuente de 24 V.** Los motores quedan sin fuerza: J2 y J3 caen, hay que sostener el
   brazo.
 - Con ROS: Ctrl+C en `./robot.sh brazo` y el brazo frena en 0.5 s (perro guardián).
@@ -368,6 +397,65 @@ después de enchufarlo, y `Enlace.conectar` dice si se reinició (el nodo lo avi
 esto, matar el nodo a mitad de una trayectoria deja al Arduino frenado por el perro guardián y
 con su cuenta intacta.
 
+## Control de Xbox (el driver del equipo)
+
+Con este driver el equipo movió el brazo armado por primera vez (nov-2026, en Chile), desde la
+Jetson. Corre **nativo** (ROS 2 Humble instalado en la Jetson, sin Docker) y no usa MoveIt: mueve
+una articulación a la vez, a la velocidad que diga el joystick. Está en
+`ros2_ws/src/drivers/brazo_driver/` (paquete `brazo_driver`, nodo `arm_driver_node`), con sus
+parámetros en `config/brazo_driver.yaml`.
+
+```bash
+ros2_ws/src/drivers/brazo_driver/scripts/instalar.sh   # una vez: dependencias, compila, ícono
+brazo_milo                                             # o doble clic en «Brazo MILO» del escritorio
+```
+
+Compila en `~/.cache/brazo_milo`, **fuera** de `ros2_ws`: en el PC de desarrollo `ros2_ws/install/`
+es del contenedor y una compilación nativa ahí lo rompe.
+
+| Control | Qué hace |
+|---|---|
+| **RT** (mantener) | hombre muerto: sin RT apretado no se mueve nada (ni la garra); al soltarlo frena |
+| **Joystick izquierdo ↑↓** | mueve la articulación seleccionada (más empujado = más rápido, hasta 2000 pasos/s) |
+| **A** | siguiente articulación (J1 → … → J6 → J1) |
+| **Y** | con el brazo quieto: la pose actual pasa a ser el cero (`Z`) |
+| **B** | parada en seco |
+| **LB / RB** | abre / cierra la garra 10° por pulsación (agregado al integrarlo; la primera pulsación la abre del todo) |
+
+Lo que se cambió al traerlo (25-nov-2026): la garra (LB/RB, con los ángulos supuestos de
+`brazo_real.yaml`, `servo_abierta`/`servo_cerrada`; hay que medirlos), abrir el puerto **sin
+HUPCL** como `brazo_real_node` (ver la sección siguiente: así cerrar el driver y abrirlo de nuevo,
+o pasar del driver a `brazo_real_node`, no reinicia el Arduino ni pierde la cuenta), y el aviso en
+la ventana cuando el Arduino sí se reinició. Probado con el Arduino falso, no con el brazo.
+
+**Pasar del control de Xbox a MoveIt:** cerrar el driver (el puerto es de un programa a la vez) y
+abrir `brazo_real_node`. El Arduino sigue con su cuenta, pero `brazo_real_node` supone que 0 pasos
+es la pose cero del URDF (la de RViz con todo en 0): el **Y** tiene que haberse pulsado con el
+brazo justo en esa pose.
+
+## Seta de emergencia
+
+**Hoy (como en la prueba del equipo):** la seta es la misma de la base, un botón normalmente
+cerrado (NC) entre el **pin 1 (3,3 V)** y el **pin 7 (GPIO09, gpiochip0 línea 144)** del header de
+40 pines de la **Jetson**. La leen, con `gpioget` cada 50 ms, el driver de Xbox y `brazo_real_node`
+(este último con `seta_linea:=144`; por defecto está desactivada porque en el PC y en Docker no
+existe ese pin). Al presionarla mandan `X` (parada en seco) y no mueven nada hasta que se suelte;
+`brazo_real_node` corta la trayectoria en curso, rechaza las nuevas y publica `/arm/seta`. Si el
+pin no se puede leer durante 1 s (cable suelto, sin `gpiod`, sin permisos), se toma como
+presionada. Probado con un `gpioget` falso y el Arduino falso.
+
+**Su límite:** la para el **programa** que le habla al Arduino. El puerto lo usa uno a la vez y los
+dos programas de arriba la leen, pero `probar_arduino.py`, `prueba_exigente.py` o el Monitor Serie
+no, y si el programa se cuelga sin cerrar el puerto, el perro guardián solo actúa sobre los `G`.
+
+**Más adelante, en el Arduino:** conectarla también a un pin del Arduino hace que pare pase lo que
+pase en el PC. Propuesta: **pin 2** (libre, con interrupción) a un contacto NC de la seta cuyo otro
+lado va a **GND** del Arduino, con `INPUT_PULLUP` en el firmware: suelta, el pin lee LOW; presionada
+o con el cable cortado, HIGH, y el firmware para en seco y rechaza `G` y `M` hasta soltarla. El
+contacto **no** puede ser el mismo que lee la Jetson (son circuitos distintos: 3,3 V de la Jetson
+contra la GND del Arduino); hace falta una seta con **dos bloques de contacto NC** (casi todas
+aceptan agregar uno) o una segunda seta. No está programado todavía.
+
 ## Estado (23-nov-2026)
 
 Probado **solo con el Arduino, sin drivers ni motores** (firmware v2, con rampa):
@@ -393,5 +481,9 @@ Probado **solo con el Arduino, sin drivers ni motores** (firmware v2, con rampa)
   MoveIt planifica `brazo_sin_lift` y la cuenta de pasos deja la pinza a 0.8 mm de la pose pedida;
   trayectoria directa, rechazo del lift, garra y aviso de velocidad, OK. Con v1: matar el nodo a
   mitad de una trayectoria deja al Arduino frenado (perro guardián) y con su cuenta.
-- Sin probar: los motores reales (qué aceleración aguantan, el sentido de cada uno, los micropasos
-  reales), el servo y su rango.
+- Sin probar aquí: los motores reales (qué aceleración aguantan, el sentido de cada uno, los
+  micropasos reales), el servo y su rango.
+- **Nov-2026, el equipo en Chile:** con el brazo armado, firmware v3 (positivo común) y el control
+  de Xbox desde la Jetson, el brazo se movió teleoperado, articulación por articulación, con la
+  seta de la base. La garra no se probó (su driver no la manejaba). Lo integrado aquí el 25-nov
+  (garra, puerto sin HUPCL, seta en `brazo_real_node`) solo se probó con el Arduino falso.

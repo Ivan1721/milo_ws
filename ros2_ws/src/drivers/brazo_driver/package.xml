@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>brazo_driver</name>
+  <version>0.1.0</version>
+  <description>Driver del brazo de MILO (arm_driver_node): Arduino Mega + 6 TB6600 (firmware/brazo_mega), con ventana y control de Xbox para mover articulación por articulación y fijar el home.</description>
+  <maintainer email="diego.lopez.vera1@gmail.com">Diego</maintainer>
+  <license>Apache-2.0</license>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>python3-serial</exec_depend>
+  <exec_depend>python3-tk</exec_depend>
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
