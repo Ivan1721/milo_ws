@@ -361,6 +361,107 @@ brazo se detiene solo a los 0.5 s (perro guardián).
 si un motor pierde pasos, RViz y el brazo quedan distintos sin ningún aviso. Mirar el brazo, no
 solo la pantalla.
 
+#### Altura del brazo sin el elevador
+
+Mientras el elevador (lift) no esté montado, el carro del brazo queda fijo en la columna y MoveIt
+planifica solo con las 6 articulaciones (grupo `brazo_sin_lift`). Hay que decirle a qué altura
+quedó, con `lift:=` en metros. Con `lift:=0` el URDF pone la base del brazo (la cara de abajo de
+`link_1`, donde gira J1) a **0,927 m** del suelo, así que:
+
+  lift = (altura medida del suelo a la base del brazo) − 0,927
+
+Medido el 25-nov-2026: 32 cm del suelo al techo de la base + 56 cm hasta la base del brazo =
+0,88 m → `lift:=-0.047`, que es el valor por defecto. Si se remide: `./robot.sh brazo lift:=-0.05`.
+Comprobar: `ros2 run tf2_ros tf2_echo base_footprint link_1_1` debe dar z ≈ la altura medida. Un
+centímetro de error aquí es un centímetro de error en la altura de la pinza.
+
+#### Repartido entre la Jetson y el PC (por ethernet)
+
+El Arduino y la seta están en la Jetson (Orin Nano), pero MoveIt y RViz andan mejor en el PC. El
+launch se puede partir en dos (`parte:=`), y las dos mitades se encuentran solas por la red:
+
+| Dónde | Comando | Qué corre |
+| --- | --- | --- |
+| Jetson (nativo) | `ros2 launch andesrobot_arm brazo_real.launch.py parte:=driver seta_linea:=144` | solo `brazo_real_node` (Arduino + seta); no necesita MoveIt |
+| PC (Docker) | `./robot.sh brazo-pc` (o `./robot.sh brazo-pc moveit:=false sliders:=true`) | `robot_state_publisher`, MoveIt, RViz, marcador y sliders |
+
+Para que se vean:
+1. Un cable de red entre los dos. En el PC, la conexión cableada en modo «Compartida con otros
+   computadores» (NetworkManager le da IP a la Jetson por DHCP). **Ojo:** la Jetson tiene un
+   hotspot WiFi en 10.42.0.1, que es justo la red que NetworkManager usa por defecto al compartir;
+   con las dos en 10.42.0.x el ping no pasa. Por eso el PC usa 10.43.0.1 (una vez:
+   `nmcli con modify "Perfil 1" ipv4.addresses 10.43.0.1/24`, con el nombre de tu conexión
+   cableada) y la Jetson queda en 10.43.0.146. Si la Jetson no cambia de IP, desconectar y
+   conectar el cable. Probar `ping` en los dos sentidos.
+2. El mismo `ROS_DOMAIN_ID` en los dos. La Jetson usa **7** (en su `~/.bashrc`, con FastDDS);
+   el contenedor usa el de la terminal, así que en el PC: `ROS_DOMAIN_ID=7 ./robot.sh brazo-pc`
+   (el contenedor tiene que arrancar con esa variable; si ya estaba corriendo con otra,
+   `./robot.sh stop` primero). `ROS_LOCALHOST_ONLY` sin poner o en 0.
+3. Probar: en la Jetson `ros2 topic pub /hola std_msgs/msg/String "{data: hola}"` y en el PC
+   (`./robot.sh shell`) `ros2 topic echo /hola`.
+4. En la Jetson, `andesrobot_arm` compilado nativo, fuera de `ros2_ws` (como el driver del
+   equipo, ver abajo), y la misma versión del código que en el PC: el URDF lo publica el PC, pero
+   `brazo_real.yaml` (pasos, `invertir`, `cero`) lo lee la Jetson.
+
+Primero el driver en la Jetson y después el PC.
+
+**Instalarlo en la Jetson (una vez; hecho el 25-nov-2026).** Nuestro paquete va en una carpeta
+propia, `~/andes_ws`, para no tocar los workspaces del equipo (`~/ros2_ws`, con su `brazo_driver`,
+y `~/milo_ws`, que en la Jetson es una copia suya, no este repo). Desde el PC, en `~/milo_ws`:
+
+```bash
+ssh milo@10.43.0.146 'mkdir -p ~/andes_ws/src'
+```
+
+```bash
+rsync -a --delete --exclude __pycache__ ros2_ws/src/andesrobot_arm milo@10.43.0.146:andes_ws/src/
+```
+
+```bash
+ssh milo@10.43.0.146 'cd ~/andes_ws && source /opt/ros/humble/setup.bash && colcon build --symlink-install --packages-select andesrobot_arm'
+```
+
+Repetir el `rsync` (y el `colcon build` si hay archivos nuevos) cada vez que cambie el código o
+`config/brazo_real.yaml`. La Jetson traía ROS 2 Humble desktop y `pyserial`, pero no
+`control_msgs`, que `brazo_real_node` necesita: se instaló con
+`sudo apt install ros-humble-control-msgs`. MoveIt no hace falta en la Jetson.
+
+**Arrancar el driver en la Jetson** (por SSH o en su pantalla por VNC, `10.43.0.146:5900`):
+
+```bash
+source /opt/ros/humble/setup.bash && source ~/andes_ws/install/setup.bash && export ROS_DOMAIN_ID=7 && ros2 launch andesrobot_arm brazo_real.launch.py parte:=driver seta_linea:=144 puerto:=/dev/ttyUSB0
+```
+
+(`/dev/ttyUSB0` es el CH340 `USB2.0-Serial` del brazo; la Jetson no tiene nuestra regla udev, así
+que `/dev/arduino_brazo` no existe ahí. También sirve
+`puerto:=/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0`, que no cambia al reconectar.)
+
+**El control de Xbox y los sliders van por turnos, no a la vez:** el puerto del Arduino lo usa un
+solo programa. El control sirve para calibrar:
+1. Con el driver de Xbox del equipo, llevar el brazo a la pose cero del URDF (todo en 0 en RViz)
+   y apretar Y (home: esa pose pasa a ser 0 pasos).
+2. Cerrar el driver de Xbox (comprobar con `fuser /dev/ttyUSB0`, que no debe mostrar nada).
+3. Arrancar nuestro driver (arriba) y después, en el PC, `ROS_DOMAIN_ID=7 ./robot.sh brazo-pc
+   moveit:=false sliders:=true`.
+4. Para volver al Xbox: cerrar nuestro driver (Ctrl+C) y abrir el suyo.
+
+Al pasar del driver del equipo al nuestro **el Arduino se reinicia** (su driver abre el puerto con
+HUPCL, que al cerrar baja DTR) y empieza a contar 0 donde esté el brazo; nuestro nodo lo avisa.
+Por eso el paso 1 importa: si el brazo quedó en la pose cero, da lo mismo. Ojo: el driver del
+equipo corre en el dominio ROS 0 (no tiene `ROS_DOMAIN_ID` en su entorno); el nuestro, en el 7.
+
+**Probado el 25-nov-2026, el brazo real con las dos partes:**
+- Antes, en un solo computador (las dos partes como procesos separados, con el Arduino falso):
+  MoveIt planificó y el driver ejecutó (pinza a 2 mm de la meta).
+- Con el brazo armado: driver en la Jetson (firmware v3, seta leída suelta), sliders y RViz en el
+  PC por el cable. `/joint_states` llegó al PC a 20 Hz. Se movieron con los sliders **las 6
+  articulaciones**, una por una: 23 movimientos, todos «Objetivo alcanzado» según la cuenta de
+  pasos (no hay encoders: no mide dónde quedó el brazo de verdad), ninguno rechazado, sin
+  eventos de la seta.
+- Sin anotar todavía: el sentido de cada articulación comparado con RViz (`invertir`), si un
+  grado del slider es un grado real (micropasos de los TB6600, hoy supuestos en 1/8), la garra
+  desde los sliders y MoveIt con el brazo real.
+
 ### 11. Apagar
 
 Llevar el brazo a una pose de reposo (apoyado, o con J2 y J3 sin carga), **sostenerlo**, cortar
@@ -486,4 +587,7 @@ Probado **solo con el Arduino, sin drivers ni motores** (firmware v2, con rampa)
 - **Nov-2026, el equipo en Chile:** con el brazo armado, firmware v3 (positivo común) y el control
   de Xbox desde la Jetson, el brazo se movió teleoperado, articulación por articulación, con la
   seta de la base. La garra no se probó (su driver no la manejaba). Lo integrado aquí el 25-nov
-  (garra, puerto sin HUPCL, seta en `brazo_real_node`) solo se probó con el Arduino falso.
+  en su driver (garra, puerto sin HUPCL) solo se probó con el Arduino falso.
+- **25-nov-2026, primera vez por ROS:** `brazo_real_node` en la Jetson + sliders en el PC por
+  ethernet movieron las 6 articulaciones del brazo armado (ver «Repartido entre la Jetson y el
+  PC», paso 10). Falta anotar sentidos y escala.

@@ -7,8 +7,9 @@ versiones se leyeron el 1 de noviembre de 2026 de la imagen `milo:humble` y del 
 > **En palabras simples:** casi todo el software viene dentro de una "caja" llamada imagen de
 > Docker, así que no se instala a mano. Fuera de la caja solo quedan cuatro cosas: Docker, el
 > controlador de la tarjeta gráfica, los permisos USB y el hardware. El simulador se puede usar
-> hoy. En el robot real ya funcionan la base y la cámara, pero **el brazo todavía no se mueve**:
-> falta el programa que conecta ROS con los motores.
+> hoy. En el robot real ya funcionan la base y la cámara, y el brazo recién se movió por ROS
+> (25-nov-2026: `brazo_real_node` en la Orin y los sliders en el PC por ethernet); MoveIt con el
+> brazo real todavía no se prueba.
 
 **Cómo leer el estado:** ✅ en uso y probado · 🔶 existe, pero sin probar del todo · ❌ falta.
 
@@ -417,7 +418,7 @@ usuario que la construyó, así que el usuario del otro computador debería tene
 | `numpy >= 2` o `setuptools >= 80` | se rompen ROS y colcon | no instalar nada con `pip` a mano en el contenedor; mantener el orden del Dockerfile |
 | Controlador NVIDIA antiguo | PyTorch con CUDA 13 puede no ver la GPU, y YOLO corre con CPU | comprobar `torch.cuda.is_available()` en cada PC. Funciona con el 580.178.04; no se han probado otros |
 | Gazebo Classic sin soporte desde enero de 2025 | no recibe arreglos | funciona; migrar a Harmonic solo cuando haga falta |
-| Computador que no sea amd64, como una Jetson | la imagen actual no corre | hay que partir de `ros:humble-ros-base`. El driver del control de Xbox (`drivers/brazo_driver`) ya corre nativo en la Jetson con ROS 2 Humble, `python3-serial`, `python3-tk` y `gpiod` (`gpioget`, para la seta); lo instala su `scripts/instalar.sh` |
+| Computador que no sea amd64, como una Jetson | la imagen actual no corre | hay que partir de `ros:humble-ros-base`. El driver del control de Xbox (`drivers/brazo_driver`) ya corre nativo en la Jetson con ROS 2 Humble, `python3-serial`, `python3-tk` y `gpiod` (`gpioget`, para la seta); lo instala su `scripts/instalar.sh`. `brazo_real_node` también corre nativo en la Orin (25-nov-2026, `brazo_real.launch.py parte:=driver`, instalado en `~/andes_ws`): la Orin (JetPack 6 R36.4.7, ROS 2 Humble desktop) solo necesitó `ros-humble-control-msgs` además; MoveIt corre en el PC (ver `firmware/README.md`, paso 10) |
 | USB 2.0 con la cámara | 1280×800 baja a 7 fps según la ficha | usar 640×400; el puerto y el cable importan en el robot |
 | Voltaje de la IMU: el Mega trabaja a 5 V y el MPU-9250 a 3.3 V | se puede dañar la IMU | usar un adaptador de nivel en SDA y SCL, salvo que el módulo ya lo traiga; revisar el módulo antes de conectarlo |
 | Cable I²C largo, de la pinza al Arduino | I²C está pensado para distancias cortas: los motores pueden meter ruido y bloquear las lecturas | cable lejos de los de motor, velocidad baja y tiempo límite en `Wire` (`setWireTimeout`); probarlo con los motores en marcha |

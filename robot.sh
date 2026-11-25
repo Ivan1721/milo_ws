@@ -13,12 +13,13 @@
 #   ./robot.sh ir <lugar>    (otra terminal) mandar a Milo a una ubicación (ver ./robot.sh ir --lista)
 #   ./robot.sh camara [alineada:=true]   solo la cámara de la pinza (no necesita lidar ni ruedas)
 #   ./robot.sh brazo [rviz:=false] [moveit:=false sliders:=true]   brazo real: Arduino Mega + MoveIt o sliders
+#   ./robot.sh brazo-pc [sliders:=true]   MoveIt + RViz aquí; el Arduino en la Jetson (parte:=driver)
 #   ./robot.sh imagen        reconstruir la imagen de Docker (después de cambiar algo en docker/)
 #
 # Puertos (por defecto /dev/rplidar y /dev/hoverboard, ver docker/udev/README.md). Sin udev:
 #   LIDAR=/dev/ttyUSB0 HOVER=/dev/ttyUSB1 ./robot.sh
 set -e
-# (Las líneas 2-19 de arriba son la ayuda que imprime "sed -n '2,19p'" si escribes una opción
+# (Las líneas 2-20 de arriba son la ayuda que imprime "sed -n '2,20p'" si escribes una opción
 #  que no existe. Los comentarios explicativos van desde aquí.)
 #
 # "set -e": si un comando falla, el script se detiene.
@@ -99,10 +100,18 @@ case "$1" in
     milo_up
     shift
     exec $DC exec ros bash -ic "ros2 launch andesrobot_arm brazo_real.launch.py puerto:=$ARDUINO rviz:=$RVIZ $*" ;;
+  brazo-pc)
+    # Brazo real repartido en dos computadores por ethernet: aquí (Docker) robot_state_publisher,
+    # MoveIt, RViz y los sliders; en la Jetson, que tiene el Arduino y la seta, solo el driver:
+    #   ros2 launch andesrobot_arm brazo_real.launch.py parte:=driver seta_linea:=144
+    # Por eso aquí no se revisa el Arduino. Mismo ROS_DOMAIN_ID en los dos (ver firmware/README.md).
+    milo_up
+    shift
+    exec $DC exec ros bash -ic "ros2 launch andesrobot_arm brazo_real.launch.py parte:=pc rviz:=$RVIZ $*" ;;
   # Sin palabra: sigue abajo a levantar a Milo.
   "") ;;
   # Opción desconocida: mostrar ayuda.
-  *) sed -n '2,19p' "$0"; exit 1 ;;
+  *) sed -n '2,20p' "$0"; exit 1 ;;
 esac
 
 # Antes de arrancar, revisar que el lidar y el hoverboard estén conectados.

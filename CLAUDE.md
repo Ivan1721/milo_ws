@@ -351,7 +351,7 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   `robot_description`) that make the next `arm_sim` crash: kill every ROS process before relaunching.
 - `andesrobot_arm/manija.py` (pure numpy, `test/test_manija.py` with a synthetic door) turns the handle keypoints into 3D points (color-pixel ray marched against the depth image, door-plane fallback when the shiny handle blanks the depth), validates the detection and computes the pre-grasp pose and the lever arc; `manija_node.py` runs YOLO live and publishes `/arm/manija/{agarre,pose_previa,marcadores}` plus the TCP-to-handle distance (`/arm/manija/distancia`, `/arm/manija/agarre_tcp`, `distancia_desde_tcp`); `acercar:=true` drives the gripper in two legs (`Acercamiento`: stable detection → pre-grasp at 0.30 m → re-detect → blind leg to `distancia_final` 0.05 m, retry after `tiempo_max`; launch the door with `octomap:=false`). Keypoints that land on the door plane (ray grazed the thin lever) are moved onto the handle plane along their ray (`corregir_saliente`). `scripts/probar_manija_sin_gazebo.py` tests the node end to end with a fake world (ideal arm via TF, flat door depth, true keypoints; needs ROS, not Gazebo/YOLO). Tested in Gazebo 2026-11-07 (headless, new camera): logs 0.050 m, TF shows 0.063 m from the
   true grasp point (detection 1.3 cm short); RViz markers not checked. The TCP approach axis is local −X.
-- Real arm (2026-11-23, P19, no motor moved yet): repo-root `firmware/brazo_mega/brazo_mega.ino` v1 on an
+- Real arm (2026-11-23, P19; first ROS-driven motion 2026-11-25, see below): repo-root `firmware/brazo_mega/brazo_mega.ino` v1 on an
   Arduino Mega clone (CH340 `1a86:7523`, `/dev/arduino_brazo` via `99-milo.rules`; Ubuntu's `brltty` steals
   CH340 ports, removed on the dev PC). It counts STEPS only: text protocol at 115200 (`P E G M V X Z S D`,
   `G ms p1..p6` = reach targets in ms, watchdog stops G-motion after 0.5 s of silence, VEL_MAX 2000
@@ -395,6 +395,24 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   tests comms, one joint (`--articulacion N --grados X --volver`), `--acel`, `--cero` (Z) and the servo.
   `firmware/README.md` has the step-by-step from bare board to MoveIt and two wiring diagrams
   (`firmware/img/`, drawn by `firmware/fig_conexiones.py`; edit its `PINES` if a pin changes).
+  No lift mounted yet (2026-11-25): `brazo_real.launch.py lift:=` sets `lift_fijo` (default -0.047 =
+  arm base 0.88 m above the floor, team's 32+56 cm; lift 0 puts `link_1_1` at 0.927 m).
+  `parte:=driver` runs only `brazo_real_node` (Jetson, no MoveIt import), `parte:=pc` the rest
+  (`./robot.sh brazo-pc`); tested as two processes on one PC, not across the network yet. Jetson
+  (Orin Nano, JetPack 6 R36.4.7, user `milo`, Humble native, `ROS_DOMAIN_ID=7`, FastDDS in its
+  ~/.bashrc; its ~/milo_ws is the team's copy, not this git repo; arm Arduino on /dev/ttyUSB0)
+  runs a WiFi hotspot on 10.42.0.1/24, the same subnet NetworkManager gives a shared ethernet,
+  so IPv4 failed; the PC's wired profile "Perfil 1" is now shared on 10.43.0.1/24 and the Jetson
+  gets 10.43.0.146 (renewing needs sudo on it). PC key in its authorized_keys. 2026-11-25: a
+  String topic crossed both ways with ROS_DOMAIN_ID=7 (container started with -e ROS_DOMAIN_ID=7).
+  Our package is installed on the Orin in its own `~/andes_ws` (rsync of `andesrobot_arm` +
+  colcon build there; `ros-humble-control-msgs` was apt-installed, MoveIt is not there); Arduino
+  port there is `/dev/ttyUSB0` (no udev rule). The team's original Xbox `brazo_driver` (in their
+  `~/ros2_ws`, domain 0) must be closed first: one program per port, so Xbox (calibrate to zero,
+  Y = home) and our driver take turns; switching resets the Arduino (their pyserial uses HUPCL).
+  2026-11-25 with the assembled arm: `parte:=driver` on the Orin + `brazo-pc moveit:=false
+  sliders:=true` moved all 6 joints, 23 goals reached by step count, none rejected. Directions
+  (`invertir`), scale (microsteps), gripper and MoveIt on the real arm not checked yet.
 - The real camera does work (`launch/camara_real.launch.py`: `orbbec_camera` v1.2.9 patched, measured
   2026-10-30 at 30 Hz, details in `docs/BRAZO.md`). Same topics and frame ids as the sim, because
   `camera_name:=gripper_camera`; `publish_tf:=false` because `robot_state_publisher` owns those frames.

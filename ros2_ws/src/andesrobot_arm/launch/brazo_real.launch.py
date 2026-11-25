@@ -13,6 +13,21 @@ Es lo mismo que arm_sim.launch.py pero sin Gazebo:
      una por una (primeras pruebas con los motores; mejor con moveit:=false, para que no haya
      dos cosas mandando al brazo).
 
+Altura del brazo sin elevador (lift:=...): mientras el elevador no esté montado, el carro del
+brazo va fijo en la columna. `lift` es dónde queda vertical_lift_joint [m]: con 0 el URDF pone la
+base del brazo (la cara de abajo de link_1, donde gira joint_1) a 0,927 m del suelo. Medido el
+25-nov-2026: 32 cm del suelo al techo de la base + 56 cm hasta la base del brazo = 0,88 m, o sea
+lift = 0,88 - 0,927 = -0,047 m (el valor por defecto; si se remide, lift = altura - 0,927).
+MoveIt planifica con las 6 articulaciones y esa altura fija; brazo_real_node rechaza mover el lift.
+
+Repartido en dos computadores por ethernet (parte:=...):
+  parte:=todo    (por defecto) todo en el mismo computador.
+  parte:=driver  SOLO brazo_real_node: en la Jetson (Orin Nano), que tiene el Arduino por USB y la
+                 seta en el pin 7. No necesita MoveIt ni RViz instalados.
+  parte:=pc      todo MENOS brazo_real_node: en el PC (Docker), con MoveIt, RViz y los sliders.
+Los dos se encuentran solos por la red (DDS) si están en el mismo cable/red y con el mismo
+ROS_DOMAIN_ID. El /joint_states del driver viaja por el cable hasta robot_state_publisher.
+
 Antes: cargar firmware/brazo_mega/brazo_mega.ino en el Arduino y encenderlo con el brazo en la
 pose "cero" de config/brazo_real.yaml (el Arduino empieza a contar desde ahí). Probar primero cada
 articulación sola con firmware/probar_arduino.py.
@@ -22,6 +37,8 @@ Uso:
   ros2 launch andesrobot_arm brazo_real.launch.py puerto:=/dev/ttyUSB0 rviz:=false
   ros2 launch andesrobot_arm brazo_real.launch.py moveit:=false sliders:=true   # calibrar
   ros2 launch andesrobot_arm brazo_real.launch.py seta_linea:=144   # en la Jetson, con la seta
+  ros2 launch andesrobot_arm brazo_real.launch.py parte:=driver seta_linea:=144   # Jetson
+  ros2 launch andesrobot_arm brazo_real.launch.py parte:=pc sliders:=true         # PC
   (sin hardware: ros2 run andesrobot_arm arduino_falso, y puerto:=/tmp/arduino_falso)
 """
 import importlib.util
@@ -46,6 +63,19 @@ def arm_sim():
 
 
 def launch_setup(context):
+    parte = LaunchConfiguration('parte').perform(context)
+    if parte not in ('todo', 'driver', 'pc'):
+        raise RuntimeError(f'parte:={parte} no existe (todo, driver o pc)')
+    lift = float(LaunchConfiguration('lift').perform(context))
+    driver = Node(package='andesrobot_arm', executable='brazo_real_node', output='screen',
+                  parameters=[{'puerto': LaunchConfiguration('puerto').perform(context),
+                               'lift_fijo': lift,
+                               'seta_linea': int(LaunchConfiguration('seta_linea')
+                                                 .perform(context))}])
+    if parte == 'driver':
+        # Solo el driver: no se carga arm_sim.launch.py (importa MoveIt, que la Jetson no
+        # necesita tener instalado).
+        return [driver]
     sim = arm_sim()
     camara = LaunchConfiguration('camara').perform(context)
     urdf = sim.robot_description_urdf('false', camara)
@@ -53,12 +83,11 @@ def launch_setup(context):
     nodos = [
         Node(package='robot_state_publisher', executable='robot_state_publisher',
              output='screen', parameters=[{'robot_description': urdf, 'use_sim_time': False}]),
-        Node(package='andesrobot_arm', executable='brazo_real_node', output='screen',
-             parameters=[{'puerto': LaunchConfiguration('puerto').perform(context),
-                          'seta_linea': int(LaunchConfiguration('seta_linea').perform(context))}]),
         Node(package='andesrobot_arm', executable='arm_marker_node', output='screen',
              parameters=real),
     ]
+    if parte == 'todo':
+        nodos.insert(1, driver)
     rviz_params = list(real)
     if LaunchConfiguration('moveit').perform(context) == 'true':
         config = sim.moveit_config('false', camara, 'false')
@@ -102,5 +131,10 @@ def generate_launch_description():
                               description='línea GPIO de la seta (144 en la Jetson; -1 = sin)'),
         DeclareLaunchArgument('sliders', default_value='false',
                               description='ventana con un slider por articulación'),
+        # Ver "Altura del brazo sin elevador" arriba: -0.047 = base del brazo a 0,88 m del suelo.
+        DeclareLaunchArgument('lift', default_value='-0.047',
+                              description='posición fija del lift [m] (altura - 0,927)'),
+        DeclareLaunchArgument('parte', default_value='todo',
+                              description='todo | driver (Jetson) | pc (MoveIt + RViz)'),
         OpaqueFunction(function=launch_setup),
     ])
