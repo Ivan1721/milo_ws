@@ -19,6 +19,11 @@ Uso (en el PC, con la cámara conectada y docker/udev/99-gemini.rules instalada)
                                       En este modo no usar ir/camera_info (ver docker/parches/).
   ./robot.sh camara rviz:=true        además abre RViz con los tres canales en Best Effort
                                       (rviz/camara_real.rviz).
+  ./robot.sh camara alineada:=true deteccion:=true
+                                      además detección de objetos EN VIVO (deteccion_node, YOLOE)
+                                      y una ventana (rqt_image_view) con la imagen con las cajas y
+                                      la distancia de cada objeto (/arm/deteccion/imagen).
+                                      clases:="can, cup" cambia lo que busca.
 Guardar una imagen de cada canal (en otra terminal, ./robot.sh shell):
   ros2 run andesrobot_arm capturar_camara
 """
@@ -31,6 +36,8 @@ from launch.conditions import IfCondition
 from launch.launch_description_sources import AnyLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+
+from andesrobot_arm.deteccion_node import CLASES
 
 
 def generate_launch_description():
@@ -57,4 +64,18 @@ def generate_launch_description():
             arguments=['-d', os.path.join(
                 get_package_share_directory('andesrobot_arm'), 'rviz', 'camara_real.rviz')],
             condition=IfCondition(LaunchConfiguration('rviz'))),
+        DeclareLaunchArgument(
+            'deteccion', default_value='false',
+            description='true: deteccion_node (YOLOE en vivo) + ventana con las cajas'),
+        DeclareLaunchArgument(
+            'clases', default_value=CLASES,
+            description='lo que busca YOLOE, en inglés, separado por comas'),
+        Node(
+            package='andesrobot_arm', executable='deteccion_node', output='screen',
+            parameters=[{'clases': LaunchConfiguration('clases')}],
+            condition=IfCondition(LaunchConfiguration('deteccion'))),
+        Node(
+            package='rqt_image_view', executable='rqt_image_view', output='screen',
+            arguments=['/arm/deteccion/imagen'],
+            condition=IfCondition(LaunchConfiguration('deteccion'))),
     ])

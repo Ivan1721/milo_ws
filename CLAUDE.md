@@ -96,7 +96,7 @@ There are no ament_lint tests; keep Python within 99 columns (flake8) to match t
 
 CI (`.github/workflows/ci.yml`, GitHub Actions on every push to `brazo`/`main` and every PR) runs
 three jobs without ROS or Docker: `pytest` of `andesrobot_safety` plus the arm tests that need no
-ROS (`test_torques.py`, `test_medidas.py`, `test_revisar_docs.py`, `test_moveit_opciones.py`, `test_manija.py`, `test_agarre.py`, `test_bolsa.py`, `test_grupos.py`, `test_brazo_real.py`, `test_sliders.py`, `test_seta.py`), `flake8 --max-line-length=99`
+ROS (`test_torques.py`, `test_medidas.py`, `test_revisar_docs.py`, `test_moveit_opciones.py`, `test_manija.py`, `test_agarre.py`, `test_bolsa.py`, `test_grupos.py`, `test_brazo_real.py`, `test_sliders.py`, `test_seta.py`, `test_deteccion.py`), `flake8 --max-line-length=99`
 on `andesrobot_arm`, `andesrobot_description`, `andesrobot_moveit_config` and `drivers/brazo_driver`, and
 `scripts/revisar_docs.py` (broken links/anchors across every `.md`, informe figures and sections in
 order, `\operatorname` forbidden because GitHub rejects it, and every "**N de N** en `X`" test count
@@ -436,6 +436,14 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   dropped (not used on the real arm). Tested with arduino_falso + MoveIt: goal reached. Sliders' "Todo a cero"
   goes to the URDF zero, i.e. raises the arm 90°. Directions
   (`invertir`), scale (microsteps), gripper and MoveIt on the real arm not checked yet.
+- Live detection (2026-11-26): `deteccion_node` (math in `deteccion.py`, tested) runs YOLOE
+  (`modelos/yoloe-11s-seg.pt`, open vocabulary, `clases` param; any other .pt uses its own
+  classes) at 10 Hz on the real camera, publishes `/arm/deteccion/imagen` (boxes + distance) and
+  `/arm/deteccion/objetos` (JSON with 3D point in the color optical frame). `./robot.sh camara
+  alineada:=true deteccion:=true [clases:=can,cup,bottle]` also opens rqt_image_view; class lists
+  must have NO spaces (robot.sh splits args). Red Bull can at 0.46 m: "cup" in 73 % of frames with
+  3 classes; the team's best.pt misses it. Note: `./robot.sh camara` without ROS_DOMAIN_ID
+  recreates the container on domain 0 (kills a running brazo-pc on domain 7).
 - The real camera does work (`launch/camara_real.launch.py`: `orbbec_camera` v1.2.9 patched, measured
   2026-10-30 at 30 Hz, details in `docs/BRAZO.md`). Same topics and frame ids as the sim, because
   `camera_name:=gripper_camera`; `publish_tf:=false` because `robot_state_publisher` owns those frames.

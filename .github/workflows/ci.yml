@@ -47,7 +47,7 @@ jobs:
           python -m pytest -q test/test_torques.py test/test_medidas.py test/test_revisar_docs.py \
             test/test_moveit_opciones.py test/test_manija.py test/test_agarre.py \
             test/test_bolsa.py test/test_grupos.py test/test_brazo_real.py \
-            test/test_sliders.py test/test_seta.py
+            test/test_sliders.py test/test_seta.py test/test_deteccion.py
 
   estilo:
     runs-on: ubuntu-24.04   # fijo: ubuntu-latest pasa a Ubuntu 26 desde oct-2026

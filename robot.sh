@@ -11,7 +11,7 @@
 #   ./robot.sh stop          apagar el contenedor
 #   ./robot.sh nav <mapa>    navegación autónoma (AMCL + Nav2) con un mapa ya guardado (SIN PROBAR)
 #   ./robot.sh ir <lugar>    (otra terminal) mandar a Milo a una ubicación (ver ./robot.sh ir --lista)
-#   ./robot.sh camara [alineada:=true]   solo la cámara de la pinza (no necesita lidar ni ruedas)
+#   ./robot.sh camara [alineada:=true] [deteccion:=true]   solo la cámara de la pinza (+ detección YOLOE en vivo)
 #   ./robot.sh brazo [rviz:=false] [moveit:=false sliders:=true]   brazo real: Arduino Mega + MoveIt o sliders
 #   ./robot.sh brazo-pc [sliders:=true]   MoveIt + RViz aquí; el Arduino en la Jetson (parte:=driver)
 #   ./robot.sh imagen        reconstruir la imagen de Docker (después de cambiar algo en docker/)

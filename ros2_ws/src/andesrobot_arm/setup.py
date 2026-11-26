@@ -31,6 +31,7 @@ setup(
         'arm_ik_node = andesrobot_arm.arm_ik_node:main',
         'arm_marker_node = andesrobot_arm.arm_marker_node:main',
         'capturar_camara = andesrobot_arm.capturar_camara:main',
+        'deteccion_node = andesrobot_arm.deteccion_node:main',
         'arm_moveit_node = andesrobot_arm.arm_moveit_node:main',
         'manija_node = andesrobot_arm.manija_node:main',
         'objeto_node = andesrobot_arm.objeto_node:main',

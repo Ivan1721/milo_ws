@@ -762,7 +762,23 @@ Se conecta por USB y se usa sin simulador. Una vez en cada PC, instalar el permi
 ./robot.sh camara                  # profundidad con su propia lente, 640×400
 ./robot.sh camara alineada:=true   # profundidad y nube en el punto de vista de la lente de color, 640×480
 ./robot.sh camara rviz:=true       # además abre RViz con los tres canales
+./robot.sh camara alineada:=true deteccion:=true   # + detección de objetos en vivo (ver abajo)
 ```
+
+**Detección en vivo** (`deteccion_node`, 26-nov-2026): con `deteccion:=true` el launch de la cámara
+también arranca `deteccion_node`, que unas 10 veces por segundo le pasa la imagen a color a
+**YOLOE** (`modelos/yoloe-11s-seg.pt`, vocabulario abierto: se le dice qué buscar con palabras en
+inglés, `clases:=can,cup,bottle`, **sin espacios**, porque `robot.sh` corta los argumentos en los
+espacios) y abre una ventana (`rqt_image_view`) con la imagen con las cajas, la confianza y la
+distancia de cada objeto. La distancia es la mediana de la profundidad en el centro de la caja
+(`deteccion.py`, `test/test_deteccion.py`); con `alineada:=true` es exacta. Publica
+`/arm/deteccion/imagen` y `/arm/deteccion/objetos` (JSON: clase, confianza, caja, distancia, punto
+3D en el frame óptico de color). Otro modelo: `ros2 run andesrobot_arm deteccion_node --ros-args
+-p modelo:=/ros2_ws/modelos/objetos/best.pt` (usa sus propias clases). Medido con la cámara real y
+una lata de Red Bull de pie a 0,46 m: con `clases:=can,cup,bottle` la ve como «cup» en el 73 % de
+las imágenes (confianza 0,25-0,62); con la lista larga por defecto (18 clases) baja a ~0,27-0,43 y
+a veces confunde el piso con «toy»; el modelo del equipo (`best.pt`) no la ve. Todavía no mueve el
+brazo hacia lo que ve (eso es `objeto_node` / `agarre_node`).
 
 Para ver las imágenes conviene usar esa opción de RViz, porque sus paneles vienen en **Best Effort**.
 Con un `rviz2` abierto aparte, en su modo por defecto (*Reliable*), las imágenes bajaron de 30 a menos
