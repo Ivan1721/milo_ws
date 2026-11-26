@@ -49,7 +49,17 @@
 <xacro:property name="lock_arm" value="${'$(arg lock_arm)' == 'true'}"/>
 <!-- Tipo de articulación del brazo: fixed si lock_arm, si no continuous (gira) / prismatic (desliza). -->
 <xacro:property name="arm_joint_type" value="${'fixed' if lock_arm else 'revolute'}"/>
+<!-- lift_fijo:=<metros> (por ejemplo -0.047) -> el lift (vertical_lift_joint) queda FIXED a esa altura y
+     el resto del brazo sigue móvil. Es para el robot REAL mientras el elevador no esté montado: el carro
+     va atornillado a la columna, así que en el URDF el lift no existe como articulación (no aparece en
+     los sliders, MoveIt no puede moverlo). El valor es la posición del lift: con 0 la base del brazo
+     (cara de abajo de link_1) queda a 0.927 m del suelo, así que lift_fijo = altura medida - 0.927
+     (medido el 25-nov-2026: 0.88 m -> -0.047). Vacío (por defecto): el lift se mueve (simulación). -->
+<xacro:arg name="lift_fijo" default=""/>
+<xacro:property name="lift_es_fijo" value="${'$(arg lift_fijo)' != ''}"/>
 <xacro:property name="prismatic_joint_type" value="${'fixed' if lock_arm else 'prismatic'}"/>
+<!-- El lift tiene su propio tipo: lift_fijo lo deja fixed SIN tocar los dedos (también prismáticos). -->
+<xacro:property name="lift_joint_type" value="${'fixed' if (lock_arm or lift_es_fijo) else 'prismatic'}"/>
 
 <!-- simple_collision:=true -> la física usa cajas/cilindros en vez de las mallas CAD (estable y rápido en Gazebo).
      Pensado junto con lock_arm:=true (las colisiones del brazo van como una caja fija en base_link). -->
@@ -936,9 +946,10 @@
     <limit effort="${gripper_force}" lower="-0.016" upper="0.007" velocity="0.05"/>
   </joint>
   <!-- Elevador: el carro sube/baja en Z por la columna, de -0.4 m a +0.6 m. -->
-  <joint name="vertical_lift_joint" type="${prismatic_joint_type}">
-    <!-- lock_arm: carro abajo del todo (recorrido -0.40 m) => z 0.35. Móvil: el 0 del joint está en z 0.75. -->
-    <origin rpy="0 0 0" xyz="-0.06 0.0 ${0.35 if lock_arm else 0.75}"/>
+  <joint name="vertical_lift_joint" type="${lift_joint_type}">
+    <!-- lock_arm: carro abajo del todo (recorrido -0.40 m) => z 0.35. lift_fijo: z 0.75 + lift_fijo.
+         Móvil: el 0 del joint está en z 0.75. -->
+    <origin rpy="0 0 0" xyz="-0.06 0.0 ${0.35 if lock_arm else (0.75 + float('$(arg lift_fijo)') if lift_es_fijo else 0.75)}"/>
     <parent link="vertical_column_link_1"/>
     <child link="lift_carriage_link_1"/>
     <axis xyz="0.0 0.0 1.0"/>

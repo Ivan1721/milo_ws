@@ -49,6 +49,7 @@ El plano de escaneo (+30 mm sobre la base del sensor) es estimado: confirmar con
 | Arg | Default | Uso |
 |---|---|---|
 | `lock_arm` | false | true = brazo, lift y dedos fijos en la **pose plegada** (simulación de base) |
+| `lift_fijo` | (vacío) | metros: el **lift** queda fijo a esa posición y el resto del brazo sigue móvil. Para el robot real sin elevador (`brazo_real.launch.py` le pasa su `lift:=`, por defecto −0.047 = base del brazo a 0,88 m del suelo). Vacío: el lift se mueve |
 | `simple_collision` | false | true = colisiones con cajas/cilindros en vez de mallas CAD (brazo plegado = una caja) |
 | `sim_lidar` / `sim_imu` | true | apagar sensores simulados (depuración) |
 | `use_hardware` | false | true = ros2_control del hoverboard (Milo físico) |

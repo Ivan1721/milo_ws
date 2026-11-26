@@ -319,24 +319,35 @@ llega a su tope y el servo zumba, ese ángulo ya es demasiado: volver. `--suelta
 
 ROS supone que, cuando el Arduino cuenta 0 pasos, el brazo está en la pose `cero` de
 `brazo_real.yaml`. Desde el 26-nov-2026 esa pose **no** es la de todo en 0 del URDF (brazo hacia
-arriba), sino la **pose de arranque**: la de todo en 0 con **J2 girado +90°** y **J5 girado −90°**.
-En el URDF eso deja el brazo horizontal hacia la derecha de Milo con la pinza apuntando hacia abajo,
-una pose fácil de dejar a mano y de repetir sin encoders ni IMU. (Se cambia en
-`articulaciones: joint_N: {cero: ...}` del yaml, en radianes.) Llevar el brazo a esa pose (moviendo
-cada articulación con el paso 7, con el control de Xbox, o a mano con los 24 V apagados) y decirle
-al Arduino que cuente 0 ahí:
+arriba), sino la **pose de arranque**: el brazo **estirado hacia adelante**, horizontal, con la
+pinza en lo más lejos que alcanza al frente y apuntando hacia adelante. Es una pose fácil de dejar
+y repetir a mano, sin encoders ni IMU. En ángulos del URDF: **J1 −90°, J2 −90°, J3 0, J4 +90°,
+J5 +90°, J6 0** (`articulaciones: joint_N: {cero: ...}` del yaml, en radianes); con el lift fijo a
+0,88 m deja la pinza a 0,94 m delante de Milo, 9 cm a su derecha y a 1,03 m del suelo. Hay cuatro
+combinaciones que dejan así la pinza (J1/J2 ±90°, muñeca arriba o abajo); el brazo real está en
+esta (la otra con la muñeca arriba, J1 +90°/J2 +90°/J4 −90°/J5 −90°, es su espejo). Así se ve (la figura se
+regenera con `scripts/fig_pose_arranque.py` si se cambia algún `cero`):
+
+![Pose de arranque del brazo real](../ros2_ws/src/andesrobot_arm/docs/figuras/pose_arranque.png)
+
+Llevar el brazo a esa pose (moviendo cada articulación con el paso 7 o con el control de Xbox; a
+mano con los 24 V apagados, no: J2 y J3 caen por el peso) y decirle al Arduino que cuente 0 ahí:
 
 ```bash
 python3 firmware/probar_arduino.py --cero
 ```
 
-Desde aquí no hay que desenchufar el USB ni volver a cargar el programa: el Arduino perdería la
-cuenta y habría que repetir este paso.
+(o **Y** en el control de Xbox, que hace lo mismo). Desde aquí no hay que desenchufar el USB ni
+volver a cargar el programa: el Arduino perdería la cuenta y habría que repetir este paso.
 
-**Tiene que pasar:** al arrancar `brazo_real_node`, RViz muestra el brazo en la pose de arranque
-(horizontal a la derecha, pinza abajo), igual que el real, y los sliders marcan J2 = 90° y
-J5 = −90°. Si RViz lo muestra hacia la izquierda, el signo de J2 está al revés. **Ojo con «Todo a
-cero»** de los sliders: lleva a la pose cero del URDF, o sea levanta el brazo 90° con J2.
+**Tiene que pasar:** al arrancar `brazo_real_node`, RViz muestra el brazo estirado hacia adelante,
+igual que el real, y los sliders marcan J1 −90°, J2 −90°, J3 0°, J4 90°, J5 90°, J6 0°. Si al
+mover una articulación RViz y el brazo giran al revés, esa lleva `invertir: true`. **Ojo con
+«Todo a cero»** de los sliders: lleva a la pose cero del URDF, o sea levanta el brazo hacia
+arriba de golpe.
+
+(Historia, 26-nov: primero se probó J2 +90°/J5 −90° y después una pose de reposo medida a ojo
+contra fotos; ninguna se usó: el equipo eligió esta, estirada al frente.)
 
 ### 10. Con ROS y MoveIt
 
@@ -448,7 +459,7 @@ que `/dev/arduino_brazo` no existe ahí. También sirve
 **El control de Xbox y los sliders van por turnos, no a la vez:** el puerto del Arduino lo usa un
 solo programa. El control sirve para calibrar:
 1. Con el driver de Xbox del equipo, llevar el brazo a la **pose de arranque** (paso 9: la de todo
-   en 0 con J2 +90° y J5 −90°) y apretar Y (home: esa pose pasa a ser 0 pasos).
+   estirada hacia adelante, paso 9) y apretar Y (home: esa pose pasa a ser 0 pasos).
 2. Cerrar el driver de Xbox (comprobar con `fuser /dev/ttyUSB0`, que no debe mostrar nada).
 3. Arrancar nuestro driver (arriba) y después, en el PC, `ROS_DOMAIN_ID=7 ./robot.sh brazo-pc
    moveit:=false sliders:=true`.
@@ -548,7 +559,7 @@ el Arduino falso (1 s a fondo arriba desde 90° llega a 180°, 3 s a medias abaj
 
 **Pasar del control de Xbox a MoveIt:** cerrar el driver (el puerto es de un programa a la vez) y
 abrir `brazo_real_node`. El Arduino sigue con su cuenta, pero `brazo_real_node` supone que 0 pasos
-es la pose `cero` de `brazo_real.yaml` (la pose de arranque del paso 9: J2 +90°, J5 −90°): el **Y**
+es la pose `cero` de `brazo_real.yaml` (la pose de arranque del paso 9): el **Y**
 tiene que haberse pulsado con el brazo justo en esa pose. (Los grados que muestra la ventana del
 control son desde el home, no los del URDF: ahí J2 y J5 marcan 0.)
 

@@ -19,6 +19,8 @@ base del brazo (la cara de abajo de link_1, donde gira joint_1) a 0,927 m del su
 25-nov-2026: 32 cm del suelo al techo de la base + 56 cm hasta la base del brazo = 0,88 m, o sea
 lift = 0,88 - 0,927 = -0,047 m (el valor por defecto; si se remide, lift = altura - 0,927).
 MoveIt planifica con las 6 articulaciones y esa altura fija; brazo_real_node rechaza mover el lift.
+Desde el 26-nov-2026 el lift además queda FIXED en el URDF de este launch (argumento lift_fijo del
+xacro): en el robot real no existe como articulación (ni en RViz, ni en MoveIt, ni en los sliders).
 
 Repartido en dos computadores por ethernet (parte:=...):
   parte:=todo    (por defecto) todo en el mismo computador.
@@ -67,6 +69,7 @@ def launch_setup(context):
     if parte not in ('todo', 'driver', 'pc'):
         raise RuntimeError(f'parte:={parte} no existe (todo, driver o pc)')
     lift = float(LaunchConfiguration('lift').perform(context))
+    lift_txt = str(lift)    # para el xacro: el lift queda FIXED a esa altura en el URDF
     driver = Node(package='andesrobot_arm', executable='brazo_real_node', output='screen',
                   parameters=[{'puerto': LaunchConfiguration('puerto').perform(context),
                                'lift_fijo': lift,
@@ -78,7 +81,7 @@ def launch_setup(context):
         return [driver]
     sim = arm_sim()
     camara = LaunchConfiguration('camara').perform(context)
-    urdf = sim.robot_description_urdf('false', camara)
+    urdf = sim.robot_description_urdf('false', camara, lift_txt)
     real = [{'use_sim_time': False}]
     nodos = [
         Node(package='robot_state_publisher', executable='robot_state_publisher',
@@ -90,7 +93,7 @@ def launch_setup(context):
         nodos.insert(1, driver)
     rviz_params = list(real)
     if LaunchConfiguration('moveit').perform(context) == 'true':
-        config = sim.moveit_config('false', camara, 'false')
+        config = sim.moveit_config('false', camara, 'false', lift_fijo=lift_txt)
         nodos += [
             Node(package='moveit_ros_move_group', executable='move_group', output='screen',
                  parameters=[config.to_dict(), {'use_sim_time': False}]),

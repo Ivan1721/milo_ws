@@ -111,7 +111,13 @@ class Sliders(Node):
 
     def poner_estado(self, texto, error=False):
         self.estado = texto
-        (self.get_logger().error if error else self.get_logger().info)(texto)
+        # Dos llamadas separadas: rclpy no deja usar la MISMA línea con dos severidades distintas
+        # ("Logger severity cannot be changed between calls"; tumbó el nodo el 26-nov al rechazar
+        # el controlador una meta, después de varios mensajes info desde aquí).
+        if error:
+            self.get_logger().error(texto)
+        else:
+            self.get_logger().info(texto)
 
     # --- brazo ---
     def mover(self, metas):

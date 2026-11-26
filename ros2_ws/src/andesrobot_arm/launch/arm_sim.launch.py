@@ -89,7 +89,9 @@ def _strip_comments(node):
             _strip_comments(child)
 
 
-def robot_description_urdf(simple_collision, camara):
+def robot_description_urdf(simple_collision, camara, lift_fijo=''):
+    """URDF de Milo con el brazo móvil. lift_fijo = '' (simulación): el lift se mueve; con un
+    valor en metros (robot real, brazo_real.launch.py) el lift queda fijo a esa altura."""
     xacro_file = os.path.join(get_package_share_directory('andesrobot_description'),
                               'urdf', 'andesrobot.urdf.xacro')
     controllers = os.path.join(get_package_share_directory('andesrobot_arm'),
@@ -100,6 +102,7 @@ def robot_description_urdf(simple_collision, camara):
         'arm_controllers_file': controllers,
         'simple_collision': simple_collision,
         'gripper_camera': camara,
+        'lift_fijo': lift_fijo,
     })
     # gazebo_ros2_control (Humble) le vuelve a pasar robot_description al controller_manager
     # como argumento de línea de comandos, y si el URDF tiene comentarios no lo puede leer
@@ -117,7 +120,7 @@ def robot_description_urdf(simple_collision, camara):
     return doc.toxml()
 
 
-def moveit_config(simple_collision, camara, octomap, ik='kdl', suavizado='totg'):
+def moveit_config(simple_collision, camara, octomap, ik='kdl', suavizado='totg', lift_fijo=''):
     """Parámetros de MoveIt 2 (URDF + SRDF + cinemática + límites + controladores + OctoMap).
 
     MoveItConfigsBuilder lee los archivos de andesrobot_moveit_config/config y procesa el MISMO
@@ -134,7 +137,8 @@ def moveit_config(simple_collision, camara, octomap, ik='kdl', suavizado='totg')
         MoveItConfigsBuilder('andesrobot', package_name='andesrobot_moveit_config')
         .robot_description(file_path=xacro_file, mappings={
             'lock_arm': 'false', 'arm_control': 'true', 'arm_controllers_file': controllers,
-            'simple_collision': simple_collision, 'gripper_camera': camara})
+            'simple_collision': simple_collision, 'gripper_camera': camara,
+            'lift_fijo': lift_fijo})
         .robot_description_semantic(file_path='config/andesrobot.srdf')
         .robot_description_kinematics(file_path=archivo_cinematica(ik))
         .joint_limits(file_path='config/joint_limits.yaml')

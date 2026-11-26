@@ -413,9 +413,20 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   Y = home) and our driver take turns; switching resets the Arduino (their pyserial uses HUPCL).
   2026-11-25 with the assembled arm: `parte:=driver` on the Orin + `brazo-pc moveit:=false
   sliders:=true` moved all 6 joints, 23 goals reached by step count, none rejected.
-  Start pose since 2026-11-26 (team's choice, no encoders/IMU): Arduino 0 steps = URDF zero with
-  joint_2 +π/2 and joint_5 −π/2 (`cero` per joint in `brazo_real.yaml`; arm horizontal to Milo's
-  right, gripper down, per the URDF; not yet checked against the real arm). Sliders' "Todo a cero"
+  Start pose since 2026-11-26 (team's choice, no encoders/IMU): Arduino 0 steps = arm stretched
+  FORWARD, horizontal, gripper at max forward reach pointing forward: `cero` J1 −π/2, J2 −π/2,
+  J3 0, J4 +π/2, J5 +π/2, J6 0 in `brazo_real.yaml` (the real arm is in this one of the 4
+  equivalent configurations; its mirror J1/J2 +π/2, J4/J5 −π/2 was tried first) (TCP 0.939,
+  −0.090, 1.026 m in base_footprint
+  with lift −0.047); figure `docs/figuras/pose_arranque.png` from `scripts/fig_pose_arranque.py`
+  (reads the yaml). Two earlier tries that day (J2/J5 only; a rest pose matched to photos) were
+  dropped. Not yet checked against the real arm in RViz.
+  Lift fixed in the URDF for the real robot (2026-11-26): xacro arg `lift_fijo:=<m>` makes
+  `vertical_lift_joint` fixed at z 0.75 + value (own `lift_joint_type`, fingers stay prismatic);
+  `brazo_real.launch.py` passes its `lift:=` to both `robot_description_urdf` and `moveit_config`
+  (new `lift_fijo` kwarg, '' = movable, as in the sim). move_group then logs harmless ERRORs that
+  the SRDF named states `cero`/`frente` of group `brazo` give a value for the lift; they are
+  dropped (not used on the real arm). Tested with arduino_falso + MoveIt: goal reached. Sliders' "Todo a cero"
   goes to the URDF zero, i.e. raises the arm 90°. Directions
   (`invertir`), scale (microsteps), gripper and MoveIt on the real arm not checked yet.
 - The real camera does work (`launch/camara_real.launch.py`: `orbbec_camera` v1.2.9 patched, measured

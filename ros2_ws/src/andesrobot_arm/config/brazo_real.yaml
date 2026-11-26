@@ -13,7 +13,7 @@
 #   cero         [rad] ángulo de la articulación cuando el Arduino cuenta 0 pasos. El Arduino
 #                arranca en 0 al encenderse (no hay finales de carrera): se enciende con el brazo
 #                en esta pose. 0.0 = la pose cero del URDF (la que muestra RViz con todo en 0).
-#                Hoy J2 y J5 tienen otro (ver "Pose de arranque" abajo).
+#                Hoy todas tienen otro (ver "Pose de arranque" abajo).
 comun:
   pasos_motor: 200
   micropasos: 8
@@ -23,20 +23,23 @@ comun:
 
 # Lo que sea distinto en una articulación va aquí (por ejemplo, joint_1: {invertir: true}).
 #
-# Pose de arranque (desde el 26-nov-2026, decisión del equipo): el brazo NO arranca en la pose cero
-# del URDF (todo en 0 = brazo hacia arriba) sino en esta, que es la que se puede dejar a mano sin
-# encoders ni IMU: J2 girado +90° y J5 girado -90° respecto del cero del URDF, las demás en 0. En
-# el URDF eso deja el brazo HORIZONTAL hacia la DERECHA de Milo (-Y de base_footprint) con la pinza
-# apuntando hacia ABAJO. El Arduino cuenta 0 pasos en esa pose, así que su `cero` es ese ángulo:
-#   joint_2: +90° = +1.5707963 rad,  joint_5: -90° = -1.5707963 rad.
-# Comprobar al arrancar, sin mover nada: el brazo de RViz tiene que verse igual que el real. Si en
-# RViz queda hacia la izquierda, el signo de J2 es al revés (o falta invertir: true).
+# Pose de arranque (26-nov-2026, decisión del equipo): el brazo NO arranca en la pose cero del URDF
+# (todo en 0 = brazo hacia arriba) sino ESTIRADO HACIA ADELANTE, horizontal, con la pinza en lo más
+# lejos que alcanza al frente (x 0.94, y -0.09, z 1.03 m en base_footprint) y apuntando adelante;
+# la altura del brazo es la fija del lift (lift_fijo). Es una pose fácil de dejar y de repetir a
+# mano, sin encoders ni IMU. Hay 4 combinaciones que dejan así la pinza (J1/J2 ±90° y la muñeca
+# arriba o abajo); el brazo real está en esta ("la 3" de las que se compararon el 26-nov: la
+# muñeca hacia arriba, y hombro y codo en espejo de J1 +90°/J2 +90°):
+#   J1 -90°, J2 -90°, J3 0, J4 +90°, J5 +90°, J6 0
+# (figura: ros2_ws/src/andesrobot_arm/docs/figuras/pose_arranque.png). El Arduino cuenta 0 pasos en
+# esa pose, así que su `cero` es ese ángulo [rad]. Comprobar al arrancar, sin mover nada: el brazo
+# de RViz tiene que verse igual que el real.
 articulaciones:
-  joint_1: {}
-  joint_2: {cero: 1.5707963}
+  joint_1: {cero: -1.5707963}
+  joint_2: {cero: -1.5707963}
   joint_3: {}
-  joint_4: {}
-  joint_5: {cero: -1.5707963}
+  joint_4: {cero: 1.5707963}
+  joint_5: {cero: 1.5707963}
   joint_6: {}
 
 # Servo de la garra: ángulos [grados] con la garra abierta (dedos a 0.016 m) y cerrada
