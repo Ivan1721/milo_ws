@@ -174,6 +174,54 @@ corriente J2 y J3 caen por su peso.
 
 Todos los comandos se corren en el PC, desde `~/milo_ws`, salvo el paso 10 (que usa Docker).
 
+### Receta rápida: el brazo armado con MoveIt (lo que funcionó el 26-nov-2026)
+
+Para el día a día, cuando el brazo ya está armado, cableado y con el firmware v5 cargado (los
+pasos 1 a 8 ya se hicieron una vez). El Arduino y la seta están en la **Orin** (Jetson); MoveIt,
+RViz y los sliders corren en el **PC**, unidos por un cable de red (paso 10, «Repartido entre la
+Jetson y el PC»). En orden:
+
+1. **Red.** Cable de red entre el PC y la Orin. Comprobar desde el PC: `ping 10.43.0.146` (si no
+   contesta, ver el paso 10: la red del cable es 10.43.0.x porque el hotspot de la Orin ocupa la
+   10.42.0.x).
+2. **Pose de arranque.** Con 24 V y la seta suelta, abrir el driver del **control de Xbox** en la
+   Orin (ícono «Brazo MILO» o `brazo_milo`), llevar el brazo con RT + joystick a la **pose de
+   arranque** (paso 9: estirado al frente, muñeca arriba, como en la figura) y apretar **Y**: el
+   Arduino cuenta 0 ahí. **Cerrar** el driver del control (un solo programa usa el Arduino).
+3. **Driver ROS en la Orin.** Desde una terminal del PC, `ssh milo@10.43.0.146` y ahí:
+
+   ```bash
+   source /opt/ros/humble/setup.bash && source ~/andes_ws/install/setup.bash && export ROS_DOMAIN_ID=7 && ros2 launch andesrobot_arm brazo_real.launch.py parte:=driver seta_linea:=144 puerto:=/dev/ttyUSB0
+   ```
+
+   **Tiene que decir** `PONG brazo_mega v5` y `Seta suelta`.
+4. **MoveIt + RViz en el PC** (otra terminal, en `~/milo_ws`). Si el contenedor ya estaba
+   corriendo con otro dominio, antes `./robot.sh stop`:
+
+   ```bash
+   ROS_DOMAIN_ID=7 ./robot.sh brazo-pc
+   ```
+
+   (o `ROS_DOMAIN_ID=7 ./robot.sh brazo-pc moveit:=false sliders:=true` para mover articulación
+   por articulación; nunca los dos a la vez).
+5. **Comprobar sin mover nada:** el brazo de RViz se ve igual que el real (estirado al frente) y
+   la pinza está en (0,94; −0,09; 1,03) m (`ros2 run tf2_ros tf2_echo base_footprint gripper_tcp`
+   dentro de `./robot.sh shell`). Si no coincide, el Arduino no está en 0 en la pose de arranque:
+   volver al punto 2.
+6. **Mover:** en RViz, herramienta **Interact**, arrastrar el marcador de la pinza unos
+   centímetros y soltar. MoveIt calcula la cinemática inversa, planifica sin choques y el brazo
+   va al 15 % de velocidad; en la terminal del PC sale «Objetivo alcanzado» (o el motivo si no
+   pudo). Seta a mano. Al principio, hacia atrás, abajo o a un lado: al frente casi no queda
+   alcance.
+7. **Terminar:** Ctrl+C en el PC y en la Orin; llevar el brazo a reposo con el control y cortar
+   los 24 V sosteniendo el brazo (paso 11).
+
+Lo que ya está ajustado en `ros2_ws/src/andesrobot_arm/config/brazo_real.yaml`: la pose de
+arranque (`cero`), J1, J2 y J3 invertidas, la garra (abierta 297°, cerrada 0°). Lo que falta: la
+escala (micropasos de los TB6600, hoy supuestos 1/8: medir que 10° del slider sean 10° reales) y
+medir con regla que la pinza llegue donde dice RViz. Si se cambia algo del paquete en el PC, hay
+que copiarlo a la Orin (`rsync`, paso 10, «Instalarlo en la Jetson»).
+
 ### 1. Preparar el PC (una sola vez)
 
 1. Quitar `brltty`, que en Ubuntu se apodera de los chips CH340 (el puerto aparece y desaparece):
@@ -623,7 +671,9 @@ Probado **solo con el Arduino, sin drivers ni motores** (firmware v2, con rampa)
   revés** que el URDF (ahora `invertir: true` en `brazo_real.yaml`) y J4, J5, J6 bien; la garra
   abría y cerraba al revés y el servo es de 270° (firmware v5, 0..297°): `garra:` quedó en abierta
   297°, cerrada 0°, los topes que probó el equipo. Re-comprobado el mismo día: los seis sentidos y
-  abrir/cerrar la garra coinciden con RViz. Falta: la escala (¿10° del slider son 10° reales?, micropasos) y MoveIt con el marcador.
+  abrir/cerrar la garra coinciden con RViz. Después, **MoveIt con el brazo real**
+  (`./robot.sh brazo-pc`, marcador de RViz): planificó, el driver ejecutó y la pinza real llegó
+  donde la muestra RViz (a ojo, sin medir con regla). Falta: la escala (¿10° del slider son 10° reales?, micropasos) y MoveIt con el marcador.
 - **25-nov-2026, primera vez por ROS:** `brazo_real_node` en la Jetson + sliders en el PC por
   ethernet movieron las 6 articulaciones del brazo armado (ver «Repartido entre la Jetson y el
   PC», paso 10). Falta anotar sentidos y escala.

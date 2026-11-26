@@ -425,7 +425,9 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   the gripper reversed with a 270° servo: firmware is now v5 (team's, merged into our .ino:
   servo by microseconds, 0..297°, 400-2600 µs; .hex recompiled; fake Arduino/tests v5) and
   `garra:` = open 297, closed 0 (the team's tested stops; brazo_driver.yaml servo_min/max 0/297,
-  servo_inicial 14). Re-checked the same day: all six directions and the gripper match RViz; scale not checked.
+  servo_inicial 14). Re-checked the same day: all six directions and the gripper match RViz; then MoveIt (`brazo-pc`,
+  RViz marker, group brazo_sin_lift) moved the real arm and the gripper reached where RViz shows
+  it (by eye, not measured). Scale (microsteps) and a ruler check still pending.
   Lift fixed in the URDF for the real robot (2026-11-26): xacro arg `lift_fijo:=<m>` makes
   `vertical_lift_joint` fixed at z 0.75 + value (own `lift_joint_type`, fingers stay prismatic);
   `brazo_real.launch.py` passes its `lift:=` to both `robot_description_urdf` and `moveit_config`
