@@ -412,7 +412,11 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   `~/ros2_ws`, domain 0) must be closed first: one program per port, so Xbox (calibrate to zero,
   Y = home) and our driver take turns; switching resets the Arduino (their pyserial uses HUPCL).
   2026-11-25 with the assembled arm: `parte:=driver` on the Orin + `brazo-pc moveit:=false
-  sliders:=true` moved all 6 joints, 23 goals reached by step count, none rejected. Directions
+  sliders:=true` moved all 6 joints, 23 goals reached by step count, none rejected.
+  Start pose since 2026-11-26 (team's choice, no encoders/IMU): Arduino 0 steps = URDF zero with
+  joint_2 +π/2 and joint_5 −π/2 (`cero` per joint in `brazo_real.yaml`; arm horizontal to Milo's
+  right, gripper down, per the URDF; not yet checked against the real arm). Sliders' "Todo a cero"
+  goes to the URDF zero, i.e. raises the arm 90°. Directions
   (`invertir`), scale (microsteps), gripper and MoveIt on the real arm not checked yet.
 - The real camera does work (`launch/camara_real.launch.py`: `orbbec_camera` v1.2.9 patched, measured
   2026-10-30 at 30 Hz, details in `docs/BRAZO.md`). Same topics and frame ids as the sim, because
