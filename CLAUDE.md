@@ -420,7 +420,12 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   −0.090, 1.026 m in base_footprint
   with lift −0.047); figure `docs/figuras/pose_arranque.png` from `scripts/fig_pose_arranque.py`
   (reads the yaml). Two earlier tries that day (J2/J5 only; a rest pose matched to photos) were
-  dropped. Not yet checked against the real arm in RViz.
+  dropped. Checked 2026-11-26 with the assembled arm after zeroing (Y): RViz matches. Then the
+  sliders showed J1, J2, J3 turning opposite to the URDF -> `invertir: true` (J4-J6 fine), and
+  the gripper reversed with a 270° servo: firmware is now v5 (team's, merged into our .ino:
+  servo by microseconds, 0..297°, 400-2600 µs; .hex recompiled; fake Arduino/tests v5) and
+  `garra:` = open 297, closed 0 (the team's tested stops; brazo_driver.yaml servo_min/max 0/297,
+  servo_inicial 14). Re-checked the same day: all six directions and the gripper match RViz; scale not checked.
   Lift fixed in the URDF for the real robot (2026-11-26): xacro arg `lift_fijo:=<m>` makes
   `vertical_lift_joint` fixed at z 0.75 + value (own `lift_joint_type`, fingers stay prismatic);
   `brazo_real.launch.py` passes its `lift:=` to both `robot_description_urdf` and `moveit_config`

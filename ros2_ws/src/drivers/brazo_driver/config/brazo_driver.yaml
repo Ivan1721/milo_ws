@@ -23,10 +23,13 @@ arm_driver_node:
     # horizontal). Por velocidad: al soltar el joystick se queda donde está. También pide RT.
     eje_servo: 3
     invertir_eje_servo: true   # arriba = ángulo mayor
-    servo_vel: 90.0        # [°/s] con el joystick a fondo
-    servo_min: 0           # [°] provisional: medir con la garra (el firmware limita a 0..180)
-    servo_max: 180
-    servo_inicial: 90      # [°] desde dónde parte el primer movimiento (el servo arranca suelto)
+    servo_vel: 100.0       # [°/s] con el joystick a fondo
+    # Firmware v5: 0° = 400 µs .. 297° = 2600 µs. Con todo el rango la garra llega a sus dos
+    # topes (probado por el equipo el 25-11-2026). Arriba abre (hacia servo_max), abajo cierra.
+    # Si un tope fuerza el servo, bajar servo_max / subir servo_min.
+    servo_min: 0           # [°] mínimo (el firmware v5 limita a 0..297)
+    servo_max: 297         # [°] máximo
+    servo_inicial: 14      # [°] al conectar el servo nace aquí (14° = 500 µs = el 0° de antes)
     # Seta de emergencia física: la misma de la base (botón NC pin 1 - pin 7 del header).
     estop_gpio_chip: gpiochip0
     estop_gpio_line: 144   # < 0 desactiva la seta

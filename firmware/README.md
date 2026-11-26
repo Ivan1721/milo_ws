@@ -16,7 +16,7 @@ flowchart LR
 
 | Archivo | Qué es |
 |---|---|
-| `brazo_mega/brazo_mega.ino` | el programa del Arduino (v3: la v2 más el cableado de positivo común del brazo armado): protocolo de comandos, movimiento de las 6 articulaciones a la vez con rampa de aceleración, perro guardián, servo |
+| `brazo_mega/brazo_mega.ino` | el programa del Arduino (v5: la v2 más el cableado de positivo común del brazo armado (v3) y el servo de 270° de la garra (v4/v5, del equipo)): protocolo de comandos, movimiento de las 6 articulaciones a la vez con rampa de aceleración, perro guardián, servo |
 | `brazo_mega/brazo_mega.hex` | el mismo programa ya compilado, para cargarlo sin el IDE ni `arduino-cli` (en la Jetson); regenerarlo si se cambia el `.ino` (ver `cargar_firmware.sh`) |
 | `cargar_firmware.sh` | carga el `.hex` con `avrdude` al Mega del brazo (y se niega si el puerto es el de la hoverboard); del equipo |
 | `probar_arduino.py` | prueba desde el PC sin ROS: comunicación, una articulación por vez (en grados o pasos) y el servo |
@@ -85,14 +85,14 @@ cablea en cátodo común (PUL− y DIR− a GND, PUL+ y DIR+ a los pines), poner
 y volver a cargar el programa. Si se cambia un pin en
 `brazo_mega.ino`, cambiarlo también en `PINES` de `fig_conexiones.py` y volver a dibujar.
 
-## Protocolo (v2 y v3, el mismo)
+## Protocolo (v2 a v5, el mismo; en v5 el servo va de 0 a 297°)
 
 Una línea de texto por comando, terminada en `\n`, a 115200 baudios; el Arduino contesta otra
 línea. Se puede usar a mano desde el Monitor Serie del Arduino IDE (con "Nueva línea").
 
 | Comando | Respuesta | Qué hace |
 |---|---|---|
-| `P` | `PONG brazo_mega v3` | ¿estás ahí? |
+| `P` | `PONG brazo_mega v5` | ¿estás ahí? |
 | `E` | `E p1 p2 p3 p4 p5 p6 mov servo` | posición de cada articulación [pasos], `mov` 1 si algo se mueve, ángulo del servo (−1 suelto) |
 | `G ms p1 .. p6` | `OK G` | ir a esas posiciones, todas llegando en `ms` milisegundos (lo usa ROS ~20 veces por segundo) |
 | `M j pasos` | `OK M j destino` | mover solo la articulación `j` (1..6) esa cantidad de pasos, lento: para probar |
@@ -100,7 +100,7 @@ línea. Se puede usar a mano desde el Monitor Serie del Arduino IDE (con "Nueva 
 | `A n` | `OK A n` | aceleración de la rampa [pasos/s²] (4000 al encender; 100 o más) |
 | `X` | `OK X` | parar todo, en seco (parada de emergencia) |
 | `Z` | `OK Z` | la posición actual pasa a ser 0 (solo quieto) |
-| `S grados` | `OK S grados` | mover el servo de la garra |
+| `S grados` | `OK S grados` | mover el servo de la garra: 0..297° en v5 (servo de 270°, pulso de 400 a 2600 µs, lineal); hasta v3 era 0..180° |
 | `D` | `OK D` | soltar el servo |
 
 Seguridad: al encender no mueve nada y cuenta 0 en todas las articulaciones (no hay finales de
@@ -209,9 +209,10 @@ no llevan datos) y revisar el paso 1.
 
 ### 3. Cargar el programa (solo si no lo tiene)
 
-El Arduino del brazo tiene `brazo_mega` v3 (la cargó el equipo para la prueba con el control de
-Xbox, nov-2026). Para saberlo basta el paso 4: si contesta `PONG brazo_mega v3`, saltarse este
-paso; si contesta `v2`, cargar la v3 (con el cableado de positivo común la v2 gira al revés). Si no, o si se cambió el `.ino`: ver «Cargar el
+El Arduino del brazo tiene `brazo_mega` v5 (la cargó el equipo el 25-nov-2026: la v3 con el servo
+de 270° de la garra; este repo tiene la misma desde el 26-nov). Para saberlo basta el paso 4: si
+contesta `PONG brazo_mega v5`, saltarse este paso; si contesta `v2`, `v3` o `v4`, cargar la v5 (con
+el cableado de positivo común la v2 gira al revés; con v3 la garra no alcanza sus topes). Si no, o si se cambió el `.ino`: ver «Cargar el
 programa» más abajo. **Al cargar el programa el Arduino se reinicia y cuenta 0 donde esté el brazo.**
 
 ### 4. Probar la comunicación (no mueve nada)
@@ -224,7 +225,7 @@ python3 firmware/probar_arduino.py
 
 ```
 Puerto: /dev/arduino_brazo
-  -> P              <- PONG brazo_mega v3   (se reinició: cuenta desde 0)
+  -> P              <- PONG brazo_mega v5   (se reinició: cuenta desde 0)
   -> E              <- E 0 0 0 0 0 0 0 -1
   -> Q              <- ERR comando desconocido: Q
 Todo OK
@@ -617,6 +618,12 @@ Probado **solo con el Arduino, sin drivers ni motores** (firmware v2, con rampa)
   de Xbox desde la Jetson, el brazo se movió teleoperado, articulación por articulación, con la
   seta de la base. La garra no se probó (su driver no la manejaba). Lo integrado aquí el 25-nov
   en su driver (garra, puerto sin HUPCL) solo se probó con el Arduino falso.
+- **26-nov-2026, sentidos y garra:** con la pose de arranque estirada al frente (paso 9) RViz
+  coincide con el brazo real. Probando cada articulación con los sliders, **J1, J2 y J3 giraban al
+  revés** que el URDF (ahora `invertir: true` en `brazo_real.yaml`) y J4, J5, J6 bien; la garra
+  abría y cerraba al revés y el servo es de 270° (firmware v5, 0..297°): `garra:` quedó en abierta
+  297°, cerrada 0°, los topes que probó el equipo. Re-comprobado el mismo día: los seis sentidos y
+  abrir/cerrar la garra coinciden con RViz. Falta: la escala (¿10° del slider son 10° reales?, micropasos) y MoveIt con el marcador.
 - **25-nov-2026, primera vez por ROS:** `brazo_real_node` en la Jetson + sliders en el PC por
   ethernet movieron las 6 articulaciones del brazo armado (ver «Repartido entre la Jetson y el
   PC», paso 10). Falta anotar sentidos y escala.

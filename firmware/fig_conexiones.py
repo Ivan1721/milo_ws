@@ -78,7 +78,7 @@ def figura_general():
     ax.set_ylim(-1.6, 17.2)
     ax.set_aspect('equal')
     ax.axis('off')
-    ax.text(0, 16.9, 'Conexiones del Arduino Mega del brazo (firmware/brazo_mega v3)',
+    ax.text(0, 16.9, 'Conexiones del Arduino Mega del brazo (firmware/brazo_mega v5)',
             fontsize=14, fontweight='bold', va='top')
     ax.text(0, 16.15, 'Esquema, no a escala: al conectar, guiarse por el número impreso junto '
             'a cada pin de la placa.', fontsize=9.5, color=MUTED, va='top')
@@ -90,7 +90,7 @@ def figura_general():
             fontweight='bold', ha='center', zorder=6)
     ax.text(bx0 + 4.6, by0 + 3.35, 'clon con chip USB CH340', color='#d8eef5', fontsize=9.5,
             ha='center', zorder=6)
-    ax.text(bx0 + 4.6, by0 + 2.75, 'ATmega2560 · 5 V · firmware brazo_mega v3',
+    ax.text(bx0 + 4.6, by0 + 2.75, 'ATmega2560 · 5 V · firmware brazo_mega v5',
             color='#d8eef5', fontsize=8.5, ha='center', zorder=6)
     ax.add_patch(Rectangle((bx0 + 3.6, by0 + 0.7), 2.0, 1.4, fc='#222', ec='#000', zorder=5))
     ax.text(bx0 + 4.6, by0 + 1.4, 'ATmega\n2560', color='#ccc', fontsize=7, ha='center',

@@ -35,16 +35,20 @@ comun:
 # esa pose, así que su `cero` es ese ángulo [rad]. Comprobar al arrancar, sin mover nada: el brazo
 # de RViz tiene que verse igual que el real.
 articulaciones:
-  joint_1: {cero: -1.5707963}
-  joint_2: {cero: -1.5707963}
-  joint_3: {}
+  # J1, J2 y J3 giran al revés que en el URDF (probado el 26-nov con los sliders: subir el slider
+  # movía el brazo real hacia el lado contrario que RViz). J4, J5 y J6 giran bien.
+  joint_1: {cero: -1.5707963, invertir: true}
+  joint_2: {cero: -1.5707963, invertir: true}
+  joint_3: {invertir: true}
   joint_4: {cero: 1.5707963}
   joint_5: {cero: 1.5707963}
   joint_6: {}
 
 # Servo de la garra: ángulos [grados] con la garra abierta (dedos a 0.016 m) y cerrada
-# (-0.007 m). SUPUESTOS: medirlos con la garra montada (firmware/README.md) antes de cerrarla
-# sobre algo.
+# (-0.007 m). Desde el 25-nov el servo es de 270° y el firmware v5 lo maneja de 0 a 297° (pulso de
+# 400 a 2600 µs). El equipo probó los topes con el control (brazo_driver.yaml: abre hacia 297,
+# cierra hacia 0), y el 26-nov se vio con los sliders que con 40/110 abrir y cerrar iban al revés.
+# Si un tope fuerza el servo (zumba o se calienta), acercar el valor al otro.
 garra:
-  servo_abierta: 40
-  servo_cerrada: 110
+  servo_abierta: 297
+  servo_cerrada: 0

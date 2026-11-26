@@ -16,7 +16,7 @@ con q el ángulo de la articulación [rad], `cero` el ángulo en que el Arduino 
 en que se encendió o se mandó Z) y `signo` = -1 si el motor gira al revés que el URDF.
 Ejemplo: 200 x 8 x 38.4 / 360 = 170.7 pasos por grado.
 
-También está ArduinoFalso: hace lo mismo que el firmware v3 (mismas respuestas y movimiento en el
+También está ArduinoFalso: hace lo mismo que el firmware v5 (mismas respuestas y movimiento en el
 tiempo, con la misma rampa de aceleración) para probar el nodo y MoveIt sin el Arduino ni los
 motores (ros2 run andesrobot_arm arduino_falso).
 """
@@ -308,7 +308,7 @@ class ArduinoFalso:
         except ValueError:
             return 'ERR numero mal escrito'
         if c == 'P':
-            return 'PONG brazo_mega v3'
+            return 'PONG brazo_mega v5'
         if c == 'E':
             return 'E ' + ' '.join(str(int(round(p))) for p in self.pos) + \
                 f' {1 if self.moviendo() else 0} {self.servo}'
@@ -348,7 +348,7 @@ class ArduinoFalso:
             self.destino = [0] * len(self.destino)
             return 'OK Z'
         if c == 'S' and len(nums) == 1:
-            self.servo = min(180, max(0, nums[0]))
+            self.servo = min(297, max(0, nums[0]))   # v5: servo de 270°, 0..297
             return f'OK S {self.servo}'
         if c == 'D':
             self.servo = -1

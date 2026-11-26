@@ -1,5 +1,6 @@
-// brazo_mega.ino — programa del Arduino Mega que mueve el brazo de Milo (versión 3: rampa de
-// aceleración + cableado de POSITIVO COMÚN en los TB6600).
+// brazo_mega.ino — programa del Arduino Mega que mueve el brazo de Milo (versión 5: rampa de
+// aceleración + cableado de POSITIVO COMÚN en los TB6600 (v3) + servo de la garra de 270° por
+// microsegundos, 0..297° (v4/v5, del equipo, 25-nov-2026); los motores paso a paso, igual que v3).
 //
 // En palabras simples: el PC (ROS 2 + MoveIt, o el driver del control de Xbox) decide a qué posición va cada articulación y se la
 // manda por el cable USB; este programa genera los pulsos para los 6 drivers TB6600 de los motores
@@ -36,7 +37,7 @@
 //
 // Comandos (una línea de texto terminada en "\n", 115200 baudios; el Arduino contesta otra línea):
 //
-//   P                      PONG brazo_mega v3                 ¿estás ahí?
+//   P                      PONG brazo_mega v5                 ¿estás ahí?
 //   E                      E p1 p2 p3 p4 p5 p6 mov servo       estado: posición de cada articulación
 //                                                             [pasos], mov = 1 si alguna se mueve,
 //                                                             servo = ángulo o -1 si está suelto
@@ -51,7 +52,7 @@
 //   X                      OK X                               parar todo donde está (en seco)
 //   Z                      OK Z                               la posición actual pasa a ser 0
 //                                                             (solo quieto)
-//   S grados               OK S grados                        mover el servo de la garra
+//   S grados               OK S grados                        mover el servo de la garra (0..SERVO_MAX)
 //   D                      OK D                               soltar el servo
 //   otra cosa              ERR motivo
 //
@@ -102,8 +103,17 @@ const float MARGEN_FRENO = 0.9;
 const unsigned long TICK_US = 2000;   // cada cuánto se recalculan las velocidades (500 veces/s)
 const unsigned long G_MIN_US = 20000; // plazo mínimo para calcular la velocidad de G
 const unsigned long WATCHDOG_MS = 500;
-const int SERVO_MIN = 0;              // [grados] provisional: medir con la garra
-const int SERVO_MAX = 180;            // [grados] provisional
+// Servo de la garra (v4/v5, del equipo, 25-nov-2026): es de 270°. La librería Servo con write() no
+// pasa de 180°, así que se manda por MICROSEGUNDOS, lineal: 0° = SERVO_US_MIN, SERVO_RANGO° =
+// SERVO_US_MAX. v5: pulso ampliado a 400..2600 µs (con 500..2500 la garra no llegaba a sus topes);
+// misma escala que 500..2500 = 270° (7.4 µs/°), así que 0° = 400 µs y 297° = 2600 µs.
+// OJO: con v4, 0° era 500 µs; ahora 500 µs = ~14°. Los topes reales de la garra se fijan en el PC
+// (garra: de config/brazo_real.yaml y servo_min / servo_max de brazo_driver.yaml).
+const int SERVO_RANGO = 297;          // [grados] los que caben en SERVO_US_MIN..SERVO_US_MAX
+const int SERVO_US_MIN = 400;         // [µs] pulso de 0°
+const int SERVO_US_MAX = 2600;        // [µs] pulso de SERVO_RANGO°
+const int SERVO_MIN = 0;              // [grados] límites que se dejan usar
+const int SERVO_MAX = SERVO_RANGO;    // [grados]
 const int LARGO_MAX = 96;             // largo máximo de una línea (un G con 6 números cabe)
 
 float velPrueba = 200.0;              // [pasos/s] la de M (con 1/8 y 38.4:1, ~1.2 °/s)
@@ -189,7 +199,7 @@ void setup() {
   pinMode(PIN_LED, OUTPUT);
   Serial.begin(BAUDIOS);
   // Aviso de que arrancó (el Arduino se reinicia la primera vez que el PC abre el puerto).
-  Serial.println(F("LISTO brazo_mega v3"));
+  Serial.println(F("LISTO brazo_mega v5"));
 }
 
 // Lee el siguiente número entero de la línea a partir de *p (salta espacios). Devuelve false si
@@ -210,7 +220,7 @@ void atender(char *texto) {
   char *p = texto + 1;
   long a, b;
   if (comando == 'P') {
-    Serial.println(F("PONG brazo_mega v3"));
+    Serial.println(F("PONG brazo_mega v5"));
   } else if (comando == 'E') {
     Serial.print('E');
     for (int j = 0; j < N; j++) {
@@ -285,8 +295,8 @@ void atender(char *texto) {
       return;
     }
     int pedido = constrain((int)a, SERVO_MIN, SERVO_MAX);
-    if (angulo < 0) garra.attach(PIN_SERVO);   // engancha recién ahora
-    garra.write(pedido);
+    if (angulo < 0) garra.attach(PIN_SERVO, SERVO_US_MIN, SERVO_US_MAX);   // engancha recién ahora
+    garra.writeMicroseconds(map(pedido, 0, SERVO_RANGO, SERVO_US_MIN, SERVO_US_MAX));
     angulo = pedido;
     Serial.print(F("OK S "));
     Serial.println(angulo);

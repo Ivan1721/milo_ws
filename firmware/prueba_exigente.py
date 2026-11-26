@@ -303,7 +303,7 @@ def p_x_z_servo(e):
     bien = True
     for g in (0, 45, 90, 135, 180, 200, -5):
         r = e.preguntar(f'S {g}')
-        bien &= r == f'OK S {min(180, max(0, g))}'
+        bien &= r == f'OK S {min(297, max(0, g))}'
     servo = estado(e)[2]
     r = e.preguntar('D')
     suelto = estado(e)[2]

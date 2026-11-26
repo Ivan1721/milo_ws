@@ -80,7 +80,7 @@ def test_arduino_falso_g_llegan_juntas():
     ~al segundo, y a los 0.4 s van por ~40 % del camino."""
     r = Reloj()
     a = ArduinoFalso(reloj=r)
-    assert a.responder('P') == 'PONG brazo_mega v3'
+    assert a.responder('P') == 'PONG brazo_mega v5'
     assert a.responder('G 1000 100 -50 0 0 0 0') == 'OK G'
     r.t = 0.4
     pos, mov, _ = leer_estado(a.responder('E'))
@@ -157,8 +157,10 @@ def test_arduino_falso_errores_z_y_servo():
     assert a.responder('M 9 1').startswith('ERR')
     assert a.responder('Q').startswith('ERR')
     assert a.responder('A 50').startswith('ERR') and a.responder('A 3000') == 'OK A 3000'
-    assert a.responder('S 200') == 'OK S 180'
-    assert leer_estado(a.responder('E'))[2] == 180
+    # v5: servo de 270° manejado de 0 a 297°; más que eso se acota.
+    assert a.responder('S 200') == 'OK S 200'
+    assert a.responder('S 400') == 'OK S 297'
+    assert leer_estado(a.responder('E'))[2] == 297
     assert a.responder('D') == 'OK D'
     assert a.responder('Z') == 'OK Z'
 
@@ -191,7 +193,7 @@ def test_enlace_con_puerto_virtual():
     hilo.start()
     try:
         assert enlace.esperar_listo(2.0) == 'LISTO brazo_mega v1'
-        assert enlace.preguntar('P', 1.0) == 'PONG brazo_mega v3'
+        assert enlace.preguntar('P', 1.0) == 'PONG brazo_mega v5'
         assert enlace.preguntar('M 3 10', 1.0) == 'OK M 3 10'
         assert leer_estado(enlace.preguntar('E', 1.0))[0] is not None
     finally:
@@ -238,7 +240,7 @@ def test_conectar_distingue_reinicio():
         hilo.start()
         try:
             respuesta, reinicio = enlace.conectar(espera=2.0)
-            assert respuesta == 'PONG brazo_mega v3'
+            assert respuesta == 'PONG brazo_mega v5'
             assert reinicio == reinicio_esperado
         finally:
             vivo[0] = False

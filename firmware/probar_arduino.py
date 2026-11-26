@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prueba el Arduino Mega del brazo (firmware/brazo_mega v3) desde el PC, sin ROS.
+"""Prueba el Arduino Mega del brazo (firmware/brazo_mega v5) desde el PC, sin ROS.
 
 Sin opciones solo revisa la comunicación (no mueve nada): espera el "LISTO", manda P (¿estás
 ahí?), E (estado) y un comando que no existe (tiene que dar ERR).

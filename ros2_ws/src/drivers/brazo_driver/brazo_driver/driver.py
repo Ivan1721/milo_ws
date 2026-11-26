@@ -226,10 +226,12 @@ class BrazoDriver(Node):
             return None
         self._cmd(f'A {int(self.cfg["aceleracion"])}')
         self.estado_conexion = r.replace('PONG ', '')
-        if not r.startswith('PONG brazo_mega v3'):
+        version = r.rsplit('v', 1)[-1]
+        if not (r.startswith('PONG brazo_mega v') and version.isdigit() and int(version) >= 5):
+            # v3 = positivo común de los TB6600; v5 = además el servo de 270° (0..297°).
             self.get_logger().warn(
-                f'El Arduino tiene {self.estado_conexion}: con el cableado de positivo común de '
-                'los TB6600 hace falta la v3 (firmware/cargar_firmware.sh).')
+                f'El Arduino tiene {self.estado_conexion}: con el positivo común de los TB6600 y '
+                'el servo de 270° hace falta la v5 (firmware/cargar_firmware.sh).')
         if reinicio:
             self._msg('El Arduino se REINICIÓ: cuenta 0 pasos donde esté el brazo. Si no está en '
                       'su pose cero, llévalo con el control y pulsa Y.')

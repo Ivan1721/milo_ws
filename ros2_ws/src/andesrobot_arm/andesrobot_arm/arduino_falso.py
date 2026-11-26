@@ -44,7 +44,7 @@ def main():
             # Hasta el primer comando, saluda cada medio segundo (el de verdad saluda cada vez que
             # se abre el puerto, porque se reinicia; aquí no se sabe cuándo lo abren).
             if not hablo and time.monotonic() - ultimo_listo > 0.5:
-                os.write(maestro, b'LISTO brazo_mega v3 (falso)\n')
+                os.write(maestro, b'LISTO brazo_mega v5 (falso)\n')
                 ultimo_listo = time.monotonic()
             try:
                 trozo = os.read(maestro, 512)
