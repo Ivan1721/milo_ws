@@ -777,7 +777,14 @@ distancia de cada objeto. La distancia es la mediana de la profundidad en el cen
 -p modelo:=/ros2_ws/modelos/objetos/best.pt` (usa sus propias clases). Medido con la cámara real y
 una lata de Red Bull de pie a 0,46 m: con `clases:=can,cup,bottle` la ve como «cup» en el 73 % de
 las imágenes (confianza 0,25-0,62); con la lista larga por defecto (18 clases) baja a ~0,27-0,43 y
-a veces confunde el piso con «toy»; el modelo del equipo (`best.pt`) no la ve. Todavía no mueve el
+a veces confunde el piso con «toy»; el modelo del equipo de 27 clases no la ve. Desde el 27-nov `modelos/objetos/best.pt` es el
+modelo del equipo entrenado con **fotos reales** (Roboflow v04, YOLO11n, mismas 9 clases, mAP50
+0,88 en su prueba; `model_info.json` al lado): en las 4 capturas reales ve la lata como `redbull`
+con 0,89-0,92, también de pie vista desde arriba, sin cajas falsas. Antes (26-nov) era el de
+**9 clases** del equipo del 15-nov (ahora en `objetos/anterior_2026-11-15/`; el de 27 quedó en
+`objetos/anterior_2026-11-09/`), que se prueba en vivo con `modelo:=objetos`: ve la lata como
+`redbull` (0,65) cuando se la muestra de lado, con la etiqueta a la vista, pero no de pie vista
+desde arriba (solo la tapa), y a veces marca `bag` (~0,3) sobre el piso. Todavía no mueve el
 brazo hacia lo que ve (eso es `objeto_node` / `agarre_node`).
 
 Para ver las imágenes conviene usar esa opción de RViz, porque sus paneles vienen en **Best Effort**.
@@ -821,6 +828,7 @@ probar están en [`firmware/README.md`](../../../../firmware/README.md).
 | `config/brazo_real.yaml` | pasos por vuelta, micropasos, reducción (38.4), sentido y cero de cada articulación, y los ángulos del servo (abierta/cerrada); los no medidos dicen SUPUESTO |
 | `launch/brazo_real.launch.py` | `robot_state_publisher` + `brazo_real_node` + `move_group` + `arm_moveit_node` (grupo `brazo_sin_lift`, velocidad al 15 %) + marcador y RViz; usa las mismas funciones de URDF y MoveIt que `arm_sim.launch.py`. `lift:=` fija la altura sin elevador (por defecto −0.047 m = base del brazo a 0,88 m del suelo, medido 25-nov-2026); `parte:=driver` (solo `brazo_real_node`, en la Jetson) / `parte:=pc` (el resto, `./robot.sh brazo-pc`) lo reparte en dos computadores por ethernet (`firmware/README.md`, paso 10) |
 | `andesrobot_arm/seta.py` | la seta de emergencia por GPIO de la Jetson (línea 144, pin 7 del header): `gpioget` cada 50 ms, 3 lecturas en 0 para darla por presionada, una en 1 para soltarla, presionada si no se puede leer 1 s (y al arrancar, hasta leer un 1). `brazo_real_node` con `seta_linea:=144` manda `X`, corta la trayectoria, rechaza las nuevas (brazo y garra) y publica `/arm/seta`; probado en `test/test_seta.py` y con un `gpioget` falso |
+| `andesrobot_arm/rutina_node.py` | ventana **«Grabar y reproducir»**: se lleva el brazo a mano (sliders o marcador) por las poses de un agarre y en cada una se aprieta *Guardar punto* (6 ángulos + garra); *REPRODUCIR* repite todo: los puntos seguidos con la misma garra van en una sola trayectoria y donde la garra cambia el brazo llega primero y después abre o cierra (`rutina.py`, `test/test_rutina.py`); *Guardar/Abrir archivo* en `ros2_ws/rutinas/`. Sin cámara ni chequeo de choques. La abre `./robot.sh brazo-pc` (`rutina:=true`) |
 | `andesrobot_arm/sliders_node.py` | una ventana con un slider por articulación (grados; mm para la garra y, en simulación, el lift) y botones Parar / Leer posición / Todo a cero / Abrir / Cerrar garra. Al **soltar** un slider manda esa meta como trayectoria de un punto a `/arm_controller`, lenta (`velocidad` 0.1 rad/s); sin chequeo de choques. Topes leídos de `/robot_description`; cuentas en `sliders.py` (`test/test_sliders.py`). `brazo_real.launch.py sliders:=true` |
 | `ros2_ws/src/drivers/brazo_driver/` | el driver del **control de Xbox** del equipo (nativo en la Jetson, sin MoveIt: una articulación a la vez, RT hombre muerto, la misma seta), con la garra en el joystick derecho (del equipo) y el puerto sin HUPCL agregado al integrarlo; ver `firmware/README.md` |
 | `andesrobot_arm/arduino_falso.py` | `ros2 run andesrobot_arm arduino_falso`: un Arduino de mentira en `/tmp/arduino_falso` para probar todo lo anterior sin hardware |

@@ -13,7 +13,7 @@
 #   ./robot.sh ir <lugar>    (otra terminal) mandar a Milo a una ubicación (ver ./robot.sh ir --lista)
 #   ./robot.sh camara [alineada:=true] [deteccion:=true]   solo la cámara de la pinza (+ detección YOLOE en vivo)
 #   ./robot.sh brazo [rviz:=false] [moveit:=false sliders:=true]   brazo real: Arduino Mega + MoveIt o sliders
-#   ./robot.sh brazo-pc [sliders:=true]   MoveIt + RViz aquí; el Arduino en la Jetson (parte:=driver)
+#   ./robot.sh brazo-pc      TODO el brazo: driver en la Orin por IP + MoveIt, sliders, grabar/reproducir y cámara
 #   ./robot.sh imagen        reconstruir la imagen de Docker (después de cambiar algo en docker/)
 #
 # Puertos (por defecto /dev/rplidar y /dev/hoverboard, ver docker/udev/README.md). Sin udev:
@@ -33,6 +33,15 @@ LIDAR="${LIDAR:-/dev/rplidar}"
 HOVER="${HOVER:-/dev/hoverboard}"
 # Arduino Mega del brazo (firmware/brazo_mega): /dev/arduino_brazo con la regla udev.
 ARDUINO="${ARDUINO:-/dev/arduino_brazo}"
+# Dominio de ROS 2 del robot real: 7, el mismo que usa la Jetson (Orin) en su ~/.bashrc. Así el
+# contenedor de este PC y la Orin se ven por el cable. (Antes era 0 si no se escribía; y como
+# docker compose recrea el contenedor cuando cambia, mezclar comandos con y sin la variable
+# cerraba lo que estuviera corriendo.) Se puede cambiar: ROS_DOMAIN_ID=3 ./robot.sh ...
+export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-7}"
+# La Orin por el cable de red (PC 10.43.0.1, Orin 10.43.0.146; ver firmware/README.md, paso 10).
+ORIN="${ORIN:-10.43.0.146}"
+# Puerto del Arduino del brazo EN LA ORIN: por id, no cambia con el orden de conexión.
+ORIN_PUERTO="${ORIN_PUERTO:-/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0}"
 # RViz junto con Milo: sí si hay pantalla (portátil de Milo), no si se corre sin pantalla (SSH).
 # Se puede forzar: RVIZ=false ./robot.sh
 if [ -n "$DISPLAY" ]; then RVIZ="${RVIZ:-true}"; else RVIZ="${RVIZ:-false}"; fi
@@ -101,13 +110,49 @@ case "$1" in
     shift
     exec $DC exec ros bash -ic "ros2 launch andesrobot_arm brazo_real.launch.py puerto:=$ARDUINO rviz:=$RVIZ $*" ;;
   brazo-pc)
-    # Brazo real repartido en dos computadores por ethernet: aquí (Docker) robot_state_publisher,
-    # MoveIt, RViz y los sliders; en la Jetson, que tiene el Arduino y la seta, solo el driver:
-    #   ros2 launch andesrobot_arm brazo_real.launch.py parte:=driver seta_linea:=144
-    # Por eso aquí no se revisa el Arduino. Mismo ROS_DOMAIN_ID en los dos (ver firmware/README.md).
+    # TODO el brazo real con un solo comando, en el PC (Docker), con la Orin por el cable:
+    #   1. Si la Orin contesta en $ORIN, arranca ahí el driver del brazo (brazo_real_node con el
+    #      Arduino y la seta) por SSH, en segundo plano, y lo apaga al salir. Si ya estaba
+    #      corriendo lo deja; si el Arduino lo tiene otro programa (el control de Xbox), avisa y
+    #      no lo toca. Sin la Orin sigue igual (RViz y la cámara sirven sin el brazo).
+    #   2. Aquí: robot_state_publisher, MoveIt + RViz (marcador), los sliders, la ventana de
+    #      grabar y reproducir, y, si la cámara de la pinza está enchufada a este PC, la cámara
+    #      con la detección del modelo del equipo y una ventana para ver sus canales.
+    # Antes: el brazo en la pose de arranque y el Arduino en 0 (Y en el control; paso 9 de
+    # firmware/README.md). Lo que venga después de "brazo-pc" va al launch (moveit:=false...).
     milo_up
     shift
-    exec $DC exec ros bash -ic "ros2 launch andesrobot_arm brazo_real.launch.py parte:=pc rviz:=$RVIZ $*" ;;
+    orin_driver=0
+    if ping -c 1 -W 1 "$ORIN" >/dev/null 2>&1; then
+      # Una sola línea de bash en la Orin: si nuestro driver ya corre, nada; si el puerto lo tiene
+      # otro programa, avisar; si no, arrancarlo desacoplado (setsid nohup) con log.
+      salida=$(ssh -o BatchMode=yes -o ConnectTimeout=4 "milo@$ORIN" "
+        if pgrep -f '[b]razo_real_node' >/dev/null; then echo YA;
+        elif fuser '$ORIN_PUERTO' >/dev/null 2>&1; then echo OCUPADO;
+        else source /opt/ros/humble/setup.bash && source ~/andes_ws/install/setup.bash &&
+             export ROS_DOMAIN_ID=$ROS_DOMAIN_ID ROS_LOCALHOST_ONLY=0 &&
+             setsid nohup ros2 launch andesrobot_arm brazo_real.launch.py parte:=driver \
+               seta_linea:=144 puerto:=$ORIN_PUERTO > ~/andes_ws/driver.log 2>&1 < /dev/null &
+             echo ARRANCADO; fi" 2>&1) || salida="SSH: $salida"
+      case "$salida" in
+        *ARRANCADO*) orin_driver=1; echo "[milo] Driver del brazo arrancado en la Orin ($ORIN), log en ~/andes_ws/driver.log" ;;
+        *YA*)        echo "[milo] El driver del brazo ya estaba corriendo en la Orin." ;;
+        *OCUPADO*)   echo "[milo] OJO: en la Orin el Arduino lo tiene otro programa (¿el control de Xbox?). Ciérralo y vuelve a correr esto." ;;
+        *)           echo "[milo] No pude arrancar el driver en la Orin: $salida" ;;
+      esac
+    else
+      echo "[milo] La Orin ($ORIN) no contesta por el cable: sigo solo con el PC (sin el brazo)."
+    fi
+    # Al salir (Ctrl+C), apagar el driver de la Orin si lo arrancamos nosotros.
+    if [ "$orin_driver" = 1 ]; then
+      trap 'ssh -o BatchMode=yes "milo@$ORIN" "pkill -INT -f \"[b]razo_real.launch.py\"" && echo "[milo] Driver de la Orin apagado."' EXIT
+    fi
+    # La cámara de la pinza enchufada a este PC (y con permiso, regla udev): con detección.
+    camara_usb=false
+    camara_dev="$(lsusb -d 2bc5:0614 | sed -E 's#^Bus ([0-9]+) Device ([0-9]+).*#/dev/bus/usb/\1/\2#')"
+    if [ -n "$camara_dev" ] && [ -w "$camara_dev" ]; then camara_usb=true
+    else echo "[milo] La cámara de la pinza no está enchufada a este PC: sigo sin cámara."; fi
+    $DC exec ros bash -ic "ros2 launch andesrobot_arm brazo_real.launch.py parte:=pc rviz:=$RVIZ sliders:=true rutina:=true camara_usb:=$camara_usb $*" ;;
   # Sin palabra: sigue abajo a levantar a Milo.
   "") ;;
   # Opción desconocida: mostrar ayuda.

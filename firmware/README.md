@@ -174,7 +174,7 @@ corriente J2 y J3 caen por su peso.
 
 Todos los comandos se corren en el PC, desde `~/milo_ws`, salvo el paso 10 (que usa Docker).
 
-### Receta rápida: el brazo armado con MoveIt (lo que funcionó el 26-nov-2026)
+### Receta rápida: el brazo armado con MoveIt (26/27-nov-2026)
 
 Para el día a día, cuando el brazo ya está armado, cableado y con el firmware v5 cargado (los
 pasos 1 a 8 ya se hicieron una vez). El Arduino y la seta están en la **Orin** (Jetson); MoveIt,
@@ -188,33 +188,43 @@ Jetson y el PC»). En orden:
    Orin (ícono «Brazo MILO» o `brazo_milo`), llevar el brazo con RT + joystick a la **pose de
    arranque** (paso 9: estirado al frente, muñeca arriba, como en la figura) y apretar **Y**: el
    Arduino cuenta 0 ahí. **Cerrar** el driver del control (un solo programa usa el Arduino).
-3. **Driver ROS en la Orin.** Desde una terminal del PC, `ssh milo@10.43.0.146` y ahí:
+3. **Todo con un comando, en el PC** (en `~/milo_ws`; desde el 27-nov-2026):
 
    ```bash
-   source /opt/ros/humble/setup.bash && source ~/andes_ws/install/setup.bash && export ROS_DOMAIN_ID=7 && ros2 launch andesrobot_arm brazo_real.launch.py parte:=driver seta_linea:=144 puerto:=/dev/ttyUSB0
+   ./robot.sh brazo-pc
    ```
 
-   **Tiene que decir** `PONG brazo_mega v5` y `Seta suelta`.
-4. **MoveIt + RViz en el PC** (otra terminal, en `~/milo_ws`). Si el contenedor ya estaba
-   corriendo con otro dominio, antes `./robot.sh stop`:
-
-   ```bash
-   ROS_DOMAIN_ID=7 ./robot.sh brazo-pc
-   ```
-
-   (o `ROS_DOMAIN_ID=7 ./robot.sh brazo-pc moveit:=false sliders:=true` para mover articulación
-   por articulación; nunca los dos a la vez).
-5. **Comprobar sin mover nada:** el brazo de RViz se ve igual que el real (estirado al frente) y
+   Hace solo lo que antes eran dos terminales: arranca por SSH el driver del brazo en la Orin
+   (si contesta en 10.43.0.146; log en `~/andes_ws/driver.log` de la Orin, y lo apaga al salir)
+   y en el PC abre MoveIt + RViz con el marcador, los **sliders**, la ventana **«Grabar y
+   reproducir»** y, si la cámara de la pinza está enchufada al PC, la cámara con la **detección**
+   del modelo del equipo y una ventana para ver sus canales (el desplegable de arriba elige:
+   `/arm/deteccion/imagen` con las cajas, color, profundidad, IR). Usa el dominio de ROS 7 solo
+   (ya no hace falta escribir `ROS_DOMAIN_ID=7`). Avisa si la Orin no contesta, si el Arduino lo
+   tiene el control de Xbox (cerrarlo) o si no hay cámara, y sigue con lo que haya.
+4. **Comprobar sin mover nada:** el brazo de RViz se ve igual que el real (estirado al frente) y
    la pinza está en (0,94; −0,09; 1,03) m (`ros2 run tf2_ros tf2_echo base_footprint gripper_tcp`
    dentro de `./robot.sh shell`). Si no coincide, el Arduino no está en 0 en la pose de arranque:
    volver al punto 2.
-6. **Mover:** en RViz, herramienta **Interact**, arrastrar el marcador de la pinza unos
-   centímetros y soltar. MoveIt calcula la cinemática inversa, planifica sin choques y el brazo
-   va al 15 % de velocidad; en la terminal del PC sale «Objetivo alcanzado» (o el motivo si no
-   pudo). Seta a mano. Al principio, hacia atrás, abajo o a un lado: al frente casi no queda
-   alcance.
-7. **Terminar:** Ctrl+C en el PC y en la Orin; llevar el brazo a reposo con el control y cortar
-   los 24 V sosteniendo el brazo (paso 11).
+5. **Mover a mano:** con los **sliders** (una articulación a la vez, al soltar el slider) o con el
+   **marcador** de RViz (herramienta **Interact**: MoveIt calcula la cinemática inversa y planifica
+   sin choques; al 15 % de velocidad). La garra, con «Abrir garra» / «Cerrar garra» de los
+   sliders. Seta a mano. Al frente casi no queda alcance: primero hacia atrás, abajo o a un lado.
+6. **Agarrar y repetir** (ventana «Grabar y reproducir», `rutina_node`): llevar el brazo a cada
+   pose del agarre y en cada una apretar **Guardar punto** (se le puede poner nombre): por ejemplo
+   arriba del objeto, bajar, cerrar la garra (guardar otro punto ya cerrada), subir, ir a dejarlo,
+   abrir. **REPRODUCIR** repite todo solo: pasa por los puntos seguidos y, donde la garra cambió,
+   primero llega y después abre o cierra. **PARAR** (o la seta) corta. **Guardar archivo** la deja
+   en `ros2_ws/rutinas/` para otro día (sirve solo si el brazo arrancó en la misma pose de
+   arranque y el objeto está en el mismo lugar: no usa la cámara ni revisa choques).
+7. **Terminar:** Ctrl+C en la terminal del PC (apaga también el driver de la Orin); llevar el
+   brazo a reposo con el control y cortar los 24 V sosteniendo el brazo (paso 11).
+
+A mano, si hiciera falta, el driver de la Orin se arranca así (por SSH, `ssh milo@10.43.0.146`):
+
+```bash
+source /opt/ros/humble/setup.bash && source ~/andes_ws/install/setup.bash && export ROS_DOMAIN_ID=7 && ros2 launch andesrobot_arm brazo_real.launch.py parte:=driver seta_linea:=144 puerto:=/dev/ttyUSB0
+```
 
 Lo que ya está ajustado en `ros2_ws/src/andesrobot_arm/config/brazo_real.yaml`: la pose de
 arranque (`cero`), J1, J2 y J3 invertidas, la garra (abierta 297°, cerrada 0°). Lo que falta: la

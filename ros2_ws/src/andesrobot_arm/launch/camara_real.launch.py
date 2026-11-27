@@ -23,7 +23,10 @@ Uso (en el PC, con la cámara conectada y docker/udev/99-gemini.rules instalada)
                                       además detección de objetos EN VIVO (deteccion_node, YOLOE)
                                       y una ventana (rqt_image_view) con la imagen con las cajas y
                                       la distancia de cada objeto (/arm/deteccion/imagen).
-                                      clases:="can, cup" cambia lo que busca.
+                                      clases:=can,cup cambia lo que busca (sin espacios: robot.sh
+                                      corta en los espacios). modelo:=objetos (el del equipo,
+                                      modelos/objetos/best.pt, con sus propias clases) o la ruta
+                                      de otro .pt en vez de YOLOE.
 Guardar una imagen de cada canal (en otra terminal, ./robot.sh shell):
   ros2 run andesrobot_arm capturar_camara
 """
@@ -68,11 +71,15 @@ def generate_launch_description():
             'deteccion', default_value='false',
             description='true: deteccion_node (YOLOE en vivo) + ventana con las cajas'),
         DeclareLaunchArgument(
+            'modelo', default_value='/ros2_ws/modelos/yoloe-11s-seg.pt',
+            description='YOLOE (por defecto), "objetos" = el modelo del equipo, o una ruta'),
+        DeclareLaunchArgument(
             'clases', default_value=CLASES,
             description='lo que busca YOLOE, en inglés, separado por comas'),
         Node(
             package='andesrobot_arm', executable='deteccion_node', output='screen',
-            parameters=[{'clases': LaunchConfiguration('clases')}],
+            parameters=[{'clases': LaunchConfiguration('clases'),
+                         'modelo': LaunchConfiguration('modelo')}],
             condition=IfCondition(LaunchConfiguration('deteccion'))),
         Node(
             package='rqt_image_view', executable='rqt_image_view', output='screen',

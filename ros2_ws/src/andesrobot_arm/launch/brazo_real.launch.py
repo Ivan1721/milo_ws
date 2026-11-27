@@ -41,6 +41,10 @@ Uso:
   ros2 launch andesrobot_arm brazo_real.launch.py seta_linea:=144   # en la Jetson, con la seta
   ros2 launch andesrobot_arm brazo_real.launch.py parte:=driver seta_linea:=144   # Jetson
   ros2 launch andesrobot_arm brazo_real.launch.py parte:=pc sliders:=true         # PC
+  ros2 launch andesrobot_arm brazo_real.launch.py parte:=pc sliders:=true rutina:=true \
+      camara_usb:=true
+      (lo que abre ./robot.sh brazo-pc: MoveIt + sliders + grabar/reproducir + cámara con
+       detección y sus canales)
   (sin hardware: ros2 run andesrobot_arm arduino_falso, y puerto:=/tmp/arduino_falso)
 """
 import importlib.util
@@ -48,7 +52,8 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
@@ -111,6 +116,21 @@ def launch_setup(context):
     if LaunchConfiguration('sliders').perform(context) == 'true':
         nodos.append(Node(package='andesrobot_arm', executable='sliders_node', output='screen',
                           parameters=real))
+    if LaunchConfiguration('rutina').perform(context) == 'true':
+        # Ventana "grabar y reproducir": guardar poses llevadas a mano y repetirlas.
+        nodos.append(Node(package='andesrobot_arm', executable='rutina_node', output='screen',
+                          parameters=real))
+    if LaunchConfiguration('camara_usb').perform(context) == 'true':
+        # La cámara de la pinza conectada por USB a ESTE computador, con la profundidad alineada
+        # al color, la detección en vivo (deteccion_node con `modelo`) y una ventana
+        # (rqt_image_view) para ver los canales: el desplegable de arriba elige el tópico
+        # (/arm/deteccion/imagen, /gripper_camera/color/image_raw, .../depth/image_raw, ...).
+        nodos.append(IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(os.path.join(
+                get_package_share_directory('andesrobot_arm'), 'launch',
+                'camara_real.launch.py')),
+            launch_arguments={'alineada': 'true', 'deteccion': 'true',
+                              'modelo': LaunchConfiguration('modelo')}.items()))
     nodos.append(Node(
         package='rviz2', executable='rviz2', output='screen',
         arguments=['-d', os.path.join(get_package_share_directory('andesrobot_arm'), 'rviz',
@@ -137,6 +157,12 @@ def generate_launch_description():
         # Ver "Altura del brazo sin elevador" arriba: -0.047 = base del brazo a 0,88 m del suelo.
         DeclareLaunchArgument('lift', default_value='-0.047',
                               description='posición fija del lift [m] (altura - 0,927)'),
+        DeclareLaunchArgument('rutina', default_value='false',
+                              description='ventana para grabar y reproducir movimientos'),
+        DeclareLaunchArgument('camara_usb', default_value='false',
+                              description='cámara de la pinza por USB aquí + detección + canales'),
+        DeclareLaunchArgument('modelo', default_value='objetos',
+                              description='modelo de la detección ("objetos" = el del equipo)'),
         DeclareLaunchArgument('parte', default_value='todo',
                               description='todo | driver (Jetson) | pc (MoveIt + RViz)'),
         OpaqueFunction(function=launch_setup),

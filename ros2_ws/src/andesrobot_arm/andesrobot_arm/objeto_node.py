@@ -1,9 +1,12 @@
 """Nodo objeto_node: detecta un objeto (cup, bowl, bottle...) en vivo y lleva la pinza frente a él.
 
 Es la versión para objetos de manija_node. Usa el modelo YOLO de detección de objetos del
-reglamento (por defecto /ros2_ws/modelos/objetos/best.pt, 27 clases: bag, book, bottle, bowl,
-box, cup...; la lista sale en el log al cargarlo). El modelo solo da una caja por objeto, así que
-el punto 3D se saca de la profundidad (ver objetos.py):
+reglamento (por defecto /ros2_ws/modelos/objetos/best.pt; desde el 27-nov-2026 es el de 9 clases
+del equipo entrenado con fotos reales: bottle, bowl, redbull, card, bag, pringles, rubik, fork,
+spoon; los anteriores en modelos/objetos/anterior_*; el de 27
+clases, con cup, quedó en modelos/objetos/anterior_2026-11-09/; la lista sale en el log al
+cargarlo). OJO: con el de 9 clases el valor por defecto de `clase` (cup) no existe. El modelo
+solo da una caja por objeto, así que el punto 3D se saca de la profundidad (ver objetos.py):
 
   1. Cada 1/hz s corre el modelo sobre la imagen a color y elige la caja de la clase pedida
      (`clase`) con más confianza.

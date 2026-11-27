@@ -21,7 +21,10 @@ Publica:  /arm/deteccion/imagen   (sensor_msgs/Image rgb8) la imagen con las caj
                                   [px], distancia [m] y punto (x, y, z) [m] en el frame óptico de
                                   color (sin distancia si no hay profundidad en la caja)
 
-Parámetros: modelo, clases ("can, cup, bottle, ..."), confianza (0.25), hz (10).
+Parámetros: modelo (ruta .pt, u "objetos" = modelos/objetos/best.pt), clases ("can, cup, ..."),
+            confianza (0.25), hz (10), salida (/arm/deteccion: prefijo de los dos tópicos).
+Con un modelo de puntos (pose, como el de las asas de bolsa, modelos/bolsa/best.pt) la imagen
+también muestra los puntos de cada detección (los dibuja Ultralytics).
 
 Uso (cámara real, en el PC):  ./robot.sh camara alineada:=true deteccion:=true
      (alineada:=true: la profundidad en el punto de vista de la lente de color, así la distancia
@@ -54,6 +57,9 @@ class Deteccion(Node):
         self.declare_parameter('clases', CLASES)
         self.declare_parameter('confianza', 0.25)
         self.declare_parameter('hz', 10.0)
+        # Prefijo de lo que publica: con otro (por ejemplo /arm/asas) se pueden correr dos
+        # detecciones a la vez, cada una con su modelo, sin pisarse.
+        self.declare_parameter('salida', '/arm/deteccion')
         p = self.get_parameter
         self.confianza = p('confianza').value
         self.color = None
@@ -64,13 +70,16 @@ class Deteccion(Node):
         self.create_subscription(Image, '/gripper_camera/color/image_raw', self.on_color, s)
         self.create_subscription(Image, '/gripper_camera/depth/image_raw', self.on_prof, s)
         self.create_subscription(CameraInfo, '/gripper_camera/color/camera_info', self.on_k, s)
-        self.pub_imagen = self.create_publisher(Image, '/arm/deteccion/imagen', 1)
-        self.pub_objetos = self.create_publisher(String, '/arm/deteccion/objetos', 1)
+        salida = p('salida').value.rstrip('/')
+        self.pub_imagen = self.create_publisher(Image, salida + '/imagen', 1)
+        self.pub_objetos = self.create_publisher(String, salida + '/objetos', 1)
         self.create_timer(1.0 / p('hz').value, self.detectar)
         self.cuadros, self.t_aviso = 0, time.monotonic()
 
     def cargar_modelo(self, ruta, clases):
         from ultralytics import YOLO, YOLOE
+        if ruta == 'objetos':   # atajo: el modelo de objetos del equipo
+            ruta = '/ros2_ws/modelos/objetos/best.pt'
         if 'yoloe' in os.path.basename(ruta):
             # YOLOE busca mobileclip_blt.ts en la carpeta actual: se trabaja en la del modelo.
             os.chdir(os.path.dirname(ruta))
