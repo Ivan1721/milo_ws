@@ -220,6 +220,17 @@ Jetson y el PC»). En orden:
 7. **Terminar:** Ctrl+C en la terminal del PC (apaga también el driver de la Orin); llevar el
    brazo a reposo con el control y cortar los 24 V sosteniendo el brazo (paso 11).
 
+**Todo desde el PC, sin la Orin** (27-nov-2026, cuando los USB de la Orin dejaron de darle
+corriente al Arduino): enchufar el Arduino del brazo al PC y correr el mismo `./robot.sh brazo-pc`.
+Si encuentra el Arduino del brazo en el PC (chip CH340 con producto `USB2.0-Serial`, o
+`/dev/arduino_brazo` con la regla udev), corre todo aquí (`parte:=todo`) y no busca la Orin.
+**Sin la Orin no hay seta** (se lee por un pin de la Orin): alguien listo para cortar los 24 V.
+Para el punto 2 (calibrar) no hace falta el control de Xbox: llevar el brazo con los sliders a la
+pose de arranque y apretar **«Fijar cero aquí»** en la ventana de los sliders (pide confirmar;
+manda Z al Arduino por el servicio `/arm/fijar_cero` de `brazo_real_node`). Al enchufar el Arduino
+al PC se reinicia y cuenta 0 donde esté el brazo, así que conviene enchufarlo con el brazo ya en la
+pose de arranque, o fijar el cero después.
+
 A mano, si hiciera falta, el driver de la Orin se arranca así (por SSH, `ssh milo@10.43.0.146`):
 
 ```bash

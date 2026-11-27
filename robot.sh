@@ -118,11 +118,31 @@ case "$1" in
     #   2. Aquí: robot_state_publisher, MoveIt + RViz (marcador), los sliders, la ventana de
     #      grabar y reproducir, y, si la cámara de la pinza está enchufada a este PC, la cámara
     #      con la detección del modelo del equipo y una ventana para ver sus canales.
+    # Si el Arduino del brazo está enchufado a ESTE PC, usa ese y no la Orin (ver abajo).
     # Antes: el brazo en la pose de arranque y el Arduino en 0 (Y en el control; paso 9 de
     # firmware/README.md). Lo que venga después de "brazo-pc" va al launch (moveit:=false...).
     milo_up
     shift
     orin_driver=0
+    # ¿El Arduino del brazo está enchufado a ESTE PC? (Plan B del 27-nov-2026: los USB de la Orin
+    # dejaron de darle corriente.) Se reconoce por su chip: CH340 con producto "USB2.0-Serial"
+    # (el de la hoverboard dice "USB Serial"). Si está aquí, todo corre en este PC, SIN la seta
+    # (la seta se lee por un pin de la Orin): alguien tiene que estar listo para cortar los 24 V.
+    arduino_local=""
+    [ -e "$ARDUINO" ] && arduino_local="$ARDUINO"
+    for d in /dev/ttyUSB* /dev/ttyACM*; do
+      [ -n "$arduino_local" ] && break
+      [ -e "$d" ] || continue
+      udevadm info -q property -n "$d" 2>/dev/null | grep -q '^ID_MODEL=USB2.0-Serial$' && arduino_local="$d"
+    done
+    if [ -n "$arduino_local" ]; then
+      echo "[milo] Arduino del brazo en ESTE PC ($arduino_local): todo corre aquí, SIN seta de emergencia."
+      camara_usb=false
+      camara_dev="$(lsusb -d 2bc5:0614 | sed -E 's#^Bus ([0-9]+) Device ([0-9]+).*#/dev/bus/usb/\1/\2#')"
+      if [ -n "$camara_dev" ] && [ -w "$camara_dev" ]; then camara_usb=true
+      else echo "[milo] La cámara de la pinza no está enchufada a este PC: sigo sin cámara."; fi
+      exec $DC exec ros bash -ic "ros2 launch andesrobot_arm brazo_real.launch.py parte:=todo puerto:=$arduino_local rviz:=$RVIZ sliders:=true rutina:=true camara_usb:=$camara_usb $*"
+    fi
     if ping -c 1 -W 1 "$ORIN" >/dev/null 2>&1; then
       # Una sola línea de bash en la Orin: si nuestro driver ya corre, nada; si el puerto lo tiene
       # otro programa, avisar; si no, arrancarlo desacoplado (setsid nohup) con log.

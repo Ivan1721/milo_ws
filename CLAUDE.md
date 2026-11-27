@@ -450,6 +450,14 @@ with `rpy="0 0 π"` at base-level joints/visuals; a new child of `base_link` lik
   (0.15 rad/s, slider 2-15 °/s), files in gitignored ros2_ws/rutinas/*.yaml. Tested with
   arduino_falso (5 points: 2 trajectories + close 0° / open 297°, ends at last point); not on the
   real arm, nor brazo-pc's SSH start (Orin cable was unplugged).
+  Same day the Orin's USB stopped powering the Arduino (no LED; kernel "Cannot enable. Maybe the
+  USB cable is bad?" / error -32 once, then nothing even after a reboot; the same cable+Arduino
+  answer `PONG brazo_mega v5` on the PC), so `brazo-pc` first looks for the arm Arduino on THIS
+  PC (`$ARDUINO` or a tty whose udev ID_MODEL is `USB2.0-Serial`) and, if found, runs
+  `parte:=todo` locally with no e-stop and skips the Orin. Calibration without the Xbox pad:
+  `brazo_real_node` serves `/arm/fijar_cero` (std_srvs/Trigger -> `Z`, refused while moving) and
+  the sliders window has a "Fijar cero aquí" button (asks to confirm); tested with arduino_falso.
+  The Orin's code was backed up to ~/respaldo_jetson/ (632 MB, outside the repo).
 - Live detection (2026-11-26): `deteccion_node` (math in `deteccion.py`, tested) runs YOLOE
   (`modelos/yoloe-11s-seg.pt`, open vocabulary, `clases` param; any other .pt uses its own
   classes) at 10 Hz on the real camera, publishes `/arm/deteccion/imagen` (boxes + distance) and

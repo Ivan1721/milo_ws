@@ -46,6 +46,7 @@ from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile
 from sensor_msgs.msg import JointState
 from std_msgs.msg import String
+from std_srvs.srv import Trigger
 from trajectory_msgs.msg import JointTrajectoryPoint
 
 from andesrobot_arm.sliders import (
@@ -90,6 +91,8 @@ class Sliders(Node):
                                   '/arm_controller/follow_joint_trajectory')
         self.garra = ActionClient(self, FollowJointTrajectory,
                                   '/gripper_controller/follow_joint_trajectory')
+        # Solo el brazo real (brazo_real_node) ofrece /arm/fijar_cero; en Gazebo no existe.
+        self.cliente_cero = self.create_client(Trigger, '/arm/fijar_cero')
 
     # --- lo que llega ---
     def al_leer(self, msg):
@@ -176,6 +179,16 @@ class Sliders(Node):
             self.meta_activa.cancel_goal_async()
             self.poner_estado('Parando...')
 
+    # --- cero ---
+    def fijar_cero(self):
+        """Pide a brazo_real_node que la pose actual sea la pose de arranque (Z)."""
+        if not self.cliente_cero.service_is_ready():
+            self.poner_estado('No hay /arm/fijar_cero (solo existe con el brazo real)', error=True)
+            return
+        futuro = self.cliente_cero.call_async(Trigger.Request())
+        futuro.add_done_callback(lambda f: self.poner_estado(
+            f.result().message, error=not f.result().success))
+
     # --- garra ---
     def mover_garra(self, apertura):
         if not self.garra.server_is_ready():
@@ -218,6 +231,8 @@ class Ventana:
         tk.Button(botones, text='Leer posición', command=self.sincronizar).pack(side='left',
                                                                                 padx=2)
         tk.Button(botones, text='Todo a cero', command=self.a_cero).pack(side='left', padx=2)
+        tk.Button(botones, text='Fijar cero aquí',
+                  command=self.fijar_cero).pack(side='left', padx=2)
         if nodo.con_garra:
             tk.Button(botones, text='Abrir garra',
                       command=lambda: self.garra_a(DEDO_ABIERTA)).pack(side='left', padx=2)
@@ -296,6 +311,17 @@ class Ventana:
         for n in ARTICULACIONES:
             self.filas[n][0].set(0)
         self.nodo.mover(self.metas_brazo())
+
+    def fijar_cero(self):
+        """Con el brazo real QUIETO en la pose de arranque (paso 9 de firmware/README.md): desde
+        ahora el Arduino cuenta 0 ahí. Pide confirmación porque si el brazo no está en esa pose,
+        RViz y MoveIt quedan corridos."""
+        from tkinter import messagebox
+        if messagebox.askyesno('Fijar cero', '¿El brazo real está QUIETO en la pose de arranque '
+                               '(estirado al frente, muñeca arriba)?\n\nDesde ahora esa pose '
+                               'será el cero del Arduino.'):
+            self.nodo.fijar_cero()
+            self.raiz.after(500, self.sincronizar)
 
     def garra_a(self, q):
         self.filas[DEDOS[0]][0].set(q * 1000)

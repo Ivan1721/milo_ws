@@ -23,6 +23,10 @@ en seco), corta la trayectoria en curso y rechaza las nuevas (brazo y garra) has
 Publica su estado en /arm/seta (std_msgs/Bool, true = presionada). Con -1 (por defecto: en el PC
 de desarrollo y en Docker no hay ese pin) está desactivada y lo avisa al arrancar.
 
+Fijar el cero (desde el 27-nov-2026): el servicio /arm/fijar_cero (std_srvs/Trigger) manda Z al
+Arduino, con el brazo quieto: la pose actual pasa a ser la pose de arranque (lo mismo que la Y del
+control de Xbox). Lo usa el botón "Fijar cero aquí" de los sliders, para calibrar sin el control.
+
 El lift (vertical_lift_joint): el Arduino del brazo no lo mueve. Se publica fijo en `lift_fijo` y
 se rechaza una trayectoria que lo mueva más de `tolerancia_lift` (si no, el brazo llegaría a otra
 parte que la planificada).
@@ -57,6 +61,7 @@ from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Bool
+from std_srvs.srv import Trigger
 
 from andesrobot_arm.brazo_real import (
     ARTICULACIONES, DEDO_ABIERTA, DEDOS, LIFT, Enlace, cmd_ir, dedo_a_servo, interpolar,
@@ -134,6 +139,9 @@ class BrazoReal(Node):
         ActionServer(self, FollowJointTrajectory, '/gripper_controller/follow_joint_trajectory',
                      execute_callback=self.ejecutar_garra,
                      cancel_callback=lambda _: CancelResponse.ACCEPT, callback_group=grupo)
+        # Fijar el cero aquí (lo mismo que la Y del control de Xbox): con el brazo quieto en la
+        # pose de arranque, el Arduino pasa a contar 0 pasos en todas las articulaciones (Z).
+        self.create_service(Trigger, '/arm/fijar_cero', self.fijar_cero, callback_group=grupo)
         # Seta de emergencia (ver arriba).
         self.pub_seta = self.create_publisher(Bool, '/arm/seta', 10)
         self.seta = None
@@ -168,6 +176,24 @@ class BrazoReal(Node):
         msg = Bool()
         msg.data = presionada
         self.pub_seta.publish(msg)
+
+    # --- fijar el cero ---
+    def fijar_cero(self, _pedido, respuesta):
+        """Servicio /arm/fijar_cero: Z en el Arduino. Solo con el brazo quieto y sin trayectoria
+        en curso; después /joint_states muestra la pose `cero` de brazo_real.yaml."""
+        if self.ocupado.locked() or self.moviendo:
+            respuesta.success = False
+            respuesta.message = 'El brazo se está moviendo: PARAR primero'
+        else:
+            r = self.preguntar('Z')
+            respuesta.success = r.startswith('OK Z')
+            respuesta.message = ('Cero fijado: la pose actual es la pose de arranque' if
+                                 respuesta.success else f'El Arduino contestó: {r}')
+        if respuesta.success:
+            self.get_logger().warn(respuesta.message)
+        else:
+            self.get_logger().error(respuesta.message)
+        return respuesta
 
     # --- puerto serie ---
     def preguntar(self, comando, espera=0.3):
